@@ -13,7 +13,11 @@ function floatTo16BitPCM(float32Array: Float32Array) {
 
   for (let index = 0; index < float32Array.length; index += 1) {
     const sample = Math.max(-1, Math.min(1, float32Array[index]));
-    view.setInt16(index * 2, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+    view.setInt16(
+      index * 2,
+      sample < 0 ? sample * 0x8000 : sample * 0x7fff,
+      true,
+    );
   }
 
   return buffer;
@@ -38,12 +42,20 @@ function downsampleTo16k(input: Float32Array, inputSampleRate: number) {
     let sum = 0;
     let count = 0;
 
-    for (let index = inputIndex; index < nextInputIndex && index < input.length; index += 1) {
+    for (
+      let index = inputIndex;
+      index < nextInputIndex && index < input.length;
+      index += 1
+    ) {
       sum += input[index];
       count += 1;
     }
 
-    output[outputIndex] = count > 0 ? sum / count : input[Math.min(inputIndex, input.length - 1)] ?? 0;
+    output[outputIndex] =
+      count > 0
+        ? sum / count
+        : input[Math.min(inputIndex, input.length - 1)] ?? 0;
+
     outputIndex += 1;
     inputIndex = nextInputIndex;
   }
@@ -69,7 +81,10 @@ export async function startMicrophoneStream(
 ): Promise<AudioStreamer> {
   const stream = existingStream ?? (await requestMicrophoneStream());
 
-  const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  const AudioContextCtor =
+    window.AudioContext ||
+    (window as typeof window & { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
 
   if (!AudioContextCtor) {
     throw new Error("AudioContext is not supported in this browser.");
@@ -78,25 +93,6 @@ export async function startMicrophoneStream(
   const audioContext = new AudioContextCtor({ sampleRate: 16000 });
   const source = audioContext.createMediaStreamSource(stream);
   const processor = audioContext.createScriptProcessor(4096, 1, 1);
-  const recordedChunks: Blob[] = [];
-  const mediaRecorder =
-    typeof MediaRecorder !== "undefined"
-      ? new MediaRecorder(
-          stream,
-          MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-            ? { mimeType: "audio/webm;codecs=opus" }
-            : undefined,
-        )
-      : null;
-
-  if (mediaRecorder) {
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        recordedChunks.push(event.data);
-      }
-    };
-    mediaRecorder.start(250);
-  }
 
   processor.onaudioprocess = (event) => {
     const channelData = event.inputBuffer.getChannelData(0);
@@ -131,52 +127,35 @@ export async function startMicrophoneStream(
 
   return {
     stop: async () => {
-      const recordingBlob = await new Promise<Blob | null>((resolve) => {
-        if (!mediaRecorder) {
-          resolve(null);
-          return;
-        }
-
-        mediaRecorder.onstop = () => {
-          resolve(
-            recordedChunks.length > 0
-              ? new Blob(recordedChunks, {
-                  type: mediaRecorder.mimeType || "audio/webm",
-                })
-              : null,
-          );
-        };
-
-        if (mediaRecorder.state !== "inactive") {
-          mediaRecorder.stop();
-        } else {
-          resolve(null);
-        }
-      });
-
       processor.disconnect();
       source.disconnect();
       stream.getTracks().forEach((track) => track.stop());
       await audioContext.close();
-      return recordingBlob;
+      return null;
     },
   };
 }
 
 export class PcmPlayer {
   private readonly audioContext: AudioContext;
+  private readonly recordingDestination: MediaStreamAudioDestinationNode;
 
   private nextTime = 0;
   private activeSources = new Set<AudioBufferSourceNode>();
 
   constructor() {
     this.audioContext = new AudioContext({ sampleRate: 24000 });
+    this.recordingDestination = this.audioContext.createMediaStreamDestination();
   }
 
   async resume() {
     if (this.audioContext.state !== "running") {
       await this.audioContext.resume();
     }
+  }
+
+  getRecordingStream() {
+    return this.recordingDestination.stream;
   }
 
   playChunk(chunk: ArrayBuffer) {
@@ -190,7 +169,10 @@ export class PcmPlayer {
 
     const source = this.audioContext.createBufferSource();
     source.buffer = buffer;
+
     source.connect(this.audioContext.destination);
+    source.connect(this.recordingDestination);
+
     this.activeSources.add(source);
     source.onended = () => {
       this.activeSources.delete(source);
@@ -209,6 +191,7 @@ export class PcmPlayer {
         // Ignore sources that already ended.
       }
     }
+
     this.activeSources.clear();
     this.nextTime = this.audioContext.currentTime;
   }
