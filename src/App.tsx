@@ -440,8 +440,6 @@ export default function App() {
   const studentTurnAudioChunksRef = useRef<Blob[]>([]);
   const isFinalizingStudentRef = useRef(false);
 
-  const audioChunkCountRef = useRef(0);
-  const audioBytesSentRef = useRef(0);
   const recordedAudioUrlRef = useRef<string | null>(null);
   const shouldSendAudioRef = useRef(true);
 
@@ -476,7 +474,9 @@ export default function App() {
     !isDiscussing &&
     !isPaused &&
     !isEvaluating &&
-    transcript.some((entry) => entry.role === "student" || entry.role === "patient") &&
+    transcript.some(
+      (entry) => entry.role === "student" || entry.role === "patient",
+    ) &&
     Boolean(parsedCase.gradingGrid);
 
   const scoreState = parseScore(evaluation?.score);
@@ -568,13 +568,13 @@ export default function App() {
     try {
       mixed.micSource.disconnect();
     } catch {
-      // Ignore.
+      //
     }
 
     try {
       mixed.patientSource.disconnect();
     } catch {
-      // Ignore.
+      //
     }
 
     await mixed.context.close();
@@ -599,90 +599,88 @@ export default function App() {
   }
 
   async function finalizeStudentDraft() {
-  if (isFinalizingStudentRef.current) {
-    return;
-  }
+    if (isFinalizingStudentRef.current) {
+      return;
+    }
 
-  const fallbackText = inputTranscriptRef.current.trim();
-  const audioChunks = [...studentTurnAudioChunksRef.current];
+    const fallbackText = inputTranscriptRef.current.trim();
+    const audioChunks = [...studentTurnAudioChunksRef.current];
 
-  if (!fallbackText && audioChunks.length === 0) {
+    if (!fallbackText && audioChunks.length === 0) {
+      setShowStudentDraftIndicator(false);
+      return;
+    }
+
+    isFinalizingStudentRef.current = true;
+
+    inputTranscriptRef.current = "";
+    studentTurnAudioChunksRef.current = [];
     setShowStudentDraftIndicator(false);
-    return;
-  }
 
-  isFinalizingStudentRef.current = true;
-  setShowStudentDraftIndicator(false);
+    const entryId = crypto.randomUUID();
 
-  inputTranscriptRef.current = "";
-  studentTurnAudioChunksRef.current = [];
+    setTranscript((current) => [
+      ...current,
+      {
+        id: entryId,
+        role: "student",
+        text: fallbackText || "…",
+        timestamp: createTimestamp(),
+      },
+    ]);
 
-  const entryId = crypto.randomUUID();
+    try {
+      if (audioChunks.length > 0) {
+        const audioBlob = new Blob(audioChunks, {
+          type: "audio/pcm;rate=16000",
+        });
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        const base64Audio = uint8ToBase64(new Uint8Array(arrayBuffer));
 
-  setTranscript((current) => [
-    ...current,
-    {
-      id: entryId,
-      role: "student",
-      text: fallbackText || "Transcription en cours...",
-      timestamp: createTimestamp(),
-    },
-  ]);
+        const response = await fetch("/api/transcribe-turn", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            audioBase64: base64Audio,
+            mimeType: "audio/pcm;rate=16000",
+          }),
+        });
 
-  try {
-    if (audioChunks.length > 0) {
-      const audioBlob = new Blob(audioChunks, {
-        type: "audio/pcm;rate=16000",
-      });
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      const base64Audio = uint8ToBase64(new Uint8Array(arrayBuffer));
+        if (response.ok) {
+          const result = (await response.json()) as { text?: string };
+          const improvedText = result.text?.trim();
 
-      const response = await fetch("/api/transcribe-turn", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          audioBase64: base64Audio,
-          mimeType: "audio/pcm;rate=16000",
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(await response.text());
+          if (improvedText) {
+            setTranscript((current) =>
+              upsertTranscriptEntryById(
+                current,
+                entryId,
+                "student",
+                improvedText,
+              ),
+            );
+            return;
+          }
+        }
       }
 
-      const result = (await response.json()) as { text?: string };
-      const improvedText = result.text?.trim();
-
-      setTranscript((current) =>
-        upsertTranscriptEntryById(
-          current,
-          entryId,
-          "student",
-          improvedText && improvedText.length > 0
-            ? improvedText
-            : fallbackText || "[inaudible]",
-        ),
-      );
-    } else if (fallbackText) {
-      setTranscript((current) =>
-        upsertTranscriptEntryById(current, entryId, "student", fallbackText),
-      );
+      if (fallbackText) {
+        setTranscript((current) =>
+          upsertTranscriptEntryById(current, entryId, "student", fallbackText),
+        );
+      }
+    } catch {
+      if (fallbackText) {
+        setTranscript((current) =>
+          upsertTranscriptEntryById(current, entryId, "student", fallbackText),
+        );
+      }
+    } finally {
+      isFinalizingStudentRef.current = false;
     }
-  } catch {
-    setTranscript((current) =>
-      upsertTranscriptEntryById(
-        current,
-        entryId,
-        "student",
-        fallbackText || "[inaudible]",
-      ),
-    );
-  } finally {
-    isFinalizingStudentRef.current = false;
   }
-}
 
   async function togglePauseDiscussion() {
     if (!isDiscussing && !isPaused) {
@@ -729,8 +727,6 @@ export default function App() {
       setMicPeak(0);
       setIsPaused(false);
 
-      audioChunkCountRef.current = 0;
-      audioBytesSentRef.current = 0;
       shouldSendAudioRef.current = true;
       inputTranscriptRef.current = "";
       outputTranscriptRef.current = "";
@@ -851,7 +847,7 @@ export default function App() {
               liveMessage.serverContent?.outputTranscription;
 
             if (outputTranscription?.text) {
-              if (studentTurnAudioChunksRef.current.length > 0) {
+              if (inputTranscriptRef.current.trim()) {
                 await finalizeStudentDraft();
               }
 
@@ -884,7 +880,7 @@ export default function App() {
             );
 
             if (hasAudioParts) {
-              if (studentTurnAudioChunksRef.current.length > 0) {
+              if (inputTranscriptRef.current.trim()) {
                 await finalizeStudentDraft();
               }
 
@@ -924,7 +920,17 @@ export default function App() {
               setStatus("Réponse du patient générée");
             }
 
-            if (serverContent?.waitingForInput || serverContent?.turnComplete) {
+            if (serverContent?.waitingForInput) {
+              shouldSendAudioRef.current = true;
+              await finalizeStudentDraft();
+              outputTranscriptRef.current = "";
+              currentPatientEntryIdRef.current = null;
+              setShowStudentDraftIndicator(false);
+              setConversationPhase("listening");
+              setStatus("En attente de l'étudiant");
+            }
+
+            if (serverContent?.turnComplete) {
               shouldSendAudioRef.current = true;
               await finalizeStudentDraft();
               outputTranscriptRef.current = "";
@@ -965,19 +971,12 @@ export default function App() {
           const uint8 = new Uint8Array(arrayBuffer);
           const base64Audio = uint8ToBase64(uint8);
 
-          audioChunkCountRef.current += 1;
-          audioBytesSentRef.current += chunk.size;
-
           session.sendRealtimeInput?.({
             audio: {
               data: base64Audio,
               mimeType: "audio/pcm;rate=16000",
             },
           });
-
-          setConversationPhase("student-speaking");
-          setStatus("Étudiant en train de parler");
-          setShowStudentDraftIndicator(true);
         },
         (sample: MicrophoneLevelSample) => {
           setMicLevel(sample.rms);

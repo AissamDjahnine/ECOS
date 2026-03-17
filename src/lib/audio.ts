@@ -94,6 +94,26 @@ export async function startMicrophoneStream(
   const source = audioContext.createMediaStreamSource(stream);
   const processor = audioContext.createScriptProcessor(4096, 1, 1);
 
+  const recordedChunks: Blob[] = [];
+  const mediaRecorder =
+    typeof MediaRecorder !== "undefined"
+      ? new MediaRecorder(
+          stream,
+          MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+            ? { mimeType: "audio/webm;codecs=opus" }
+            : undefined,
+        )
+      : null;
+
+  if (mediaRecorder) {
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        recordedChunks.push(event.data);
+      }
+    };
+    mediaRecorder.start(250);
+  }
+
   processor.onaudioprocess = (event) => {
     const channelData = event.inputBuffer.getChannelData(0);
     let sumSquares = 0;
@@ -127,11 +147,35 @@ export async function startMicrophoneStream(
 
   return {
     stop: async () => {
+      const recordingBlob = await new Promise<Blob | null>((resolve) => {
+        if (!mediaRecorder) {
+          resolve(null);
+          return;
+        }
+
+        mediaRecorder.onstop = () => {
+          resolve(
+            recordedChunks.length > 0
+              ? new Blob(recordedChunks, {
+                  type: mediaRecorder.mimeType || "audio/webm",
+                })
+              : null,
+          );
+        };
+
+        if (mediaRecorder.state !== "inactive") {
+          mediaRecorder.stop();
+        } else {
+          resolve(null);
+        }
+      });
+
       processor.disconnect();
       source.disconnect();
       stream.getTracks().forEach((track) => track.stop());
       await audioContext.close();
-      return null;
+
+      return recordingBlob;
     },
   };
 }
