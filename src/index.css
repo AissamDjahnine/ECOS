@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #16323b;
+  background:
+    radial-gradient(circle at top left, rgba(119, 182, 183, 0.2), transparent 28%),
+    radial-gradient(circle at top right, rgba(80, 128, 173, 0.14), transparent 24%),
+    linear-gradient(180deg, #eff8f8 0%, #f9fcfc 45%, #edf5f7 100%);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
