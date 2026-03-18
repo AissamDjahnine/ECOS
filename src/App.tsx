@@ -184,14 +184,14 @@ function appendTranscriptChunk(currentText: string, incomingChunk: string) {
     "]",
     "}",
     "'",
-    "’",
+    "'",
   ]);
 
   if (noLeadingSpaceBefore.has(chunk)) {
     return `${current}${chunk}`;
   }
 
-  if (current.endsWith("'") || current.endsWith("’")) {
+  if (current.endsWith("'") || current.endsWith("'")) {
     return `${current}${chunk}`;
   }
 
@@ -396,6 +396,112 @@ function buildPdfDocument(
       </body>
     </html>
   `;
+}
+
+// Icon Components
+function MicIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <line x1="12" x2="12" y1="19" y2="22" />
+    </svg>
+  );
+}
+
+function PlayIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="5 3 19 12 5 21 5 3" />
+    </svg>
+  );
+}
+
+function PauseIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="4" height="16" x="6" y="4" />
+      <rect width="4" height="16" x="14" y="4" />
+    </svg>
+  );
+}
+
+function StopIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="14" height="14" x="5" y="5" rx="2" />
+    </svg>
+  );
+}
+
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
+function FileTextIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" x2="8" y1="13" y2="13" />
+      <line x1="16" x2="8" y1="17" y2="17" />
+      <line x1="10" x2="8" y1="9" y2="9" />
+    </svg>
+  );
+}
+
+function SunIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2" />
+      <path d="M12 20v2" />
+      <path d="m4.93 4.93 1.41 1.41" />
+      <path d="m17.66 17.66 1.41 1.41" />
+      <path d="M2 12h2" />
+      <path d="M20 12h2" />
+      <path d="m6.34 17.66-1.41 1.41" />
+      <path d="m19.07 4.93-1.41 1.41" />
+    </svg>
+  );
+}
+
+function MoonIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+    </svg>
+  );
+}
+
+function ClockIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+function UserIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+
+function ActivityIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" />
+    </svg>
+  );
 }
 
 export default function App() {
@@ -1187,649 +1293,612 @@ export default function App() {
     };
   }, []);
 
-  const shellClass = darkMode
-    ? "min-h-screen bg-slate-950 text-slate-100"
-    : "min-h-screen bg-slate-100 text-slate-900";
+  // Theme classes
+  const theme = darkMode ? "dark" : "light";
+  const bgClass = darkMode
+    ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950"
+    : "bg-gradient-to-br from-slate-50 via-white to-slate-100";
+  const textClass = darkMode ? "text-slate-100" : "text-slate-900";
+  const cardBg = darkMode
+    ? "bg-slate-900/80 border-slate-700/50"
+    : "bg-white/90 border-slate-200/60";
+  const subCardBg = darkMode
+    ? "bg-slate-800/60 border-slate-700/40"
+    : "bg-slate-50/80 border-slate-200/50";
+  const inputBg = darkMode
+    ? "bg-slate-950 border-slate-700 text-slate-100 placeholder-slate-500"
+    : "bg-white border-slate-200 text-slate-900 placeholder-slate-400";
+  const mutedText = darkMode ? "text-slate-400" : "text-slate-500";
+  const subtleBg = darkMode ? "bg-slate-800/40" : "bg-slate-100/60";
 
-  const cardClass = darkMode
-    ? "rounded-[32px] border border-slate-800 bg-slate-900/90 shadow-xl"
-    : "rounded-[32px] border border-slate-200 bg-white/90 shadow-lg";
+  // Status indicator
+  const getStatusColor = () => {
+    switch (conversationPhase) {
+      case "idle":
+        return "bg-slate-400";
+      case "listening":
+        return "bg-emerald-500";
+      case "student-speaking":
+        return "bg-blue-500";
+      case "patient-speaking":
+        return "bg-primary-500";
+      case "processing":
+        return "bg-amber-500";
+      case "paused":
+        return "bg-rose-500";
+      default:
+        return "bg-slate-400";
+    }
+  };
 
-  const subCardClass = darkMode
-    ? "rounded-[28px] border border-slate-800 bg-slate-950/60"
-    : "rounded-[28px] border border-slate-200 bg-slate-50";
-
-  const actionButtonBase =
-    "inline-flex h-[60px] w-[170px] shrink-0 items-center justify-center rounded-full px-5 text-center text-sm font-semibold shadow-md transition-all duration-200 disabled:cursor-not-allowed";
-
-  const startButtonClass = canStart
-    ? "bg-emerald-600 text-white hover:bg-emerald-700"
-    : "bg-slate-300 text-slate-500";
-
-  const pauseButtonClass = canPause || isPaused
-    ? "bg-amber-500 text-white hover:bg-amber-600"
-    : "bg-slate-300 text-slate-500";
-
-  const endButtonClass = canEnd
-    ? "bg-slate-800 text-white hover:bg-slate-900"
-    : "bg-slate-300 text-slate-500";
-
-  const judgeButtonClass = canJudge
-    ? "bg-blue-600 text-white hover:bg-blue-700"
-    : "bg-slate-200 text-slate-400";
+  const getStatusLabel = () => {
+    switch (conversationPhase) {
+      case "idle":
+        return "Inactif";
+      case "listening":
+        return "En écoute";
+      case "student-speaking":
+        return "Étudiant";
+      case "patient-speaking":
+        return "Patient";
+      case "processing":
+        return "Traitement";
+      case "paused":
+        return "En pause";
+      default:
+        return "Inactif";
+    }
+  };
 
   return (
-    <main className={shellClass}>
-      <div className="mx-auto max-w-[1500px] px-4 py-6 md:px-8">
-        <div className="flex flex-col gap-6">
-          <header className={`${cardClass} p-6 md:p-8`}>
-            <div className="flex items-start justify-between gap-6">
-              <div className="min-w-0">
-                <div className="mb-4 text-sm font-bold uppercase tracking-[0.32em] text-blue-700">
-                  ECOS-AI
-                </div>
-                <h1 className="text-3xl font-black leading-tight md:text-6xl">
-                  Simulation clinique pilotée par Gemini Live
-                </h1>
-                <p
-                  className={`mt-4 max-w-4xl text-sm md:text-xl ${
-                    darkMode ? "text-slate-300" : "text-slate-600"
-                  }`}
-                >
-                  Setup dynamique, discussion vocale patient simulé, transcription
-                  temps réel et évaluation structurée.
-                </p>
+    <div className={`min-h-screen ${bgClass} ${textClass} transition-colors duration-300`}>
+      {/* Header */}
+      <header className="sticky top-0 z-40 backdrop-blur-xl border-b border-slate-200/20 dark:border-slate-700/20">
+        <div className="max-w-[1600px] mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/20">
+                <ActivityIcon className="w-5 h-5 text-white" />
               </div>
-
-              <div className="flex shrink-0 items-start gap-4">
-                {patientInfo.length > 0 && (
-                  <div
-                    className={`min-w-[210px] rounded-[26px] border px-5 py-4 ${
-                      darkMode
-                        ? "border-slate-700 bg-slate-800"
-                        : "border-blue-100 bg-blue-50"
-                    }`}
-                  >
-                    <div className="text-sm font-bold uppercase tracking-[0.24em] text-blue-800">
-                      {parsedCase.patientName || "Patient"}
-                    </div>
-                    <div
-                      className={`mt-2 text-sm ${
-                        darkMode ? "text-slate-300" : "text-slate-600"
-                      }`}
-                    >
-                      {parsedCase.patientAge || "Âge non détecté"}
-                    </div>
-                    {patientInfo.find((item) => item.label === "Profession") && (
-                      <div
-                        className={`mt-2 text-sm ${
-                          darkMode ? "text-slate-400" : "text-slate-500"
-                        }`}
-                      >
-                        {
-                          patientInfo.find((item) => item.label === "Profession")
-                            ?.value
-                        }
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => setDarkMode((current) => !current)}
-                  className={`inline-flex h-14 w-14 items-center justify-center rounded-full border text-2xl shadow-md ${
-                    darkMode
-                      ? "border-slate-700 bg-slate-800"
-                      : "border-slate-200 bg-white"
-                  }`}
-                  aria-label="Basculer le mode sombre"
-                >
-                  {darkMode ? "☀️" : "☾"}
-                </button>
+              <div>
+                <h1 className="text-xl font-bold tracking-tight">ECOS-AI</h1>
+                <p className={`text-xs ${mutedText}`}>Simulateur d'examen clinique</p>
               </div>
             </div>
-          </header>
 
-          <section className="grid gap-6 xl:grid-cols-[440px_minmax(0,1fr)]">
-            <div className="space-y-6">
-              <div className={`${cardClass} p-5`}>
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <h2 className="text-2xl font-bold">Setup</h2>
-                  <button
-                    type="button"
-                    onClick={handleParse}
-                    className="rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-md hover:bg-blue-700"
-                  >
-                    Analyser & préparer
-                  </button>
+            <div className="flex items-center gap-3">
+              {patientInfo.length > 0 && (
+                <div className={`flex items-center gap-3 px-4 py-2 rounded-xl ${subCardBg} border`}>
+                  <UserIcon className={`w-4 h-4 ${mutedText}`} />
+                  <div className="text-sm">
+                    <span className="font-semibold">{parsedCase.patientName || "Patient"}</span>
+                    <span className={`${mutedText} ml-2`}>{parsedCase.patientAge}</span>
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={() => setDarkMode(!darkMode)}
+                className={`p-2.5 rounded-xl border transition-all duration-200 ${
+                  darkMode
+                    ? "border-slate-700 bg-slate-800 hover:bg-slate-700"
+                    : "border-slate-200 bg-white hover:bg-slate-50"
+                }`}
+                aria-label="Basculer le mode sombre"
+              >
+                {darkMode ? (
+                  <SunIcon className="w-5 h-5 text-amber-400" />
+                ) : (
+                  <MoonIcon className="w-5 h-5 text-slate-600" />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-[1600px] mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 xl:grid-cols-[400px_1fr] gap-6">
+          {/* Left Sidebar */}
+          <div className="space-y-6">
+            {/* Case Input */}
+            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <FileTextIcon className="w-5 h-5 text-primary-500" />
+                  Configuration du cas
+                </h2>
+                <button
+                  onClick={handleParse}
+                  className="px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors shadow-sm shadow-primary-500/20"
+                >
+                  Analyser
+                </button>
+              </div>
+
+              <textarea
+                value={rawInput}
+                onChange={(e) => setRawInput(e.target.value)}
+                placeholder="Collez ici la trame du patient et la grille de correction..."
+                className={`w-full h-64 p-4 rounded-xl border resize-none text-sm leading-relaxed transition-all duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 ${inputBg}`}
+              />
+
+              {parseError ? (
+                <div className="mt-3 p-3 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 text-sm">
+                  {parseError}
+                </div>
+              ) : (
+                <p className={`mt-3 text-xs ${mutedText}`}>
+                  Le parser détecte automatiquement les sections patient et grille.
+                </p>
+              )}
+            </div>
+
+            {/* Patient Info */}
+            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <UserIcon className="w-5 h-5 text-primary-500" />
+                Informations patient
+              </h2>
+
+              {patientInfo.length === 0 ? (
+                <div className={`p-6 rounded-xl ${subtleBg} text-center`}>
+                  <p className={`text-sm ${mutedText}`}>
+                    Les informations patient apparaîtront ici après le parsing.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {patientInfo.map((item) => (
+                    <div
+                      key={`${item.label}-${item.value}`}
+                      className={`p-3 rounded-xl ${subCardBg} border`}
+                    >
+                      <div className={`text-xs font-medium uppercase tracking-wider ${mutedText} mb-1`}>
+                        {item.label}
+                      </div>
+                      <div className="text-sm font-medium">{item.value}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Main Panel */}
+          <div className="space-y-6">
+            {/* Session Controls */}
+            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className={`w-3 h-3 rounded-full ${getStatusColor()} ${conversationPhase !== "idle" ? "animate-pulse" : ""}`} />
+                  <div>
+                    <h2 className="text-lg font-semibold">Session de discussion</h2>
+                    <p className={`text-sm ${mutedText}`}>{status}</p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${subtleBg}`}>
+                    {getStatusLabel()}
+                  </span>
                 </div>
 
-                <textarea
-                  value={rawInput}
-                  onChange={(event) => setRawInput(event.target.value)}
-                  className={`min-h-[300px] w-full resize-none rounded-[28px] border p-4 text-sm outline-none transition ${
-                    darkMode
-                      ? "border-slate-700 bg-slate-950 text-slate-100"
-                      : "border-slate-200 bg-slate-50 text-slate-900"
-                  }`}
-                  placeholder="Collez ici la trame du patient et la grille de correction"
-                />
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={startDiscussion}
+                    disabled={!canStart}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+                      canStart
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20"
+                        : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
+                    }`}
+                  >
+                    <PlayIcon className="w-4 h-4" />
+                    {isConnecting ? "Connexion..." : "Démarrer"}
+                  </button>
 
-                <div
-                  className={`mt-4 text-sm ${
-                    parseError
-                      ? "text-rose-500"
-                      : darkMode
-                        ? "text-slate-400"
-                        : "text-slate-500"
-                  }`}
-                >
-                  {parseError ||
-                    "Le parser utilise des regex simples et reste tolérant aux séparateurs."}
+                  <button
+                    onClick={togglePauseDiscussion}
+                    disabled={!canPause && !isPaused}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+                      canPause || isPaused
+                        ? "bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20"
+                        : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
+                    }`}
+                  >
+                    <PauseIcon className="w-4 h-4" />
+                    {isPaused ? "Reprendre" : "Pause"}
+                  </button>
+
+                  <button
+                    onClick={stopDiscussion}
+                    disabled={!canEnd}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+                      canEnd
+                        ? "bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white shadow-lg shadow-slate-500/20"
+                        : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
+                    }`}
+                  >
+                    <StopIcon className="w-4 h-4" />
+                    Terminer
+                  </button>
+
+                  <button
+                    onClick={evaluateDiscussion}
+                    disabled={!canJudge}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+                      canJudge
+                        ? "bg-primary-600 hover:bg-primary-700 text-white shadow-lg shadow-primary-500/20"
+                        : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
+                    }`}
+                  >
+                    <CheckIcon className="w-4 h-4" />
+                    Évaluer
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Discussion Area */}
+            <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+              {/* Sidebar: Timer & Audio */}
+              <div className="space-y-6">
+                {/* Timer */}
+                <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <ClockIcon className={`w-4 h-4 ${mutedText}`} />
+                    <span className={`text-sm font-medium ${mutedText}`}>Temps restant</span>
+                  </div>
+
+                  <div className={`text-center text-5xl font-bold tabular-nums tracking-tight ${
+                    timerDanger ? "text-rose-500 animate-pulse" : ""
+                  }`}>
+                    {formatCountdown(remainingSeconds)}
+                  </div>
+
+                  <div className="mt-4">
+                    <div className={`h-2 rounded-full overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-200"}`}>
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          timerDanger ? "bg-rose-500" : "bg-primary-500"
+                        }`}
+                        style={{
+                          width: `${Math.max(0, Math.min(100, (remainingSeconds / (8 * 60)) * 100))}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Audio Level */}
+                <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <MicIcon className={`w-4 h-4 ${mutedText}`} />
+                      <span className={`text-sm font-medium ${mutedText}`}>Microphone</span>
+                    </div>
+                    <span className={`text-sm font-semibold ${mutedText}`}>
+                      {formatPercent(micPeak)}
+                    </span>
+                  </div>
+
+                  {/* Circular Audio Visualizer */}
+                  <div className="relative w-40 h-40 mx-auto">
+                    <div className={`absolute inset-0 rounded-full ${darkMode ? "bg-slate-800/30" : "bg-primary-100/50"}`} />
+                    {Array.from({ length: 36 }, (_, i) => {
+                      const angle = (360 / 36) * i;
+                      const active = i < Math.max(3, Math.round(micPeak * 36));
+                      const barHeight = active ? 16 + micPeak * 24 : 8;
+
+                      return (
+                        <div
+                          key={i}
+                          className="absolute left-1/2 top-1/2 origin-bottom rounded-full"
+                          style={{
+                            width: 4,
+                            height: barHeight,
+                            transform: `translate(-50%, -100%) rotate(${angle}deg) translateY(-48px)`,
+                            background: active
+                              ? "linear-gradient(to top, #0d9488, #14b8a6)"
+                              : darkMode
+                                ? "rgba(148, 163, 184, 0.2)"
+                                : "rgba(148, 163, 184, 0.3)",
+                          }}
+                        />
+                      );
+                    })}
+                    <div className={`absolute inset-0 m-auto w-20 h-20 rounded-full flex items-center justify-center ${
+                      darkMode ? "bg-slate-800 border border-slate-700" : "bg-white border border-slate-200"
+                    }`}>
+                      <span className="text-2xl font-bold">{Math.round(micPeak * 100)}</span>
+                    </div>
+                  </div>
+
+                  <div className={`mt-4 text-center text-xs ${mutedText}`}>
+                    RMS: {formatPercent(micLevel)} | Peak: {formatPercent(micPeak)}
+                  </div>
                 </div>
               </div>
 
-              <div className={`${cardClass} p-5`}>
-                <h2 className="text-2xl font-bold">Préparation</h2>
-
-                {patientInfo.length === 0 ? (
-                  <div
-                    className={`mt-4 rounded-[28px] p-5 text-sm ${
-                      darkMode
-                        ? "bg-slate-950/60 text-slate-400"
-                        : "bg-slate-50 text-slate-500"
-                    }`}
-                  >
-                    Les informations patient apparaîtront ici après le parsing.
-                  </div>
-                ) : (
-                  <div className={`${subCardClass} mt-4 p-4`}>
-                    <div
-                      className={`mb-3 text-sm font-semibold uppercase tracking-[0.18em] ${
-                        darkMode ? "text-slate-300" : "text-slate-700"
-                      }`}
-                    >
-                      Informations patient
+              {/* Transcript */}
+              <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+                <h3 className="text-lg font-semibold mb-4">Transcription en direct</h3>
+                <div
+                  ref={transcriptRef}
+                  className={`h-[500px] overflow-y-auto rounded-xl p-4 ${
+                    darkMode ? "bg-slate-950/50" : "bg-slate-50/80"
+                  }`}
+                >
+                  {transcript.length === 0 && !showStudentDraftIndicator ? (
+                    <div className="h-full flex items-center justify-center">
+                      <div className="text-center">
+                        <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl ${subtleBg} flex items-center justify-center`}>
+                          <ActivityIcon className={`w-8 h-8 ${mutedText}`} />
+                        </div>
+                        <p className={`text-sm ${mutedText}`}>
+                          La transcription apparaîtra ici
+                        </p>
+                        <p className={`text-xs ${mutedText} mt-1`}>
+                          Démarrez une session pour commencer
+                        </p>
+                      </div>
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {patientInfo.map((item) => (
+                  ) : (
+                    <div className="space-y-3">
+                      {transcript.map((entry) => (
                         <div
-                          key={`${item.label}-${item.value}`}
-                          className={`rounded-2xl border px-4 py-3 ${
-                            darkMode
-                              ? "border-slate-800 bg-slate-900"
-                              : "border-slate-200 bg-white"
+                          key={entry.id}
+                          className={`max-w-[85%] animate-fade-in ${
+                            entry.role === "student"
+                              ? "ml-auto"
+                              : entry.role === "patient"
+                                ? "mr-auto"
+                                : "mx-auto"
                           }`}
                         >
-                          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                            {item.label}
-                          </div>
-                          <div className="mt-1 whitespace-pre-wrap text-sm">
-                            {item.value}
+                          <div
+                            className={`rounded-2xl px-4 py-3 ${
+                              entry.role === "student"
+                                ? "bg-primary-600 text-white"
+                                : entry.role === "patient"
+                                  ? darkMode
+                                    ? "bg-slate-800 border border-slate-700"
+                                    : "bg-white border border-slate-200 shadow-sm"
+                                  : "bg-slate-200/50 dark:bg-slate-800/50 text-center"
+                            }`}
+                          >
+                            <div className={`flex items-center justify-between gap-4 text-[10px] uppercase tracking-wider mb-1.5 ${
+                              entry.role === "student"
+                                ? "text-primary-100"
+                                : entry.role === "patient"
+                                  ? mutedText
+                                  : mutedText
+                            }`}>
+                              <span className="font-semibold">{entry.role}</span>
+                              <span>{entry.timestamp}</span>
+                            </div>
+                            <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                              {entry.text}
+                            </div>
                           </div>
                         </div>
                       ))}
+
+                      {showStudentDraftIndicator && (
+                        <div className="ml-auto max-w-[85%] animate-fade-in">
+                          <div className="bg-primary-600/90 text-white rounded-2xl px-4 py-3">
+                            <div className="flex items-center justify-between gap-4 text-[10px] uppercase tracking-wider mb-1.5 text-primary-100">
+                              <span className="font-semibold">étudiant</span>
+                              <span>{createTimestamp()}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm">
+                              <span>En train de parler</span>
+                              <span className="flex gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-white/90 animate-bounce" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-white/90 animate-bounce [animation-delay:150ms]" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-white/90 animate-bounce [animation-delay:300ms]" />
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="space-y-6">
-              <div className={`${cardClass} p-5`}>
-                <div className="mb-4 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold">Discussion</h2>
-                    <p
-                      className={`mt-2 text-sm ${
-                        darkMode ? "text-slate-400" : "text-slate-600"
-                      }`}
-                    >
-                      {status}
-                    </p>
-                    <p className="mt-1 text-sm font-bold uppercase tracking-[0.24em] text-blue-700">
-                      {conversationPhase === "idle"
-                        ? "Inactif"
-                        : conversationPhase === "listening"
-                          ? "Écoute"
-                          : conversationPhase === "student-speaking"
-                            ? "Étudiant"
-                            : conversationPhase === "patient-speaking"
-                              ? "Patient"
-                              : conversationPhase === "paused"
-                                ? "Pause"
-                                : "Traitement"}
-                    </p>
-                  </div>
-
-                  <div className="w-full overflow-x-auto xl:w-auto">
-                    <div className="flex min-w-max flex-nowrap items-center justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={startDiscussion}
-                        disabled={!canStart}
-                        className={`${actionButtonBase} ${startButtonClass}`}
-                      >
-                        {isConnecting ? "Connexion..." : "Démarrer la discussion"}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={togglePauseDiscussion}
-                        disabled={!canPause && !isPaused}
-                        className={`${actionButtonBase} ${pauseButtonClass}`}
-                      >
-                        {isPaused ? "Reprendre" : "Mettre en pause"}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={stopDiscussion}
-                        disabled={!canEnd}
-                        className={`${actionButtonBase} ${endButtonClass}`}
-                      >
-                        Terminer
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={evaluateDiscussion}
-                        disabled={!canJudge}
-                        className={`${actionButtonBase} ${judgeButtonClass}`}
-                      >
-                        Corriger la transcription
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)]">
-                  <div className="space-y-4">
-                    <div className={`${subCardClass} p-5`}>
-                      <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-                        Timer
-                      </div>
-                      <div
-                        className={`mt-5 text-center text-6xl font-black ${
-                          timerDanger ? "animate-pulse text-rose-600" : "text-inherit"
-                        }`}
-                      >
-                        {formatCountdown(remainingSeconds)}
-                      </div>
-                      <div
-                        className={`mt-4 rounded-full px-4 py-2 text-center text-sm font-semibold ${
-                          darkMode
-                            ? "bg-slate-800 text-slate-300"
-                            : "bg-slate-200 text-slate-700"
-                        }`}
-                      >
-                        Temps restant
-                      </div>
-                      <div
-                        className={`mt-5 h-2 overflow-hidden rounded-full ${
-                          darkMode ? "bg-slate-800" : "bg-slate-200"
-                        }`}
-                      >
-                        <div
-                          className={`h-full rounded-full transition-[width] duration-300 ${
-                            timerDanger ? "bg-rose-500" : "bg-blue-600"
-                          }`}
-                          style={{
-                            width: `${Math.max(
-                              0,
-                              Math.min(100, (remainingSeconds / (8 * 60)) * 100),
-                            )}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className={`${subCardClass} p-5`}>
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-                          Mic
-                        </div>
-                        <div className="text-sm font-semibold text-slate-500">
-                          {formatPercent(micPeak)}
-                        </div>
-                      </div>
-
-                      <div className="relative mx-auto mt-4 flex h-40 w-40 items-center justify-center">
-                        <div
-                          className={`absolute inset-0 rounded-full ${
-                            darkMode
-                              ? "bg-[radial-gradient(circle,_rgba(30,41,59,0.2),_rgba(15,23,42,0.05))]"
-                              : "bg-[radial-gradient(circle,_rgba(37,99,235,0.08),_rgba(37,99,235,0.02))]"
-                          }`}
-                        />
-                        {Array.from({ length: 48 }, (_, index) => {
-                          const angle = (360 / 48) * index;
-                          const active =
-                            index < Math.max(4, Math.round(micPeak * 48));
-                          const barHeight = active
-                            ? 18 + micPeak * 28 + (index % 4) * 2
-                            : 10;
-
-                          return (
-                            <div
-                              key={index}
-                              className="absolute left-1/2 top-1/2 origin-bottom rounded-full"
-                              style={{
-                                width: 5,
-                                height: barHeight,
-                                transform: `translate(-50%, -100%) rotate(${angle}deg) translateY(-56px)`,
-                                background: active
-                                  ? "linear-gradient(180deg, #60a5fa 0%, #2563eb 100%)"
-                                  : darkMode
-                                    ? "rgba(148,163,184,0.28)"
-                                    : "rgba(148,163,184,0.38)",
-                                boxShadow: active
-                                  ? "0 0 12px rgba(37,99,235,0.35)"
-                                  : "none",
-                              }}
-                            />
-                          );
-                        })}
-
-                        <div
-                          className={`relative z-10 flex h-24 w-24 flex-col items-center justify-center rounded-full border ${
-                            darkMode
-                              ? "border-slate-700 bg-slate-900"
-                              : "border-slate-200 bg-white"
-                          }`}
-                        >
-                          <div className="text-3xl font-black">
-                            {Math.round(micPeak * 100)}
-                          </div>
-                          <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-                            Mic
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 text-center text-sm text-slate-500">
-                        rms {formatPercent(micLevel)} | peak {formatPercent(micPeak)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div
-                    ref={transcriptRef}
-                    className={`min-h-[470px] max-h-[470px] overflow-y-auto rounded-[32px] border p-5 ${
-                      darkMode
-                        ? "border-slate-700 bg-slate-950"
-                        : "border-slate-800 bg-white"
-                    }`}
-                  >
-                    {transcript.length === 0 && !showStudentDraftIndicator ? (
-                      <div className="m-auto flex min-h-[420px] items-center justify-center text-center text-sm text-slate-400">
-                        Le transcript live s'affichera ici pendant l'entretien.
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-3">
-                        {transcript.map((entry) => (
-                          <article
-                            key={entry.id}
-                            className={`max-w-[80%] rounded-[22px] px-4 py-3 shadow-md ${
-                              entry.role === "student"
-                                ? "self-end bg-blue-600 text-white"
-                                : entry.role === "patient"
-                                  ? "self-start bg-emerald-50 text-slate-900"
-                                  : darkMode
-                                    ? "self-center bg-slate-800 text-slate-100"
-                                    : "self-center bg-slate-100 text-slate-900"
-                            }`}
-                          >
-                            <div className="mb-1 flex items-center justify-between gap-4 text-[11px] uppercase tracking-[0.18em] opacity-80">
-                              <span>{entry.role}</span>
-                              <span>{entry.timestamp}</span>
-                            </div>
-                            <div className="whitespace-pre-wrap break-words">
-                              {entry.text}
-                            </div>
-                          </article>
-                        ))}
-
-                        {showStudentDraftIndicator && (
-                          <article className="self-end max-w-[80%] rounded-[22px] bg-blue-600 px-4 py-3 text-white opacity-90 shadow-md">
-                            <div className="mb-1 flex items-center justify-between gap-4 text-[11px] uppercase tracking-[0.18em] opacity-80">
-                              <span>étudiant</span>
-                              <span>{createTimestamp()}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span>Étudiant en train de parler</span>
-                              <span className="inline-flex gap-1">
-                                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/90" />
-                                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/90 [animation-delay:150ms]" />
-                                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/90 [animation-delay:300ms]" />
-                              </span>
-                            </div>
-                          </article>
-                        )}
-                      </div>
-                    )}
-                  </div>
+            {/* Audio Replay */}
+            {recordedAudioUrl && (
+              <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+                <h3 className="text-lg font-semibold mb-4">Enregistrement audio</h3>
+                <div className={`p-4 rounded-xl ${subCardBg} border`}>
+                  <audio controls className="w-full" src={recordedAudioUrl}>
+                    Votre navigateur ne supporte pas la lecture audio.
+                  </audio>
                 </div>
               </div>
+            )}
 
-              {recordedAudioUrl && (
-                <div className={`${cardClass} p-5`}>
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-semibold uppercase tracking-[0.18em]">
-                      Replay audio complet
-                    </h3>
-                    <div className="text-xs text-slate-500">
-                      Étudiant + patient
-                    </div>
-                  </div>
-
-                  <div className={`${subCardClass} p-4`}>
-                    <audio controls className="w-full" src={recordedAudioUrl}>
-                      Votre navigateur ne supporte pas la lecture audio.
-                    </audio>
-                  </div>
-                </div>
-              )}
-
-              {transcript.length > 0 && (
-                <div className={`${cardClass} p-5`}>
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-semibold uppercase tracking-[0.18em]">
-                      Revue de transcription
-                    </h3>
-                    <button
-                      type="button"
-                      onClick={() => setShowTranscriptReview((current) => !current)}
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        darkMode ? "bg-slate-800" : "bg-slate-100"
-                      }`}
-                    >
-                      {showTranscriptReview ? "Masquer" : "Afficher"}
-                    </button>
-                  </div>
-
-                  {showTranscriptReview && (
-                    <>
-                      <div className="mb-3 flex flex-wrap gap-2">
-                        {(["full", "patient", "student", "system"] as const).map(
-                          (filter) => (
-                            <button
-                              key={filter}
-                              type="button"
-                              onClick={() => setTranscriptFilter(filter)}
-                              className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                                transcriptFilter === filter
-                                  ? "bg-blue-600 text-white"
-                                  : darkMode
-                                    ? "bg-slate-800 text-slate-300"
-                                    : "bg-slate-100 text-slate-700"
-                              }`}
-                            >
-                              {filter === "full"
-                                ? "complet"
-                                : filter === "patient"
-                                  ? "patient"
-                                  : filter === "student"
-                                    ? "étudiant"
-                                    : "système"}
-                            </button>
-                          ),
-                        )}
-                      </div>
-
-                      <div
-                        className={`${subCardClass} max-h-[260px] overflow-y-auto p-4 text-sm`}
-                      >
-                        <pre className="m-0 whitespace-pre-wrap font-sans">
-                          {filteredTranscriptText ||
-                            "Aucune transcription pour ce filtre."}
-                        </pre>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              <div ref={resultsRef} className={`${cardClass} p-5`}>
-                <div className="mb-4 flex items-center justify-between gap-4">
-                  <h2 className="text-2xl font-bold">Résultats</h2>
+            {/* Transcript Review */}
+            {transcript.length > 0 && (
+              <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Revue de transcription</h3>
                   <button
-                    type="button"
-                    onClick={exportPdf}
-                    disabled={!evaluation}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold ${
-                      evaluation
-                        ? "bg-slate-800 text-white hover:bg-slate-900"
-                        : "bg-slate-200 text-slate-400"
+                    onClick={() => setShowTranscriptReview(!showTranscriptReview)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      showTranscriptReview
+                        ? "bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300"
+                        : subtleBg
                     }`}
                   >
-                    Export PDF
+                    {showTranscriptReview ? "Masquer" : "Afficher"}
                   </button>
                 </div>
 
-                {!evaluation ? (
-                  <div
-                    className={`${subCardClass} px-5 py-10 text-center text-sm text-slate-500`}
-                  >
-                    La grille d’évaluation reste masquée jusqu’au jugement final.
-                  </div>
-                ) : (
-                  <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)]">
-                    <div className={`${subCardClass} p-4`}>
-                      <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-                        Note finale
-                      </div>
-                      <div className="mt-4 text-center text-6xl font-black">
-                        {evaluation.score}
-                      </div>
-                      <div
-                        className={`mt-4 rounded-full px-4 py-2 text-center text-sm font-semibold ${
-                          darkMode
-                            ? "bg-slate-800 text-slate-300"
-                            : "bg-slate-100 text-slate-700"
-                        }`}
-                      >
-                        Évaluation complète
-                      </div>
-                      <div
-                        className={`mt-5 h-3 overflow-hidden rounded-full ${
-                          darkMode ? "bg-slate-800" : "bg-slate-200"
-                        }`}
-                      >
-                        <div
-                          className="h-full rounded-full transition-[width] duration-500"
-                          style={{
-                            width: `${scoreState.ratio * 100}%`,
-                            background: scoreGradient(scoreState.ratio),
-                          }}
-                        />
-                      </div>
-                      <div
-                        className="mt-3 text-center text-sm font-semibold"
-                        style={{ color: scoreColor(scoreState.ratio) }}
-                      >
-                        {scoreState.value} point(s) sur {scoreState.max}
-                      </div>
-                    </div>
-
-                    <div className={`${subCardClass} overflow-hidden`}>
-                      <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-                        <thead
-                          className={`${
-                            darkMode ? "bg-slate-900" : "bg-slate-100"
-                          } text-slate-600`}
-                        >
-                          <tr>
-                            <th className="px-4 py-3 font-semibold">Critère</th>
-                            <th className="px-4 py-3 font-semibold">Résultat</th>
-                            <th className="px-4 py-3 font-semibold">Feedback</th>
-                          </tr>
-                        </thead>
-                        <tbody
-                          className={`divide-y ${
-                            darkMode
-                              ? "divide-slate-800 bg-slate-950"
-                              : "divide-slate-200 bg-white"
+                {showTranscriptReview && (
+                  <>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {(["full", "patient", "student", "system"] as const).map((filter) => (
+                        <button
+                          key={filter}
+                          onClick={() => setTranscriptFilter(filter)}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            transcriptFilter === filter
+                              ? "bg-primary-600 text-white shadow-md shadow-primary-500/20"
+                              : `${subtleBg} hover:bg-slate-200 dark:hover:bg-slate-700`
                           }`}
                         >
-                          {evaluation.details.map((detail, index) => (
-                            <tr key={`${detail.criterion}-${index}`}>
-                              <td className="px-4 py-3 align-top">
-                                {detail.criterion}
-                              </td>
-                              <td className="px-4 py-3 align-top">
-                                <span
-                                  className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                                    detail.observed
-                                      ? "bg-emerald-100 text-emerald-700"
-                                      : "bg-rose-100 text-rose-700"
-                                  }`}
-                                >
-                                  {detail.observed ? "✓ Observé" : "✕ Non observé"}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 align-top text-slate-600">
-                                {detail.feedback}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          {filter === "full"
+                            ? "Complet"
+                            : filter === "patient"
+                              ? "Patient"
+                              : filter === "student"
+                                ? "Étudiant"
+                                : "Système"}
+                        </button>
+                      ))}
                     </div>
-                  </div>
+                    <div className={`max-h-64 overflow-y-auto rounded-xl p-4 ${subtleBg} text-sm leading-relaxed`}>
+                      <pre className="whitespace-pre-wrap font-sans">
+                        {filteredTranscriptText || "Aucune transcription pour ce filtre."}
+                      </pre>
+                    </div>
+                  </>
                 )}
               </div>
+            )}
+
+            {/* Results */}
+            <div ref={resultsRef} className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold">Résultats d'évaluation</h2>
+                <button
+                  onClick={exportPdf}
+                  disabled={!evaluation}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    evaluation
+                      ? "bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white"
+                      : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
+                  }`}
+                >
+                  <FileTextIcon className="w-4 h-4" />
+                  Export PDF
+                </button>
+              </div>
+
+              {!evaluation ? (
+                <div className={`p-12 rounded-xl ${subtleBg} text-center`}>
+                  <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl ${subtleBg} flex items-center justify-center`}>
+                    <CheckIcon className={`w-8 h-8 ${mutedText}`} />
+                  </div>
+                  <p className={`text-sm ${mutedText}`}>
+                    Les résultats d'évaluation apparaîtront ici après la correction.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+                  {/* Score Card */}
+                  <div className={`rounded-xl ${subCardBg} border p-6`}>
+                    <div className={`text-sm font-medium uppercase tracking-wider ${mutedText} mb-4`}>
+                      Note finale
+                    </div>
+                    <div className="text-center">
+                      <div className="text-6xl font-bold mb-2">{evaluation.score}</div>
+                      <div className={`text-sm ${mutedText} mb-4`}>Évaluation complète</div>
+                    </div>
+                    <div className={`h-3 rounded-full overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-200"}`}>
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${scoreState.ratio * 100}%`,
+                          background: scoreGradient(scoreState.ratio),
+                        }}
+                      />
+                    </div>
+                    <div
+                      className="text-center text-sm font-semibold mt-3"
+                      style={{ color: scoreColor(scoreState.ratio) }}
+                    >
+                      {scoreState.value} / {scoreState.max} points
+                    </div>
+                  </div>
+
+                  {/* Details Table */}
+                  <div className={`rounded-xl ${subCardBg} border overflow-hidden`}>
+                    <table className="w-full text-sm">
+                      <thead className={`${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
+                        <tr>
+                          <th className="text-left px-4 py-3 font-semibold">Critère</th>
+                          <th className="text-left px-4 py-3 font-semibold">Résultat</th>
+                          <th className="text-left px-4 py-3 font-semibold">Feedback</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                        {evaluation.details.map((detail, index) => (
+                          <tr key={`${detail.criterion}-${index}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                            <td className="px-4 py-3 align-top font-medium">{detail.criterion}</td>
+                            <td className="px-4 py-3 align-top">
+                              <span
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                  detail.observed
+                                    ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
+                                    : "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400"
+                                }`}
+                              >
+                                {detail.observed ? (
+                                  <>
+                                    <CheckIcon className="w-3 h-3" />
+                                    Observé
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="w-3 h-3 flex items-center justify-center">×</span>
+                                    Non observé
+                                  </>
+                                )}
+                              </span>
+                            </td>
+                            <td className={`px-4 py-3 align-top ${mutedText}`}>{detail.feedback}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
-          </section>
+          </div>
         </div>
-      </div>
+      </main>
 
+      {/* Evaluation Modal */}
       {isEvaluating && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-[28px] border border-white/60 bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm">
+          <div className={`w-full max-w-md rounded-2xl border ${cardBg} p-8 shadow-2xl`}>
             <div className="text-center">
-              <div className="text-lg font-semibold text-slate-950">
-                Évaluation en cours
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                <ActivityIcon className="w-8 h-8 text-primary-600 dark:text-primary-400" />
               </div>
-              <div className="mt-2 text-sm text-slate-500">
-                Analyse du transcript face à la grille de correction…
-              </div>
+              <h3 className="text-xl font-bold mb-2">Évaluation en cours</h3>
+              <p className={`text-sm ${mutedText} mb-6`}>
+                Analyse du transcript face à la grille de correction...
+              </p>
             </div>
 
-            <div className="mt-6 h-3 overflow-hidden rounded-full bg-slate-100">
+            <div className={`h-3 rounded-full overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-200"}`}>
               <div
-                className="h-full rounded-full bg-blue-600 transition-[width] duration-300"
+                className="h-full rounded-full bg-primary-500 transition-all duration-300"
                 style={{ width: `${evaluationProgress}%` }}
               />
             </div>
 
-            <div className="mt-3 text-center text-sm font-medium text-slate-600">
-              {evaluationProgress}%
+            <div className="mt-4 text-center">
+              <span className="text-2xl font-bold">{evaluationProgress}%</span>
             </div>
           </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }

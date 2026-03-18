@@ -78,6 +78,8 @@ app.post("/api/live-token", async (request, response) => {
       "Les émotions éventuelles doivent être exprimées uniquement par le ton, les pauses, l'intonation et la voix.",
       "Ne lis jamais de didascalies, de parenthèses, d'émotions ou d'indications scéniques à voix haute.",
       "Ne prononce jamais des mots comme fatiguée, gênée, stressée, perdue, soupir, hésitante, embarrassée, sauf si le patient les dit réellement comme contenu de sa réponse.",
+      "Ne mentionne jamais d'informations qui sont déjà présentes sur la grille d'évaluation.",
+      "Ne donne aucun détail supplémentaire si le médecin ne te le demande pas explicitement.",
       "",
       cleanedPatientScript,
     ].join("\n");
