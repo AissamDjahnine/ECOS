@@ -725,16 +725,6 @@ export default function App() {
 
     const entryId = crypto.randomUUID();
 
-    setTranscript((current) => [
-      ...current,
-      {
-        id: entryId,
-        role: "student",
-        text: fallbackText || "…",
-        timestamp: createTimestamp(),
-      },
-    ]);
-
     try {
       if (audioChunks.length > 0) {
         const audioBlob = new Blob(audioChunks, {
@@ -760,12 +750,15 @@ export default function App() {
 
           if (improvedText) {
             setTranscript((current) =>
-              upsertTranscriptEntryById(
-                current,
-                entryId,
-                "student",
-                improvedText,
-              ),
+              [
+                ...current,
+                {
+                  id: entryId,
+                  role: "student",
+                  text: improvedText,
+                  timestamp: createTimestamp(),
+                },
+              ],
             );
             return;
           }
