@@ -409,6 +409,19 @@ function MicIcon({ className }: { className?: string }) {
   );
 }
 
+function MicOffIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 9v3a3 3 0 0 0 5.12 2.12" />
+      <path d="M12 19v3" />
+      <path d="M17 16.95A7 7 0 0 1 5 12v-2" />
+      <path d="M19 10v2a6.98 6.98 0 0 1-.64 2.93" />
+      <path d="M14.12 5.88A3 3 0 0 0 9 8" />
+      <path d="M2 2l20 20" />
+    </svg>
+  );
+}
+
 function PlayIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -527,6 +540,7 @@ export default function App() {
   const [transcriptFilter, setTranscriptFilter] =
     useState<TranscriptFilter>("full");
   const [darkMode, setDarkMode] = useState(false);
+  const [isMicMuted, setIsMicMuted] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
   const [micPeak, setMicPeak] = useState(0);
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
@@ -548,6 +562,7 @@ export default function App() {
 
   const recordedAudioUrlRef = useRef<string | null>(null);
   const shouldSendAudioRef = useRef(true);
+  const isMicMutedRef = useRef(false);
 
   const patientInfo = useMemo(() => extractPatientInfo(parsedCase), [parsedCase]);
 
@@ -685,6 +700,20 @@ export default function App() {
 
     await mixed.context.close();
     return mixedBlob;
+  }
+
+  function toggleMicMute() {
+    setIsMicMuted((current) => {
+      const next = !current;
+      isMicMutedRef.current = next;
+
+      if (next) {
+        setMicLevel(0);
+        setMicPeak(0);
+      }
+
+      return next;
+    });
   }
 
   function handleParse() {
@@ -840,6 +869,8 @@ export default function App() {
       }
 
       setRecordedAudioUrl(null);
+      setIsMicMuted(false);
+      isMicMutedRef.current = false;
 
       const mediaStream = await requestMicrophoneStream();
 
@@ -1060,7 +1091,11 @@ export default function App() {
 
       const microphone = await startMicrophoneStream(
         async (chunk) => {
-          if (!shouldSendAudioRef.current || isPaused) {
+          if (
+            !shouldSendAudioRef.current ||
+            isPaused ||
+            isMicMutedRef.current
+          ) {
             return;
           }
 
@@ -1078,6 +1113,12 @@ export default function App() {
           });
         },
         (sample: MicrophoneLevelSample) => {
+          if (isMicMutedRef.current) {
+            setMicLevel(0);
+            setMicPeak(0);
+            return;
+          }
+
           setMicLevel(sample.rms);
           setMicPeak(sample.peak);
         },
@@ -1564,14 +1605,56 @@ export default function App() {
 
                 {/* Audio Level */}
                 <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <MicIcon className={`w-4 h-4 ${mutedText}`} />
-                      <span className={`text-sm font-medium ${mutedText}`}>Microphone</span>
+                  <div className="mb-5">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-2">
+                        {isMicMuted ? (
+                          <MicOffIcon className={`w-4 h-4 ${mutedText}`} />
+                        ) : (
+                          <MicIcon className={`w-4 h-4 ${mutedText}`} />
+                        )}
+                        <span className={`text-sm font-medium ${mutedText}`}>Microphone</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
+                            isMicMuted
+                              ? "text-rose-600 dark:text-rose-300"
+                              : "text-emerald-600 dark:text-emerald-300"
+                          }`}
+                        >
+                          <span
+                            className={`h-2 w-2 rounded-full ${
+                              isMicMuted ? "bg-rose-500" : "bg-emerald-500"
+                            }`}
+                          />
+                          {isMicMuted ? "Coupé" : "Actif"}
+                        </span>
+                      </div>
                     </div>
-                    <span className={`text-sm font-semibold ${mutedText}`}>
-                      {formatPercent(micPeak)}
-                    </span>
+
+                    <button
+                      type="button"
+                      onClick={toggleMicMute}
+                      className={`mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold border transition-all duration-200 ${
+                        isMicMuted
+                          ? "border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-300"
+                          : "border-slate-200 bg-slate-900 text-white hover:bg-slate-800 dark:border-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+                      }`}
+                      aria-pressed={isMicMuted}
+                      aria-label={
+                        isMicMuted
+                          ? "Réactiver le microphone"
+                          : "Couper le microphone"
+                      }
+                    >
+                      {isMicMuted ? (
+                        <MicOffIcon className="w-4 h-4" />
+                      ) : (
+                        <MicIcon className="w-4 h-4" />
+                      )}
+                      {isMicMuted ? "Réactiver le microphone" : "Couper le microphone"}
+                    </button>
                   </div>
 
                   {/* Circular Audio Visualizer */}
@@ -1579,8 +1662,9 @@ export default function App() {
                     <div className={`absolute inset-0 rounded-full ${darkMode ? "bg-slate-800/30" : "bg-primary-100/50"}`} />
                     {Array.from({ length: 36 }, (_, i) => {
                       const angle = (360 / 36) * i;
-                      const active = i < Math.max(3, Math.round(micPeak * 36));
-                      const barHeight = active ? 16 + micPeak * 24 : 8;
+                      const displayPeak = isMicMuted ? 0 : micPeak;
+                      const active = !isMicMuted && i < Math.max(3, Math.round(displayPeak * 36));
+                      const barHeight = active ? 16 + displayPeak * 24 : 8;
 
                       return (
                         <div
@@ -1592,6 +1676,10 @@ export default function App() {
                             transform: `translate(-50%, -100%) rotate(${angle}deg) translateY(-48px)`,
                             background: active
                               ? "linear-gradient(to top, #0d9488, #14b8a6)"
+                              : isMicMuted
+                                ? darkMode
+                                  ? "rgba(244, 63, 94, 0.16)"
+                                  : "rgba(244, 63, 94, 0.18)"
                               : darkMode
                                 ? "rgba(148, 163, 184, 0.2)"
                                 : "rgba(148, 163, 184, 0.3)",
@@ -1602,12 +1690,21 @@ export default function App() {
                     <div className={`absolute inset-0 m-auto w-20 h-20 rounded-full flex items-center justify-center ${
                       darkMode ? "bg-slate-800 border border-slate-700" : "bg-white border border-slate-200"
                     }`}>
-                      <span className="text-2xl font-bold">{Math.round(micPeak * 100)}</span>
+                      <span className="text-center">
+                        <span className="block text-2xl font-bold">
+                          {isMicMuted ? "OFF" : Math.round(micPeak * 100)}
+                        </span>
+                        <span className={`block text-[10px] font-semibold uppercase tracking-[0.18em] ${mutedText}`}>
+                          {isMicMuted ? "Muted" : "Peak"}
+                        </span>
+                      </span>
                     </div>
                   </div>
 
                   <div className={`mt-4 text-center text-xs ${mutedText}`}>
-                    RMS: {formatPercent(micLevel)} | Peak: {formatPercent(micPeak)}
+                    {isMicMuted
+                      ? "Le microphone est coupé. Votre voix n'est pas envoyée."
+                      : `RMS: ${formatPercent(micLevel)} | Peak: ${formatPercent(micPeak)}`}
                   </div>
                 </div>
               </div>
