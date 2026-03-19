@@ -1477,7 +1477,7 @@ export default function App({ currentMode, onNavigate }: PsPageProps) {
   };
 
   return (
-    <div className={`min-h-screen ${bgClass} ${textClass} transition-colors duration-300`}>
+    <div className={`min-h-screen ${theme} ${bgClass} ${textClass} transition-colors duration-300`}>
       {/* Header */}
       <header className="sticky top-0 z-40 backdrop-blur-xl border-b border-slate-200/20 dark:border-slate-700/20">
         <div className="max-w-[1600px] mx-auto px-6 py-4">

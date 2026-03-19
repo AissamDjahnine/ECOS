@@ -371,6 +371,7 @@ export default function SansPsPage({
   const timerDanger = remainingSeconds <= 60;
   const scoreState = parseScore(evaluation?.score);
 
+  const theme = darkMode ? "dark" : "light";
   const bgClass = darkMode
     ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950"
     : "bg-gradient-to-br from-slate-50 via-white to-slate-100";
@@ -885,7 +886,7 @@ export default function SansPsPage({
   }, []);
 
   return (
-    <div className={`min-h-screen ${bgClass} ${textClass} transition-colors duration-300`}>
+    <div className={`min-h-screen ${theme} ${bgClass} ${textClass} transition-colors duration-300`}>
       <header className="sticky top-0 z-40 border-b border-slate-200/20 backdrop-blur-xl dark:border-slate-700/20">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
