@@ -1523,7 +1523,11 @@ export default function App() {
                         : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
                     }`}
                   >
-                    <PauseIcon className="w-4 h-4" />
+                    {isPaused ? (
+                      <PlayIcon className="w-4 h-4" />
+                    ) : (
+                      <PauseIcon className="w-4 h-4" />
+                    )}
                     {isPaused ? "Reprendre" : "Pause"}
                   </button>
 
