@@ -562,7 +562,7 @@ export default function App({ currentMode, onNavigate }: PsPageProps) {
   const [isDiscussing, setIsDiscussing] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [hasEndedDiscussion, setHasEndedDiscussion] = useState(false);
-  const [status, setStatus] = useState("Prêt");
+  const [status, setStatus] = useState("Mode PS/PSS prêt");
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evaluationProgress, setEvaluationProgress] = useState(0);
@@ -757,7 +757,11 @@ export default function App({ currentMode, onNavigate }: PsPageProps) {
       setParseError("");
     }
 
-    setStatus(parsed.patientScript && parsed.gradingGrid ? "Cas préparé" : "Prêt");
+    setStatus(
+      parsed.patientScript && parsed.gradingGrid
+        ? "Cas préparé"
+        : "Mode PS/PSS prêt",
+    );
   }
 
   async function finalizeStudentDraft() {

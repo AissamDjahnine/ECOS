@@ -1008,7 +1008,7 @@ export default function SansPsPage({
                 <div className="flex items-center gap-4">
                   <div className={`h-3 w-3 rounded-full ${statusColor} ${sessionPhase !== "idle" ? "animate-pulse" : ""}`} />
                   <div>
-                    <h2 className="text-lg font-semibold">Session sans PS</h2>
+                    <h2 className="text-lg font-semibold">Session Monologue</h2>
                     <p className={`text-sm ${mutedText}`}>{status}</p>
                   </div>
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${subtleBg}`}>
