@@ -536,4 +536,77 @@ describe("PsPage", () => {
       expect(hasFetchCall(fetchMock, "/api/live-token")).toBe(true);
     });
   });
+
+  it("enables custom voice selection only after analyse", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/api/dashboard")) {
+        return {
+          ok: true,
+          json: async () => buildDashboardSnapshot(),
+        } as Response;
+      }
+      if (url.includes("/api/live-token")) {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { voiceName?: string };
+        expect(body.voiceName).toBe("Charon");
+        return {
+          ok: true,
+          json: async () => ({
+            token: "temporary-token",
+            model: "fake-live-model",
+          }),
+        } as Response;
+      }
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <PsPage
+        currentMode="ps"
+        onNavigate={vi.fn()}
+        settings={DEFAULT_SETTINGS}
+        onOpenDashboard={vi.fn()}
+        onOpenSettings={vi.fn()}
+        darkMode={false}
+        onDarkModeChange={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Choisir la voix Charon/i }),
+    ).toBeDisabled();
+
+    fireEvent.change(
+      screen.getByPlaceholderText(
+        /collez ici la trame du patient et la grille de correction/i,
+      ),
+      {
+        target: {
+          value: [
+            "Patient",
+            "Nom: Doe",
+            "Prénom: Jane",
+            "Sexe: F",
+            "Âge: 81",
+            "Bonjour docteur.",
+            "Grille de correction",
+            "1 Recherche le temps passé au sol",
+          ].join("\n"),
+        },
+      },
+    );
+
+    await user.click(screen.getByRole("button", { name: "Analyser" }));
+    expect(
+      screen.getByRole("button", { name: /Choisir la voix Charon/i }),
+    ).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: /Choisir la voix Charon/i }));
+    await user.click(screen.getByRole("button", { name: "Démarrer" }));
+
+    await waitFor(() => {
+      expect(hasFetchCall(fetchMock, "/api/live-token")).toBe(true);
+    });
+  });
 });

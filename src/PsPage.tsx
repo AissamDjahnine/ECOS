@@ -745,10 +745,10 @@ export default function App({
   });
 
   const patientInfo = useMemo(() => extractPatientInfo(parsedCase), [parsedCase]);
-  const sessionDurationSeconds = settings.defaultTimerSeconds;
-  const canEditVoice = !isConnecting && !isDiscussing && !isPaused;
-
   const parsedReady = Boolean(parsedCase.patientScript && parsedCase.gradingGrid);
+  const sessionDurationSeconds = settings.defaultTimerSeconds;
+  const canEditVoice =
+    parsedReady && !isConnecting && !isDiscussing && !isPaused;
   const canStart =
     parsedReady &&
     !isConnecting &&
@@ -960,6 +960,8 @@ export default function App({
   function handleParse() {
     const parsed = parseCaseInput(rawInput);
     setParsedCase(parsed);
+    setVoiceSelectionMode("auto");
+    setSelectedVoiceName(inferVoiceFromPatientSex(parsed.patientSex));
     setEvaluation(null);
     setLastEvaluatedFeedbackDetailLevel(null);
     setHasEndedDiscussion(false);
