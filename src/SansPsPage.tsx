@@ -12,6 +12,7 @@ import {
   hasVoicePreviewSample,
   MALE_VOICE_OPTIONS,
 } from "./lib/voices";
+import { ConfirmDialog } from "./ConfirmDialog";
 import type {
   AppSettings,
   DashboardSnapshot,
@@ -350,6 +351,7 @@ type SansPsPageProps = {
   onOpenSettings: () => void;
   darkMode: boolean;
   onDarkModeChange: (value: boolean) => void;
+  onShowToast?: (title: string, body?: string, tone?: "success" | "error" | "info") => void;
 };
 
 export default function SansPsPage({
@@ -360,6 +362,7 @@ export default function SansPsPage({
   onOpenSettings,
   darkMode,
   onDarkModeChange,
+  onShowToast = () => {},
 }: SansPsPageProps) {
   const [rawInput, setRawInput] = useState("");
   const [gradingGrid, setGradingGrid] = useState("");
@@ -383,10 +386,6 @@ export default function SansPsPage({
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
   const [micPeak, setMicPeak] = useState(0);
-  const [completionToast, setCompletionToast] = useState<{
-    title: string;
-    body: string;
-  } | null>(null);
   const [evaluationWarning, setEvaluationWarning] = useState<{
     mode: "confirm" | "blocked";
     title: string;
@@ -412,7 +411,6 @@ export default function SansPsPage({
   const recordedAudioUrlRef = useRef<string | null>(null);
   const autoEvaluateHandledRef = useRef(false);
   const autoExportedEvaluationRef = useRef<string | null>(null);
-  const completionToastTimerRef = useRef<number | null>(null);
   const silenceTimerRef = useRef<number | null>(null);
   const currentTurnChunksRef = useRef<Blob[]>([]);
   const isSpeechActiveRef = useRef(false);
@@ -446,7 +444,6 @@ export default function SansPsPage({
       evaluation !== null ||
       recordedAudioUrl !== null ||
       hasEndedDiscussion ||
-      completionToast !== null ||
       evaluationWarning !== null);
   const canClearText =
     !isConnecting &&
@@ -625,7 +622,6 @@ export default function SansPsPage({
     setEvaluation(null);
     setLastEvaluatedFeedbackDetailLevel(null);
     setHasEndedDiscussion(false);
-    setCompletionToast(null);
 
     if (!nextGrid) {
       setParseError(
@@ -658,27 +654,34 @@ export default function SansPsPage({
   }
 
   async function copyTextToClipboard(text: string, successMessage: string) {
-    if (!text.trim() || !navigator.clipboard?.writeText) {
+    if (!text.trim()) {
+      return;
+    }
+    if (!navigator.clipboard?.writeText) {
+      onShowToast(
+        "Copie indisponible",
+        "Le presse-papiers n'est pas disponible dans ce navigateur.",
+        "error",
+      );
       return;
     }
 
-    await navigator.clipboard.writeText(text);
-    setCompletionToast({
-      title: "Copie effectuée",
-      body: successMessage,
-    });
+    try {
+      await navigator.clipboard.writeText(text);
+      onShowToast("Copie effectuée", successMessage, "success");
+    } catch (error) {
+      onShowToast(
+        "Échec de la copie",
+        error instanceof Error ? error.message : "Impossible de copier ce contenu.",
+        "error",
+      );
+    }
   }
 
   async function resetSessionState() {
     try {
       shouldCaptureAudioRef.current = false;
 
-      if (completionToastTimerRef.current) {
-        window.clearTimeout(completionToastTimerRef.current);
-        completionToastTimerRef.current = null;
-      }
-
-      setCompletionToast(null);
       setEvaluationWarning(null);
       clearSilenceTimer();
       await micRef.current?.stop();
@@ -716,10 +719,11 @@ export default function SansPsPage({
 
   async function handleResetSession() {
     await resetSessionState();
-    setCompletionToast({
-      title: "Session réinitialisée",
-      body: "La session a été vidée. Le texte collé est conservé.",
-    });
+    onShowToast(
+      "Session réinitialisée",
+      "La session a été vidée. Le texte collé est conservé.",
+      "success",
+    );
   }
 
   async function handleClearText() {
@@ -728,6 +732,11 @@ export default function SansPsPage({
     setGradingGrid("");
     setParseError("");
     setStatus("Mode sans PS prêt");
+    onShowToast(
+      "Zone vidée",
+      "Le texte collé et les résultats associés ont été supprimés.",
+      "success",
+    );
   }
 
   function requestResetSession() {
@@ -738,7 +747,7 @@ export default function SansPsPage({
     setSessionGuardDialog({
       action: "reset",
       title: "Réinitialiser la session ?",
-      body: "Cette action efface la transcription, l'audio et l'évaluation en cours, tout en conservant le texte collé.",
+      body: "La transcription, l’enregistrement audio et l’évaluation seront supprimés. Le texte collé sera conservé.",
     });
   }
 
@@ -750,7 +759,7 @@ export default function SansPsPage({
     setSessionGuardDialog({
       action: "clear",
       title: "Effacer le texte collé ?",
-      body: "Cette action efface le texte, la session, la transcription et l'évaluation associée.",
+      body: "Le texte collé, la transcription, l’enregistrement audio et l’évaluation seront supprimés.",
     });
   }
 
@@ -795,7 +804,6 @@ export default function SansPsPage({
       setIsConnecting(true);
       setEvaluation(null);
       setHasEndedDiscussion(false);
-      setCompletionToast(null);
       setStatus("Préparation du monologue");
       setRemainingSeconds(sessionDurationSeconds);
       setTranscript([
@@ -866,6 +874,7 @@ export default function SansPsPage({
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erreur inconnue";
       setStatus(`Impossible de démarrer : ${message}`);
+      onShowToast("Démarrage impossible", message, "error");
       setSessionPhase("idle");
       setTranscript((current) => [
         ...current,
@@ -984,10 +993,11 @@ export default function SansPsPage({
       setMicPeak(0);
 
       if (finished) {
-        setCompletionToast({
-          title: "Monologue terminé",
-          body: `Vous avez fini en ${elapsedSummary}.`,
-        });
+        onShowToast(
+          "Monologue terminé",
+          `Vous avez fini en ${elapsedSummary}.`,
+          "success",
+        );
       }
     }
   }
@@ -1044,6 +1054,7 @@ export default function SansPsPage({
         error instanceof Error ? error.message : "Erreur d'évaluation inconnue";
 
       setStatus(`Échec de l'évaluation : ${message}`);
+      onShowToast("Échec de l'évaluation", message, "error");
       setTranscript((current) => [
         ...current,
         createTranscriptEntry("system", `Erreur d'évaluation : ${message}`),
@@ -1094,6 +1105,11 @@ export default function SansPsPage({
   function exportPdf() {
     const popup = window.open("", "_blank", "width=1200,height=900");
     if (!popup) {
+      onShowToast(
+        "Export PDF bloqué",
+        "Autorisez les popups pour ouvrir l’aperçu d’impression.",
+        "error",
+      );
       return;
     }
 
@@ -1109,6 +1125,11 @@ export default function SansPsPage({
     popup.document.close();
     popup.focus();
     popup.print();
+    onShowToast(
+      "Export PDF lancé",
+      "L’aperçu d’impression du compte rendu est ouvert.",
+      "success",
+    );
   }
 
   function handleRerunEvaluation() {
@@ -1236,38 +1257,12 @@ export default function SansPsPage({
   }, [isEvaluating]);
 
   useEffect(() => {
-    if (completionToastTimerRef.current) {
-      window.clearTimeout(completionToastTimerRef.current);
-      completionToastTimerRef.current = null;
-    }
-
-    if (!completionToast) {
-      return;
-    }
-
-    completionToastTimerRef.current = window.setTimeout(() => {
-      setCompletionToast(null);
-      completionToastTimerRef.current = null;
-    }, 3000);
-
-    return () => {
-      if (completionToastTimerRef.current) {
-        window.clearTimeout(completionToastTimerRef.current);
-        completionToastTimerRef.current = null;
-      }
-    };
-  }, [completionToast]);
-
-  useEffect(() => {
     return () => {
       shouldCaptureAudioRef.current = false;
       clearSilenceTimer();
       void micRef.current?.stop();
       if (recordedAudioUrlRef.current) {
         URL.revokeObjectURL(recordedAudioUrlRef.current);
-      }
-      if (completionToastTimerRef.current) {
-        window.clearTimeout(completionToastTimerRef.current);
       }
     };
   }, []);
@@ -2126,39 +2121,17 @@ export default function SansPsPage({
         </div>
       )}
 
-      {sessionGuardDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
-          <div className={`w-full max-w-md rounded-2xl border ${cardBg} p-8 shadow-2xl`}>
-            <div className="text-center">
-              <h3 className="text-xl font-bold">{sessionGuardDialog.title}</h3>
-              <p className={`mt-3 text-sm leading-relaxed ${mutedText}`}>
-                {sessionGuardDialog.body}
-              </p>
-            </div>
-
-            <div className="mt-6 flex items-center justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => setSessionGuardDialog(null)}
-                className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-all ${
-                  darkMode
-                    ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                }`}
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={confirmSessionGuardAction}
-                className="rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-700"
-              >
-                Confirmer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={Boolean(sessionGuardDialog)}
+        darkMode={darkMode}
+        title={sessionGuardDialog?.title ?? ""}
+        body={sessionGuardDialog?.body ?? ""}
+        confirmLabel={sessionGuardDialog?.action === "clear" ? "Effacer" : "Réinitialiser"}
+        cancelLabel="Annuler"
+        tone="danger"
+        onCancel={() => setSessionGuardDialog(null)}
+        onConfirm={confirmSessionGuardAction}
+      />
 
       {readinessDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
@@ -2209,19 +2182,6 @@ export default function SansPsPage({
         </div>
       )}
 
-      {completionToast && (
-        <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-slate-950/10 backdrop-blur-[1px]">
-          <div className={`w-full max-w-sm rounded-2xl border ${cardBg} px-6 py-5 shadow-2xl`}>
-            <div className="text-center">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                <CheckIcon className="h-6 w-6" />
-              </div>
-              <h3 className="text-lg font-semibold">{completionToast.title}</h3>
-              <p className={`mt-2 text-sm ${mutedText}`}>{completionToast.body}</p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

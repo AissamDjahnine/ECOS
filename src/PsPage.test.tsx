@@ -217,6 +217,7 @@ describe("PsPage", () => {
 
   it("resets the session state without clearing the pasted case text", async () => {
     const user = userEvent.setup();
+    const onShowToast = vi.fn();
 
     render(
       <PsPage
@@ -227,6 +228,7 @@ describe("PsPage", () => {
         onOpenSettings={vi.fn()}
         darkMode={false}
         onDarkModeChange={vi.fn()}
+        onShowToast={onShowToast}
       />,
     );
 
@@ -244,16 +246,18 @@ describe("PsPage", () => {
     });
 
     await user.click(screen.getByRole("button", { name: "Reset" }));
-    await user.click(screen.getByRole("button", { name: "Confirmer" }));
+    await user.click(screen.getByRole("button", { name: "Réinitialiser" }));
 
     await waitFor(() => {
       expect(textarea).toHaveValue(validCase);
       expect(
         screen.getByText(/la transcription apparaîtra ici/i),
       ).toBeInTheDocument();
-      expect(
-        screen.getByText(/session réinitialisée/i),
-      ).toBeInTheDocument();
+      expect(onShowToast).toHaveBeenCalledWith(
+        "Session réinitialisée",
+        "La session a été vidée. Le texte collé est conservé.",
+        "success",
+      );
     });
   }, 10000);
 

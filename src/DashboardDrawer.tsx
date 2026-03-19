@@ -11,6 +11,7 @@ type DashboardDrawerProps = {
   darkMode: boolean;
   settings: AppSettings;
   onClose: () => void;
+  onShowToast?: (title: string, body?: string, tone?: "success" | "error" | "info") => void;
 };
 
 function DashboardIcon({ className }: { className?: string }) {
@@ -317,13 +318,14 @@ export function DashboardDrawer({
   darkMode,
   settings,
   onClose,
+  onShowToast = () => {},
 }: DashboardDrawerProps) {
   const [dashboard, setDashboard] = useState<DashboardSnapshot>(EMPTY_DASHBOARD);
   const [selectedWindow, setSelectedWindow] = useState<DashboardWindow>("1d");
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  async function loadDashboard() {
+  async function loadDashboard(options?: { silent?: boolean }) {
     setIsLoading(true);
     setLoadError(null);
 
@@ -345,7 +347,11 @@ export function DashboardDrawer({
 
       setDashboard((await response.json()) as DashboardSnapshot);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Dashboard unavailable.");
+      const message = error instanceof Error ? error.message : "Dashboard unavailable.";
+      setLoadError(message);
+      if (!options?.silent) {
+        onShowToast("Dashboard indisponible", message, "error");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -356,9 +362,9 @@ export function DashboardDrawer({
       return;
     }
 
-    void loadDashboard();
+    void loadDashboard({ silent: true });
     const intervalId = window.setInterval(() => {
-      void loadDashboard();
+      void loadDashboard({ silent: true });
     }, 15000);
 
     return () => {

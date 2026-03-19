@@ -90,3 +90,12 @@ export type DashboardSnapshot = {
   limitsHint: string;
   updatedAt: string;
 };
+
+export type AppToastTone = "success" | "error" | "info";
+
+export type AppToast = {
+  id: string;
+  title: string;
+  body?: string;
+  tone: AppToastTone;
+};

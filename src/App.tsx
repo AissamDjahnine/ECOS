@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import PsPage from "./PsPage";
 import SansPsPage from "./SansPsPage";
 import { DashboardDrawer } from "./DashboardDrawer";
 import { SettingsDrawer } from "./SettingsDrawer";
+import { ToastViewport } from "./ToastViewport";
 import { loadSettings, persistSettings } from "./lib/settings";
-import type { AppSettings, RouteMode } from "./types";
+import type { AppSettings, AppToast, AppToastTone, RouteMode } from "./types";
 
 function resolveMode(pathname: string): RouteMode {
   if (pathname === "/sans-ps") {
@@ -20,6 +21,8 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [toast, setToast] = useState<AppToast | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const onPopState = () => {
@@ -35,6 +38,41 @@ export default function App() {
   useEffect(() => {
     persistSettings(settings);
   }, [settings]);
+
+  useEffect(() => {
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+
+    if (!toast) {
+      return;
+    }
+
+    toastTimerRef.current = window.setTimeout(() => {
+      setToast(null);
+      toastTimerRef.current = null;
+    }, 3200);
+
+    return () => {
+      if (toastTimerRef.current) {
+        window.clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = null;
+      }
+    };
+  }, [toast]);
+
+  const showToast = useCallback(
+    (title: string, body?: string, tone: AppToastTone = "info") => {
+      setToast({
+        id: crypto.randomUUID(),
+        title,
+        body,
+        tone,
+      });
+    },
+    [],
+  );
 
   function handleSettingsChange(patch: Partial<AppSettings>) {
     setSettings((current) => ({
@@ -62,6 +100,7 @@ export default function App() {
           onOpenSettings={() => setIsSettingsOpen(true)}
           darkMode={darkMode}
           onDarkModeChange={setDarkMode}
+          onShowToast={showToast}
         />
       ) : (
         <PsPage
@@ -72,6 +111,7 @@ export default function App() {
           onOpenSettings={() => setIsSettingsOpen(true)}
           darkMode={darkMode}
           onDarkModeChange={setDarkMode}
+          onShowToast={showToast}
         />
       )}
       <SettingsDrawer
@@ -80,12 +120,19 @@ export default function App() {
         settings={settings}
         onClose={() => setIsSettingsOpen(false)}
         onChange={handleSettingsChange}
+        onShowToast={showToast}
       />
       <DashboardDrawer
         isOpen={isDashboardOpen}
         darkMode={darkMode}
         settings={settings}
         onClose={() => setIsDashboardOpen(false)}
+        onShowToast={showToast}
+      />
+      <ToastViewport
+        toast={toast}
+        darkMode={darkMode}
+        onDismiss={() => setToast(null)}
       />
     </>
   );

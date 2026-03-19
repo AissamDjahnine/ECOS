@@ -8,6 +8,7 @@ type SettingsDrawerProps = {
   settings: AppSettings;
   onClose: () => void;
   onChange: (patch: Partial<AppSettings>) => void;
+  onShowToast?: (title: string, body?: string, tone?: "success" | "error" | "info") => void;
 };
 
 function SettingsIcon({ className }: { className?: string }) {
@@ -255,6 +256,7 @@ export function SettingsDrawer({
   settings,
   onClose,
   onChange,
+  onShowToast = () => {},
 }: SettingsDrawerProps) {
   const [apiKeyDraft, setApiKeyDraft] = useState(settings.googleApiKey);
   const [isEditingApiKey, setIsEditingApiKey] = useState(false);
@@ -361,6 +363,13 @@ export function SettingsDrawer({
                       onClick={() => {
                         onChange({ googleApiKey: trimmedDraft });
                         setIsEditingApiKey(false);
+                        onShowToast(
+                          "Clé API enregistrée",
+                          trimmedDraft
+                            ? "La clé locale sera utilisée pour les prochains appels."
+                            : "La clé locale a été supprimée. La clé serveur sera utilisée.",
+                          "success",
+                        );
                       }}
                       disabled={!isEditingApiKey || !hasApiKeyChanges}
                       className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-all ${apiKeyActionButtonClass}`}
