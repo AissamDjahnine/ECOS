@@ -118,6 +118,61 @@ function uint8ToBase64(uint8: Uint8Array) {
   return btoa(binary);
 }
 
+function sumModalityTokens(
+  entries:
+    | Array<{ modality?: string; tokens?: number; tokenCount?: number }>
+    | undefined,
+  target: "text" | "audio",
+) {
+  return (entries ?? []).reduce((total, entry) => {
+    const modality = entry.modality?.toLowerCase() ?? "";
+    if (!modality.includes(target)) {
+      return total;
+    }
+
+    return total + (entry.tokens ?? entry.tokenCount ?? 0);
+  }, 0);
+}
+
+function extractLiveUsageCounts(usageMetadata?: {
+  totalInputTokens?: number;
+  totalOutputTokens?: number;
+  totalTokens?: number;
+  total_input_tokens?: number;
+  total_output_tokens?: number;
+  total_tokens?: number;
+  inputTokensByModality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+  outputTokensByModality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+  input_tokens_by_modality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+  output_tokens_by_modality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+}) {
+  const inputEntries =
+    usageMetadata?.inputTokensByModality ?? usageMetadata?.input_tokens_by_modality;
+  const outputEntries =
+    usageMetadata?.outputTokensByModality ?? usageMetadata?.output_tokens_by_modality;
+  const inputTextTokens = sumModalityTokens(inputEntries, "text");
+  const inputAudioTokens = sumModalityTokens(inputEntries, "audio");
+  const outputTextTokens = sumModalityTokens(outputEntries, "text");
+  const outputAudioTokens = sumModalityTokens(outputEntries, "audio");
+  const totalInputTokens =
+    usageMetadata?.totalInputTokens ?? usageMetadata?.total_input_tokens ?? inputTextTokens + inputAudioTokens;
+  const totalOutputTokens =
+    usageMetadata?.totalOutputTokens ?? usageMetadata?.total_output_tokens ?? outputTextTokens + outputAudioTokens;
+
+  return {
+    inputTextTokens,
+    inputAudioTokens,
+    outputTextTokens,
+    outputAudioTokens,
+    totalInputTokens,
+    totalOutputTokens,
+    totalTokens:
+      usageMetadata?.totalTokens ??
+      usageMetadata?.total_tokens ??
+      totalInputTokens + totalOutputTokens,
+  };
+}
+
 function upsertTranscriptEntryById(
   current: TranscriptEntry[],
   entryId: string,
@@ -626,6 +681,7 @@ type PsPageProps = {
   currentMode: "ps" | "sans-ps";
   onNavigate: (mode: "ps" | "sans-ps") => void;
   settings: AppSettings;
+  onOpenDashboard: () => void;
   onOpenSettings: () => void;
   darkMode: boolean;
   onDarkModeChange: (value: boolean) => void;
@@ -635,6 +691,7 @@ export default function App({
   currentMode,
   onNavigate,
   settings,
+  onOpenDashboard,
   onOpenSettings,
   darkMode,
   onDarkModeChange,
@@ -702,6 +759,14 @@ export default function App({
   const autoExportedEvaluationRef = useRef<string | null>(null);
   const shouldSendAudioRef = useRef(true);
   const isMicMutedRef = useRef(false);
+  const currentSessionIdRef = useRef<string | null>(null);
+  const lastLiveUsageTotalsRef = useRef({
+    inputTextTokens: 0,
+    inputAudioTokens: 0,
+    outputTextTokens: 0,
+    outputAudioTokens: 0,
+    totalTokens: 0,
+  });
 
   const patientInfo = useMemo(() => extractPatientInfo(parsedCase), [parsedCase]);
   const sessionDurationSeconds = settings.defaultTimerSeconds;
@@ -959,6 +1024,7 @@ export default function App({
             audioBase64: base64Audio,
             mimeType: "audio/pcm;rate=16000",
             googleApiKey: settings.googleApiKey || undefined,
+            sessionId: currentSessionIdRef.current || undefined,
           }),
         });
 
@@ -1034,6 +1100,7 @@ export default function App({
 
   async function startDiscussion() {
     try {
+      currentSessionIdRef.current = crypto.randomUUID();
       setIsConnecting(true);
       setHasEndedDiscussion(false);
       setCompletionToast(null);
@@ -1061,6 +1128,13 @@ export default function App({
       setRecordedAudioUrl(null);
       setIsMicMuted(false);
       isMicMutedRef.current = false;
+      lastLiveUsageTotalsRef.current = {
+        inputTextTokens: 0,
+        inputAudioTokens: 0,
+        outputTextTokens: 0,
+        outputAudioTokens: 0,
+        totalTokens: 0,
+      };
 
       const mediaStream = await requestMicrophoneStream();
 
@@ -1072,6 +1146,7 @@ export default function App({
         body: JSON.stringify({
           patientScript: parsedCase.patientScript,
           googleApiKey: settings.googleApiKey || undefined,
+          sessionId: currentSessionIdRef.current,
         }),
       });
 
@@ -1129,6 +1204,18 @@ export default function App({
 
           onmessage: async (message: LiveServerMessage) => {
             const liveMessage = message as LiveServerMessage & {
+              usageMetadata?: {
+                totalInputTokens?: number;
+                totalOutputTokens?: number;
+                totalTokens?: number;
+                total_input_tokens?: number;
+                total_output_tokens?: number;
+                total_tokens?: number;
+                inputTokensByModality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+                outputTokensByModality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+                input_tokens_by_modality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+                output_tokens_by_modality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+              };
               inputTranscription?: { text?: string };
               outputTranscription?: { text?: string };
               serverContent?: {
@@ -1145,6 +1232,44 @@ export default function App({
                 waitingForInput?: boolean;
               };
             };
+
+            const liveUsage = extractLiveUsageCounts(liveMessage.usageMetadata);
+            const previousUsage = lastLiveUsageTotalsRef.current;
+            const liveUsageDelta = {
+              inputTextTokens: Math.max(0, liveUsage.inputTextTokens - previousUsage.inputTextTokens),
+              inputAudioTokens: Math.max(0, liveUsage.inputAudioTokens - previousUsage.inputAudioTokens),
+              outputTextTokens: Math.max(0, liveUsage.outputTextTokens - previousUsage.outputTextTokens),
+              outputAudioTokens: Math.max(0, liveUsage.outputAudioTokens - previousUsage.outputAudioTokens),
+              totalTokens: Math.max(0, liveUsage.totalTokens - previousUsage.totalTokens),
+            };
+
+            if (
+              currentSessionIdRef.current &&
+              (liveUsageDelta.inputTextTokens > 0 ||
+                liveUsageDelta.inputAudioTokens > 0 ||
+                liveUsageDelta.outputTextTokens > 0 ||
+                liveUsageDelta.outputAudioTokens > 0)
+            ) {
+              lastLiveUsageTotalsRef.current = {
+                inputTextTokens: liveUsage.inputTextTokens,
+                inputAudioTokens: liveUsage.inputAudioTokens,
+                outputTextTokens: liveUsage.outputTextTokens,
+                outputAudioTokens: liveUsage.outputAudioTokens,
+                totalTokens: liveUsage.totalTokens,
+              };
+
+              void fetch("/api/usage/live", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  sessionId: currentSessionIdRef.current,
+                  googleApiKey: settings.googleApiKey || undefined,
+                  ...liveUsageDelta,
+                }),
+              });
+            }
 
             const serverContent = liveMessage.serverContent;
             const modelTurn = serverContent?.modelTurn;
@@ -1549,6 +1674,7 @@ export default function App({
           gradingGrid: parsedCase.gradingGrid,
           feedbackDetailLevel: settings.feedbackDetailLevel,
           googleApiKey: settings.googleApiKey || undefined,
+          sessionId: currentSessionIdRef.current || undefined,
         }),
       });
 
@@ -1911,6 +2037,19 @@ export default function App({
                   Sans PS
                 </button>
               </div>
+
+              <button
+                type="button"
+                onClick={onOpenDashboard}
+                className={`p-2.5 rounded-xl border transition-all duration-200 ${
+                  darkMode
+                    ? "border-slate-700 bg-slate-800 hover:bg-slate-700"
+                    : "border-slate-200 bg-white hover:bg-slate-50"
+                }`}
+                aria-label="Open dashboard"
+              >
+                <ActivityIcon className={`w-5 h-5 ${darkMode ? "text-slate-200" : "text-slate-600"}`} />
+              </button>
 
               <button
                 onClick={() => onDarkModeChange(!darkMode)}

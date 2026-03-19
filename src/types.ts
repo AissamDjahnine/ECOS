@@ -45,3 +45,40 @@ export type AppSettings = {
   feedbackDetailLevel: FeedbackDetailLevel;
   googleApiKey: string;
 };
+
+export type DashboardStatus = "ready" | "risky" | "blocked";
+
+export type DashboardKeySource = "custom" | "server" | "missing";
+
+export type DashboardUsageStats = {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  estimatedCostUsd: number;
+};
+
+export type DashboardRequestSummary = {
+  endpoint: string;
+  model: string;
+  statusCode: number;
+  outcome: "success" | "error";
+  errorType?: "rate-limit" | "auth" | "billing" | "quota" | "unknown";
+  message?: string;
+  occurredAt: string;
+};
+
+export type DashboardSnapshot = {
+  status: DashboardStatus;
+  statusMessage: string;
+  keySource: DashboardKeySource;
+  liveModel: string;
+  evalModel: string;
+  today: DashboardUsageStats;
+  lastSession: DashboardUsageStats;
+  liveToday: DashboardUsageStats;
+  backendToday: DashboardUsageStats;
+  recentFailures: number;
+  lastRequest: DashboardRequestSummary | null;
+  limitsHint: string;
+  updatedAt: string;
+};

@@ -380,6 +380,7 @@ type SansPsPageProps = {
   currentMode: "ps" | "sans-ps";
   onNavigate: (mode: "ps" | "sans-ps") => void;
   settings: AppSettings;
+  onOpenDashboard: () => void;
   onOpenSettings: () => void;
   darkMode: boolean;
   onDarkModeChange: (value: boolean) => void;
@@ -389,6 +390,7 @@ export default function SansPsPage({
   currentMode,
   onNavigate,
   settings,
+  onOpenDashboard,
   onOpenSettings,
   darkMode,
   onDarkModeChange,
@@ -446,6 +448,7 @@ export default function SansPsPage({
   const isFinalizingTurnRef = useRef(false);
   const shouldCaptureAudioRef = useRef(true);
   const isMicMutedRef = useRef(false);
+  const currentSessionIdRef = useRef<string | null>(null);
 
   const gridReady = Boolean(gradingGrid);
   const canStart =
@@ -583,6 +586,7 @@ export default function SansPsPage({
         audioBase64: base64Audio,
         mimeType: "audio/pcm;rate=16000",
         googleApiKey: settings.googleApiKey || undefined,
+        sessionId: currentSessionIdRef.current || undefined,
       }),
     });
 
@@ -797,6 +801,7 @@ export default function SansPsPage({
 
   async function startSession() {
     try {
+      currentSessionIdRef.current = crypto.randomUUID();
       setIsConnecting(true);
       setEvaluation(null);
       setHasEndedDiscussion(false);
@@ -989,6 +994,7 @@ export default function SansPsPage({
           gradingGrid,
           feedbackDetailLevel: settings.feedbackDetailLevel,
           googleApiKey: settings.googleApiKey || undefined,
+          sessionId: currentSessionIdRef.current || undefined,
         }),
       });
 
@@ -1292,6 +1298,19 @@ export default function SansPsPage({
                 Sans PS
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={onOpenDashboard}
+              className={`rounded-xl border p-2.5 transition-all duration-200 ${
+                darkMode
+                  ? "border-slate-700 bg-slate-800 hover:bg-slate-700"
+                  : "border-slate-200 bg-white hover:bg-slate-50"
+              }`}
+              aria-label="Open dashboard"
+            >
+              <ActivityIcon className={`h-5 w-5 ${darkMode ? "text-slate-200" : "text-slate-600"}`} />
+            </button>
 
             <button
               onClick={() => onDarkModeChange(!darkMode)}

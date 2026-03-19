@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import PsPage from "./PsPage";
 import SansPsPage from "./SansPsPage";
+import { DashboardDrawer } from "./DashboardDrawer";
 import { SettingsDrawer } from "./SettingsDrawer";
 import { loadSettings, persistSettings } from "./lib/settings";
 import type { AppSettings, RouteMode } from "./types";
@@ -17,6 +18,7 @@ export default function App() {
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
   const [mode, setMode] = useState<RouteMode>(() => resolveMode(window.location.pathname));
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
@@ -56,6 +58,7 @@ export default function App() {
           currentMode={mode}
           onNavigate={navigate}
           settings={settings}
+          onOpenDashboard={() => setIsDashboardOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           darkMode={darkMode}
           onDarkModeChange={setDarkMode}
@@ -65,6 +68,7 @@ export default function App() {
           currentMode={mode}
           onNavigate={navigate}
           settings={settings}
+          onOpenDashboard={() => setIsDashboardOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           darkMode={darkMode}
           onDarkModeChange={setDarkMode}
@@ -76,6 +80,12 @@ export default function App() {
         settings={settings}
         onClose={() => setIsSettingsOpen(false)}
         onChange={handleSettingsChange}
+      />
+      <DashboardDrawer
+        isOpen={isDashboardOpen}
+        darkMode={darkMode}
+        settings={settings}
+        onClose={() => setIsDashboardOpen(false)}
       />
     </>
   );

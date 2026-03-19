@@ -10,6 +10,12 @@ import {
   TurnCoverage,
 } from "@google/genai";
 import { z } from "zod";
+import {
+  buildDashboardSnapshot,
+  classifyErrorType,
+  estimateCostUsd,
+  type UsageEvent,
+} from "./dashboard";
 import { getFeedbackInstruction } from "./evaluation";
 
 const app = express();
@@ -20,6 +26,7 @@ const evalModel = process.env.GEMINI_EVAL_MODEL ?? "gemini-2.5-flash";
 const liveModel =
   process.env.GEMINI_LIVE_MODEL ??
   "gemini-2.5-flash-native-audio-preview-12-2025";
+const usageEvents: UsageEvent[] = [];
 
 function resolveApiKey(override?: string) {
   const trimmedOverride = override?.trim();
@@ -28,6 +35,42 @@ function resolveApiKey(override?: string) {
   }
 
   return geminiApiKey;
+}
+
+function resolveKeySource(override?: string) {
+  if (override?.trim()) {
+    return "custom" as const;
+  }
+
+  return geminiApiKey ? ("server" as const) : ("missing" as const);
+}
+
+function resolveTrackableKeySource(override?: string) {
+  const keySource = resolveKeySource(override);
+  return keySource === "missing" ? ("server" as const) : keySource;
+}
+
+function recordUsageEvent(event: UsageEvent) {
+  usageEvents.push(event);
+
+  if (usageEvents.length > 500) {
+    usageEvents.splice(0, usageEvents.length - 500);
+  }
+}
+
+function usageMetadataToCounts(usageMetadata?: {
+  promptTokenCount?: number;
+  candidatesTokenCount?: number;
+  totalTokenCount?: number;
+}) {
+  return {
+    inputTokens: usageMetadata?.promptTokenCount ?? 0,
+    outputTokens: usageMetadata?.candidatesTokenCount ?? 0,
+    totalTokens:
+      usageMetadata?.totalTokenCount ??
+      (usageMetadata?.promptTokenCount ?? 0) +
+        (usageMetadata?.candidatesTokenCount ?? 0),
+  };
 }
 
 function stripParentheticalStageDirections(text: string) {
@@ -46,10 +89,83 @@ app.get("/api/health", (_request, response) => {
   });
 });
 
+app.post("/api/dashboard", (request, response) => {
+  const schema = z.object({
+    googleApiKey: z.string().optional(),
+  });
+
+  const parsed = schema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json(parsed.error.flatten());
+    return;
+  }
+
+  response.json(
+    buildDashboardSnapshot({
+      events: usageEvents,
+      keySource: resolveKeySource(parsed.data.googleApiKey),
+      liveModel,
+      evalModel,
+    }),
+  );
+});
+
+app.post("/api/usage/live", (request, response) => {
+  const schema = z.object({
+    sessionId: z.string().min(1),
+    googleApiKey: z.string().optional(),
+    inputTextTokens: z.number().nonnegative().default(0),
+    inputAudioTokens: z.number().nonnegative().default(0),
+    outputTextTokens: z.number().nonnegative().default(0),
+    outputAudioTokens: z.number().nonnegative().default(0),
+    totalTokens: z.number().nonnegative().default(0),
+  });
+
+  const parsed = schema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json(parsed.error.flatten());
+    return;
+  }
+
+  const keySource = resolveKeySource(parsed.data.googleApiKey);
+  if (keySource === "missing") {
+    response.status(200).json({ ok: true });
+    return;
+  }
+
+  recordUsageEvent({
+    endpoint: "live-usage",
+    model: liveModel,
+    keySource,
+    sessionId: parsed.data.sessionId,
+    occurredAt: new Date().toISOString(),
+    statusCode: 200,
+    outcome: "success",
+    inputTokens: parsed.data.inputTextTokens + parsed.data.inputAudioTokens,
+    outputTokens: parsed.data.outputTextTokens + parsed.data.outputAudioTokens,
+    totalTokens:
+      parsed.data.totalTokens ||
+      parsed.data.inputTextTokens +
+        parsed.data.inputAudioTokens +
+        parsed.data.outputTextTokens +
+        parsed.data.outputAudioTokens,
+    estimatedCostUsd: estimateCostUsd({
+      model: liveModel,
+      inputTextTokens: parsed.data.inputTextTokens,
+      inputAudioTokens: parsed.data.inputAudioTokens,
+      outputTextTokens: parsed.data.outputTextTokens,
+      outputAudioTokens: parsed.data.outputAudioTokens,
+    }),
+  });
+
+  response.json({ ok: true });
+});
+
 app.post("/api/live-token", async (request, response) => {
   const schema = z.object({
     patientScript: z.string().min(1),
     googleApiKey: z.string().optional(),
+    sessionId: z.string().optional(),
   });
 
   const parsed = schema.safeParse(request.body);
@@ -60,7 +176,23 @@ app.post("/api/live-token", async (request, response) => {
 
   try {
     const apiKey = resolveApiKey(parsed.data.googleApiKey);
+    const keySource = resolveTrackableKeySource(parsed.data.googleApiKey);
     if (!apiKey) {
+      recordUsageEvent({
+        endpoint: "live-token",
+        model: liveModel,
+        keySource: "server",
+        sessionId: parsed.data.sessionId,
+        occurredAt: new Date().toISOString(),
+        statusCode: 500,
+        outcome: "error",
+        errorType: "auth",
+        message: "Missing GEMINI_API_KEY.",
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        estimatedCostUsd: 0,
+      });
       response.status(500).send("Missing GEMINI_API_KEY.");
       return;
     }
@@ -96,6 +228,11 @@ app.post("/api/live-token", async (request, response) => {
       cleanedPatientScript,
     ].join("\n");
 
+    const promptTokenEstimate = await ai.models.countTokens({
+      model: liveModel,
+      contents: systemInstruction,
+    });
+
     const token = await ai.authTokens.create({
       config: {
         uses: 1,
@@ -129,11 +266,43 @@ app.post("/api/live-token", async (request, response) => {
       token: token.name,
       model: liveModel,
     });
+
+    recordUsageEvent({
+      endpoint: "live-token",
+      model: liveModel,
+      keySource,
+      sessionId: parsed.data.sessionId,
+      occurredAt: new Date().toISOString(),
+      statusCode: 200,
+      outcome: "success",
+      inputTokens: promptTokenEstimate.totalTokens ?? 0,
+      outputTokens: 0,
+      totalTokens: promptTokenEstimate.totalTokens ?? 0,
+      estimatedCostUsd: estimateCostUsd({
+        model: liveModel,
+        inputTextTokens: promptTokenEstimate.totalTokens ?? 0,
+      }),
+    });
   } catch (error) {
     const message =
       error instanceof Error
         ? error.message
         : "Unable to create live token.";
+    recordUsageEvent({
+      endpoint: "live-token",
+      model: liveModel,
+      keySource: resolveTrackableKeySource(parsed.data.googleApiKey),
+      sessionId: parsed.data.sessionId,
+      occurredAt: new Date().toISOString(),
+      statusCode: 500,
+      outcome: "error",
+      errorType: classifyErrorType(500, message),
+      message,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      estimatedCostUsd: 0,
+    });
     response.status(500).send(message);
   }
 });
@@ -147,6 +316,7 @@ app.post("/api/evaluate", async (request, response) => {
       .optional()
       .default("standard"),
     googleApiKey: z.string().optional(),
+    sessionId: z.string().optional(),
   });
 
   const parsed = schema.safeParse(request.body);
@@ -157,6 +327,7 @@ app.post("/api/evaluate", async (request, response) => {
 
   try {
     const apiKey = resolveApiKey(parsed.data.googleApiKey);
+    const keySource = resolveTrackableKeySource(parsed.data.googleApiKey);
     if (!apiKey) {
       response.status(500).send("Missing GEMINI_API_KEY.");
       return;
@@ -228,10 +399,44 @@ app.post("/api/evaluate", async (request, response) => {
       return;
     }
 
+    const usage = usageMetadataToCounts(result.usageMetadata);
+    recordUsageEvent({
+      endpoint: "evaluate",
+      model: evalModel,
+      keySource,
+      sessionId: parsed.data.sessionId,
+      occurredAt: new Date().toISOString(),
+      statusCode: 200,
+      outcome: "success",
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      totalTokens: usage.totalTokens,
+      estimatedCostUsd: estimateCostUsd({
+        model: evalModel,
+        inputTextTokens: usage.inputTokens,
+        outputTextTokens: usage.outputTokens,
+      }),
+    });
+
     response.type("application/json").send(text);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unable to evaluate transcript.";
+    recordUsageEvent({
+      endpoint: "evaluate",
+      model: evalModel,
+      keySource: resolveTrackableKeySource(parsed.data.googleApiKey),
+      sessionId: parsed.data.sessionId,
+      occurredAt: new Date().toISOString(),
+      statusCode: 500,
+      outcome: "error",
+      errorType: classifyErrorType(500, message),
+      message,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      estimatedCostUsd: 0,
+    });
     response.status(500).send(message);
   }
 });
@@ -241,6 +446,7 @@ app.post("/api/transcribe-turn", async (request, response) => {
     audioBase64: z.string().min(1),
     mimeType: z.string().min(1),
     googleApiKey: z.string().optional(),
+    sessionId: z.string().optional(),
   });
 
   const parsed = schema.safeParse(request.body);
@@ -251,6 +457,7 @@ app.post("/api/transcribe-turn", async (request, response) => {
 
   try {
     const apiKey = resolveApiKey(parsed.data.googleApiKey);
+    const keySource = resolveTrackableKeySource(parsed.data.googleApiKey);
     if (!apiKey) {
       response.status(500).send("Missing GEMINI_API_KEY.");
       return;
@@ -283,9 +490,43 @@ app.post("/api/transcribe-turn", async (request, response) => {
     });
 
     response.json({ text: result.text?.trim() ?? "" });
+
+    const usage = usageMetadataToCounts(result.usageMetadata);
+    recordUsageEvent({
+      endpoint: "transcribe-turn",
+      model: evalModel,
+      keySource,
+      sessionId: parsed.data.sessionId,
+      occurredAt: new Date().toISOString(),
+      statusCode: 200,
+      outcome: "success",
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      totalTokens: usage.totalTokens,
+      estimatedCostUsd: estimateCostUsd({
+        model: evalModel,
+        inputAudioTokens: usage.inputTokens,
+        outputTextTokens: usage.outputTokens,
+      }),
+    });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unable to transcribe audio.";
+    recordUsageEvent({
+      endpoint: "transcribe-turn",
+      model: evalModel,
+      keySource: resolveTrackableKeySource(parsed.data.googleApiKey),
+      sessionId: parsed.data.sessionId,
+      occurredAt: new Date().toISOString(),
+      statusCode: 500,
+      outcome: "error",
+      errorType: classifyErrorType(500, message),
+      message,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      estimatedCostUsd: 0,
+    });
     response.status(500).send(message);
   }
 });
