@@ -157,6 +157,11 @@ app.post("/api/evaluate", async (request, response) => {
               text: [
                 "Tu es un correcteur ECOS.",
                 "Analyse le transcript complet face à la grille de correction.",
+                "Un critère est observé uniquement si l'étudiant l'a activement recherché, demandé, vérifié, reformulé ou exploré.",
+                "Une information donnée spontanément par le patient ne suffit jamais à valider un critère.",
+                "Si seul le patient mentionne un élément sans question, vérification ou exploration claire par l'étudiant, le critère doit être non observé.",
+                "Ne crédite pas l'étudiant pour une information simplement entendue, acceptée passivement ou suivie d'un acquiescement vague.",
+                "Le feedback doit expliquer brièvement ce que l'étudiant a réellement fait ou n'a pas fait pour chaque critère.",
                 "Retourne uniquement un JSON conforme au schema.",
                 "",
                 "Transcript:",
