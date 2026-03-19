@@ -16,7 +16,12 @@ import {
   type AudioStreamer,
   type MicrophoneLevelSample,
 } from "./lib/audio";
-import type { EvaluationResult, ParsedCase, TranscriptEntry } from "./types";
+import type {
+  AppSettings,
+  EvaluationResult,
+  ParsedCase,
+  TranscriptEntry,
+} from "./types";
 
 const liveModel =
   import.meta.env.VITE_GEMINI_LIVE_MODEL ??
@@ -546,12 +551,32 @@ function ActivityIcon({ className }: { className?: string }) {
   );
 }
 
+function SettingsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01A1.65 1.65 0 0 0 10.59 3H10.5a2 2 0 1 1 4 0h-.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
 type PsPageProps = {
   currentMode: "ps" | "sans-ps";
   onNavigate: (mode: "ps" | "sans-ps") => void;
+  settings: AppSettings;
+  onOpenSettings: () => void;
+  darkMode: boolean;
+  onDarkModeChange: (value: boolean) => void;
 };
 
-export default function App({ currentMode, onNavigate }: PsPageProps) {
+export default function App({
+  currentMode,
+  onNavigate,
+  settings,
+  onOpenSettings,
+  darkMode,
+  onDarkModeChange,
+}: PsPageProps) {
   const [rawInput, setRawInput] = useState("");
   const [parsedCase, setParsedCase] = useState<ParsedCase>(() =>
     parseCaseInput(""),
@@ -570,12 +595,13 @@ export default function App({ currentMode, onNavigate }: PsPageProps) {
     useState<ConversationPhase>("idle");
   const [showStudentDraftIndicator, setShowStudentDraftIndicator] =
     useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
   const [micPeak, setMicPeak] = useState(0);
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
-  const [remainingSeconds, setRemainingSeconds] = useState(8 * 60);
+  const [remainingSeconds, setRemainingSeconds] = useState(
+    settings.defaultTimerSeconds,
+  );
   const [completionToast, setCompletionToast] = useState<{
     title: string;
     body: string;
@@ -588,6 +614,7 @@ export default function App({ currentMode, onNavigate }: PsPageProps) {
 
   const transcriptRef = useRef<HTMLDivElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const completionToastTimerRef = useRef<number | null>(null);
 
   const sessionRef = useRef<LiveSession | null>(null);
@@ -602,10 +629,13 @@ export default function App({ currentMode, onNavigate }: PsPageProps) {
   const isFinalizingStudentRef = useRef(false);
 
   const recordedAudioUrlRef = useRef<string | null>(null);
+  const autoEvaluateHandledRef = useRef(false);
+  const autoExportedEvaluationRef = useRef<string | null>(null);
   const shouldSendAudioRef = useRef(true);
   const isMicMutedRef = useRef(false);
 
   const patientInfo = useMemo(() => extractPatientInfo(parsedCase), [parsedCase]);
+  const sessionDurationSeconds = settings.defaultTimerSeconds;
 
   const parsedReady = Boolean(parsedCase.patientScript && parsedCase.gradingGrid);
   const canStart =
@@ -628,6 +658,27 @@ export default function App({ currentMode, onNavigate }: PsPageProps) {
 
   const scoreState = parseScore(evaluation?.score);
   const timerDanger = remainingSeconds <= 60;
+  const canSwitchModes = !isDiscussing && !isPaused;
+  const transcriptForDisplay = useMemo(() => {
+    const withVisibleRoles = settings.showSystemMessages
+      ? transcript
+      : transcript.filter((entry) => entry.role !== "system");
+
+    if (settings.showLiveTranscript || hasEndedDiscussion) {
+      return withVisibleRoles;
+    }
+
+    return [];
+  }, [
+    hasEndedDiscussion,
+    settings.showLiveTranscript,
+    settings.showSystemMessages,
+    transcript,
+  ]);
+  const showLiveTranscriptContent =
+    settings.showLiveTranscript || hasEndedDiscussion;
+  const showDraftIndicatorForDisplay =
+    showStudentDraftIndicator && showLiveTranscriptContent;
 
   function startMixedRecorder(
     microphoneStream: MediaStream,
@@ -881,7 +932,7 @@ export default function App({ currentMode, onNavigate }: PsPageProps) {
       setCompletionToast(null);
       setStatus("Demande de jeton temporaire");
       setEvaluation(null);
-      setRemainingSeconds(8 * 60);
+      setRemainingSeconds(sessionDurationSeconds);
       setTranscript([]);
       setMicLevel(0);
       setMicPeak(0);
@@ -1194,7 +1245,9 @@ export default function App({ currentMode, onNavigate }: PsPageProps) {
     let elapsedSummary = "";
 
     try {
-      elapsedSummary = formatElapsedDiscussion(8 * 60 - remainingSeconds);
+      elapsedSummary = formatElapsedDiscussion(
+        sessionDurationSeconds - remainingSeconds,
+      );
       shouldSendAudioRef.current = false;
       await finalizeStudentDraft();
       sessionRef.current?.sendRealtimeInput?.({ audioStreamEnd: true });
@@ -1261,6 +1314,7 @@ export default function App({ currentMode, onNavigate }: PsPageProps) {
         body: JSON.stringify({
           transcript: cleanedTranscript,
           gradingGrid: parsedCase.gradingGrid,
+          feedbackDetailLevel: settings.feedbackDetailLevel,
         }),
       });
 
@@ -1295,7 +1349,7 @@ export default function App({ currentMode, onNavigate }: PsPageProps) {
   }
 
   function handleEvaluateClick() {
-    const discussionDurationSeconds = 8 * 60 - remainingSeconds;
+    const discussionDurationSeconds = sessionDurationSeconds - remainingSeconds;
 
     if (discussionDurationSeconds < 120) {
       setEvaluationWarning({
@@ -1336,7 +1390,60 @@ export default function App({ currentMode, onNavigate }: PsPageProps) {
       top: transcriptRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [transcript, showStudentDraftIndicator]);
+  }, [showDraftIndicatorForDisplay, transcriptForDisplay]);
+
+  useEffect(() => {
+    if (!isDiscussing && !isPaused) {
+      setRemainingSeconds(settings.defaultTimerSeconds);
+    }
+  }, [isDiscussing, isPaused, settings.defaultTimerSeconds]);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = settings.recordedAudioPlaybackRate;
+    }
+  }, [recordedAudioUrl, settings.recordedAudioPlaybackRate]);
+
+  useEffect(() => {
+    if (!hasEndedDiscussion) {
+      autoEvaluateHandledRef.current = false;
+      return;
+    }
+
+    if (
+      !settings.autoEvaluateAfterEnd ||
+      autoEvaluateHandledRef.current ||
+      isEvaluating ||
+      evaluation
+    ) {
+      return;
+    }
+
+    autoEvaluateHandledRef.current = true;
+    handleEvaluateClick();
+  }, [
+    evaluation,
+    hasEndedDiscussion,
+    isEvaluating,
+    remainingSeconds,
+    settings.autoEvaluateAfterEnd,
+  ]);
+
+  useEffect(() => {
+    if (!evaluation) {
+      autoExportedEvaluationRef.current = null;
+      return;
+    }
+
+    const evaluationKey = JSON.stringify(evaluation);
+    if (
+      settings.autoExportPdfAfterEvaluation &&
+      autoExportedEvaluationRef.current !== evaluationKey
+    ) {
+      autoExportedEvaluationRef.current = evaluationKey;
+      exportPdf();
+    }
+  }, [evaluation, settings.autoExportPdfAfterEvaluation]);
 
   useEffect(() => {
     if (!isDiscussing) {
@@ -1511,9 +1618,14 @@ export default function App({ currentMode, onNavigate }: PsPageProps) {
                 <button
                   type="button"
                   onClick={() => onNavigate("ps")}
+                  disabled={currentMode !== "ps" && !canSwitchModes}
                   className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
                     currentMode === "ps"
                       ? "bg-primary-600 text-white shadow-sm"
+                      : !canSwitchModes
+                        ? darkMode
+                          ? "cursor-not-allowed text-slate-500"
+                          : "cursor-not-allowed text-slate-300"
                       : darkMode
                         ? "text-slate-300 hover:bg-slate-700"
                         : "text-slate-600 hover:bg-slate-50"
@@ -1524,9 +1636,14 @@ export default function App({ currentMode, onNavigate }: PsPageProps) {
                 <button
                   type="button"
                   onClick={() => onNavigate("sans-ps")}
+                  disabled={currentMode !== "sans-ps" && !canSwitchModes}
                   className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
                     currentMode === "sans-ps"
                       ? "bg-primary-600 text-white shadow-sm"
+                      : !canSwitchModes
+                        ? darkMode
+                          ? "cursor-not-allowed text-slate-500"
+                          : "cursor-not-allowed text-slate-300"
                       : darkMode
                         ? "text-slate-300 hover:bg-slate-700"
                         : "text-slate-600 hover:bg-slate-50"
@@ -1537,7 +1654,7 @@ export default function App({ currentMode, onNavigate }: PsPageProps) {
               </div>
 
               <button
-                onClick={() => setDarkMode(!darkMode)}
+                onClick={() => onDarkModeChange(!darkMode)}
                 className={`p-2.5 rounded-xl border transition-all duration-200 ${
                   darkMode
                     ? "border-slate-700 bg-slate-800 hover:bg-slate-700"
@@ -1550,6 +1667,19 @@ export default function App({ currentMode, onNavigate }: PsPageProps) {
                 ) : (
                   <MoonIcon className="w-5 h-5 text-slate-600" />
                 )}
+              </button>
+
+              <button
+                type="button"
+                onClick={onOpenSettings}
+                className={`p-2.5 rounded-xl border transition-all duration-200 ${
+                  darkMode
+                    ? "border-slate-700 bg-slate-800 hover:bg-slate-700"
+                    : "border-slate-200 bg-white hover:bg-slate-50"
+                }`}
+                aria-label="Open settings"
+              >
+                <SettingsIcon className={`w-5 h-5 ${darkMode ? "text-slate-200" : "text-slate-600"}`} />
               </button>
             </div>
           </div>
@@ -1725,7 +1855,7 @@ export default function App({ currentMode, onNavigate }: PsPageProps) {
                           timerDanger ? "bg-rose-500" : "bg-primary-500"
                         }`}
                         style={{
-                          width: `${Math.max(0, Math.min(100, (remainingSeconds / (8 * 60)) * 100))}%`,
+                          width: `${Math.max(0, Math.min(100, (remainingSeconds / sessionDurationSeconds) * 100))}%`,
                         }}
                       />
                     </div>
@@ -1847,23 +1977,36 @@ export default function App({ currentMode, onNavigate }: PsPageProps) {
                     darkMode ? "bg-slate-950/50" : "bg-slate-50/80"
                   }`}
                 >
-                  {transcript.length === 0 && !showStudentDraftIndicator ? (
+                  {transcriptForDisplay.length === 0 && !showDraftIndicatorForDisplay ? (
                     <div className="h-full flex items-center justify-center">
                       <div className="text-center">
                         <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl ${subtleBg} flex items-center justify-center`}>
                           <ActivityIcon className={`w-8 h-8 ${mutedText}`} />
                         </div>
-                        <p className={`text-sm ${mutedText}`}>
-                          La transcription apparaîtra ici
-                        </p>
-                        <p className={`text-xs ${mutedText} mt-1`}>
-                          Démarrez une session pour commencer
-                        </p>
+                        {!settings.showLiveTranscript && !hasEndedDiscussion ? (
+                          <>
+                            <p className={`text-sm ${mutedText}`}>
+                              La transcription en direct est masquée
+                            </p>
+                            <p className={`text-xs ${mutedText} mt-1`}>
+                              Elle sera visible à la fin de la session.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className={`text-sm ${mutedText}`}>
+                              La transcription apparaîtra ici
+                            </p>
+                            <p className={`text-xs ${mutedText} mt-1`}>
+                              Démarrez une session pour commencer
+                            </p>
+                          </>
+                        )}
                       </div>
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {transcript.map((entry) => (
+                      {transcriptForDisplay.map((entry) => (
                         <div
                           key={entry.id}
                           className={`max-w-[85%] animate-fade-in ${
@@ -1945,7 +2088,7 @@ export default function App({ currentMode, onNavigate }: PsPageProps) {
                         </div>
                       ))}
 
-                      {showStudentDraftIndicator && (
+                      {showDraftIndicatorForDisplay && (
                         <div className="ml-auto max-w-[85%] animate-fade-in">
                           <div className="bg-primary-600/90 text-white rounded-2xl px-4 py-3">
                             <div className="flex items-center justify-between gap-4 text-[10px] uppercase tracking-wider mb-1.5 text-primary-100">
@@ -1975,7 +2118,7 @@ export default function App({ currentMode, onNavigate }: PsPageProps) {
             <div className={`xl:col-span-2 rounded-2xl border ${cardBg} p-6 shadow-soft`}>
               <h3 className="text-lg font-semibold mb-4">Enregistrement audio</h3>
               <div className={`p-4 rounded-xl ${subCardBg} border`}>
-                <audio controls className="w-full" src={recordedAudioUrl}>
+                <audio ref={audioRef} controls className="w-full" src={recordedAudioUrl}>
                   Votre navigateur ne supporte pas la lecture audio.
                 </audio>
               </div>

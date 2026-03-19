@@ -1,17 +1,23 @@
 import { useEffect, useState } from "react";
 import PsPage from "./PsPage";
 import SansPsPage from "./SansPsPage";
-
-type RouteMode = "ps" | "sans-ps";
+import { SettingsDrawer } from "./SettingsDrawer";
+import { loadSettings, persistSettings } from "./lib/settings";
+import type { AppSettings, RouteMode } from "./types";
 
 function resolveMode(pathname: string): RouteMode {
-  return pathname === "/sans-ps" ? "sans-ps" : "ps";
+  if (pathname === "/sans-ps") {
+    return "sans-ps";
+  }
+
+  return "ps";
 }
 
 export default function App() {
-  const [mode, setMode] = useState<RouteMode>(() =>
-    resolveMode(window.location.pathname),
-  );
+  const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
+  const [mode, setMode] = useState<RouteMode>(() => resolveMode(window.location.pathname));
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
     const onPopState = () => {
@@ -24,6 +30,17 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    persistSettings(settings);
+  }, [settings]);
+
+  function handleSettingsChange(patch: Partial<AppSettings>) {
+    setSettings((current) => ({
+      ...current,
+      ...patch,
+    }));
+  }
+
   function navigate(nextMode: RouteMode) {
     const nextPath = nextMode === "sans-ps" ? "/sans-ps" : "/ps";
     if (window.location.pathname !== nextPath) {
@@ -33,10 +50,33 @@ export default function App() {
   }
 
   return (
-    mode === "sans-ps" ? (
-      <SansPsPage currentMode={mode} onNavigate={navigate} />
-    ) : (
-      <PsPage currentMode={mode} onNavigate={navigate} />
-    )
+    <>
+      {mode === "sans-ps" ? (
+        <SansPsPage
+          currentMode={mode}
+          onNavigate={navigate}
+          settings={settings}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          darkMode={darkMode}
+          onDarkModeChange={setDarkMode}
+        />
+      ) : (
+        <PsPage
+          currentMode={mode}
+          onNavigate={navigate}
+          settings={settings}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          darkMode={darkMode}
+          onDarkModeChange={setDarkMode}
+        />
+      )}
+      <SettingsDrawer
+        isOpen={isSettingsOpen}
+        darkMode={darkMode}
+        settings={settings}
+        onClose={() => setIsSettingsOpen(false)}
+        onChange={handleSettingsChange}
+      />
+    </>
   );
 }

@@ -136,6 +136,10 @@ app.post("/api/evaluate", async (request, response) => {
   const schema = z.object({
     transcript: z.string().min(1),
     gradingGrid: z.string().min(1),
+    feedbackDetailLevel: z
+      .enum(["brief", "standard", "detailed"])
+      .optional()
+      .default("standard"),
   });
 
   const parsed = schema.safeParse(request.body);
@@ -146,6 +150,13 @@ app.post("/api/evaluate", async (request, response) => {
 
   try {
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+
+    const feedbackInstruction =
+      parsed.data.feedbackDetailLevel === "brief"
+        ? "Le feedback doit rester très concis, en une justification courte par critère."
+        : parsed.data.feedbackDetailLevel === "detailed"
+          ? "Le feedback doit être détaillé, explicite et relier précisément chaque critère aux actions ou omissions de l'étudiant."
+          : "Le feedback doit expliquer brièvement ce que l'étudiant a réellement fait ou n'a pas fait pour chaque critère.";
 
     const result = await ai.models.generateContent({
       model: evalModel,
@@ -161,7 +172,7 @@ app.post("/api/evaluate", async (request, response) => {
                 "Une information donnée spontanément par le patient ne suffit jamais à valider un critère.",
                 "Si seul le patient mentionne un élément sans question, vérification ou exploration claire par l'étudiant, le critère doit être non observé.",
                 "Ne crédite pas l'étudiant pour une information simplement entendue, acceptée passivement ou suivie d'un acquiescement vague.",
-                "Le feedback doit expliquer brièvement ce que l'étudiant a réellement fait ou n'a pas fait pour chaque critère.",
+                feedbackInstruction,
                 "Retourne uniquement un JSON conforme au schema.",
                 "",
                 "Transcript:",

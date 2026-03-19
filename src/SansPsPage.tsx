@@ -6,7 +6,11 @@ import {
   type MicrophoneLevelSample,
 } from "./lib/audio";
 import { extractGradingGridOnly, transcriptToPlainText } from "./lib/parser";
-import type { EvaluationResult, TranscriptEntry } from "./types";
+import type {
+  AppSettings,
+  EvaluationResult,
+  TranscriptEntry,
+} from "./types";
 
 type SessionPhase = "idle" | "student-speaking" | "paused";
 
@@ -198,6 +202,15 @@ function ActivityIcon({ className }: { className?: string }) {
   );
 }
 
+function SettingsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01A1.65 1.65 0 0 0 10.59 3H10.5a2 2 0 1 1 4 0h-.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
 function FileTextIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -303,11 +316,19 @@ function ClockIcon({ className }: { className?: string }) {
 type SansPsPageProps = {
   currentMode: "ps" | "sans-ps";
   onNavigate: (mode: "ps" | "sans-ps") => void;
+  settings: AppSettings;
+  onOpenSettings: () => void;
+  darkMode: boolean;
+  onDarkModeChange: (value: boolean) => void;
 };
 
 export default function SansPsPage({
   currentMode,
   onNavigate,
+  settings,
+  onOpenSettings,
+  darkMode,
+  onDarkModeChange,
 }: SansPsPageProps) {
   const [rawInput, setRawInput] = useState("");
   const [gradingGrid, setGradingGrid] = useState("");
@@ -323,10 +344,11 @@ export default function SansPsPage({
   const [evaluationProgress, setEvaluationProgress] = useState(0);
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
-  const [remainingSeconds, setRemainingSeconds] = useState(8 * 60);
+  const [remainingSeconds, setRemainingSeconds] = useState(
+    settings.defaultTimerSeconds,
+  );
   const [showStudentDraftIndicator, setShowStudentDraftIndicator] =
     useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
   const [micPeak, setMicPeak] = useState(0);
@@ -342,8 +364,11 @@ export default function SansPsPage({
 
   const transcriptRef = useRef<HTMLDivElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const micRef = useRef<AudioStreamer | null>(null);
   const recordedAudioUrlRef = useRef<string | null>(null);
+  const autoEvaluateHandledRef = useRef(false);
+  const autoExportedEvaluationRef = useRef<string | null>(null);
   const completionToastTimerRef = useRef<number | null>(null);
   const silenceTimerRef = useRef<number | null>(null);
   const currentTurnChunksRef = useRef<Blob[]>([]);
@@ -370,6 +395,8 @@ export default function SansPsPage({
     Boolean(gradingGrid);
   const timerDanger = remainingSeconds <= 60;
   const scoreState = parseScore(evaluation?.score);
+  const sessionDurationSeconds = settings.defaultTimerSeconds;
+  const canSwitchModes = !isDiscussing && !isPaused;
 
   const theme = darkMode ? "dark" : "light";
   const bgClass = darkMode
@@ -387,6 +414,26 @@ export default function SansPsPage({
     : "bg-white border-slate-200 text-slate-900 placeholder-slate-400";
   const mutedText = darkMode ? "text-slate-400" : "text-slate-500";
   const subtleBg = darkMode ? "bg-slate-800/40" : "bg-slate-100/60";
+  const transcriptForDisplay = useMemo(() => {
+    const withVisibleRoles = settings.showSystemMessages
+      ? transcript
+      : transcript.filter((entry) => entry.role !== "system");
+
+    if (settings.showLiveTranscript || hasEndedDiscussion) {
+      return withVisibleRoles;
+    }
+
+    return [];
+  }, [
+    hasEndedDiscussion,
+    settings.showLiveTranscript,
+    settings.showSystemMessages,
+    transcript,
+  ]);
+  const showLiveTranscriptContent =
+    settings.showLiveTranscript || hasEndedDiscussion;
+  const showDraftIndicatorForDisplay =
+    showStudentDraftIndicator && showLiveTranscriptContent;
 
   const statusColor = useMemo(() => {
     switch (sessionPhase) {
@@ -534,7 +581,7 @@ export default function SansPsPage({
       setHasEndedDiscussion(false);
       setCompletionToast(null);
       setStatus("Préparation du monologue");
-      setRemainingSeconds(8 * 60);
+      setRemainingSeconds(sessionDurationSeconds);
       setTranscript([
         createTranscriptEntry(
           "system",
@@ -650,7 +697,9 @@ export default function SansPsPage({
     let elapsedSummary = "";
 
     try {
-      elapsedSummary = formatElapsedDiscussion(8 * 60 - remainingSeconds);
+      elapsedSummary = formatElapsedDiscussion(
+        sessionDurationSeconds - remainingSeconds,
+      );
       shouldCaptureAudioRef.current = false;
       clearSilenceTimer();
       await finalizeStudentTurn();
@@ -717,6 +766,7 @@ export default function SansPsPage({
         body: JSON.stringify({
           transcript: cleanedTranscript,
           gradingGrid,
+          feedbackDetailLevel: settings.feedbackDetailLevel,
         }),
       });
 
@@ -751,7 +801,7 @@ export default function SansPsPage({
   }
 
   function handleEvaluateClick() {
-    const discussionDurationSeconds = 8 * 60 - remainingSeconds;
+    const discussionDurationSeconds = sessionDurationSeconds - remainingSeconds;
 
     if (discussionDurationSeconds < 120) {
       setEvaluationWarning({
@@ -806,7 +856,60 @@ export default function SansPsPage({
       top: transcriptRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [transcript, showStudentDraftIndicator]);
+  }, [showDraftIndicatorForDisplay, transcriptForDisplay]);
+
+  useEffect(() => {
+    if (!isDiscussing && !isPaused) {
+      setRemainingSeconds(settings.defaultTimerSeconds);
+    }
+  }, [isDiscussing, isPaused, settings.defaultTimerSeconds]);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = settings.recordedAudioPlaybackRate;
+    }
+  }, [recordedAudioUrl, settings.recordedAudioPlaybackRate]);
+
+  useEffect(() => {
+    if (!hasEndedDiscussion) {
+      autoEvaluateHandledRef.current = false;
+      return;
+    }
+
+    if (
+      !settings.autoEvaluateAfterEnd ||
+      autoEvaluateHandledRef.current ||
+      isEvaluating ||
+      evaluation
+    ) {
+      return;
+    }
+
+    autoEvaluateHandledRef.current = true;
+    handleEvaluateClick();
+  }, [
+    evaluation,
+    hasEndedDiscussion,
+    isEvaluating,
+    remainingSeconds,
+    settings.autoEvaluateAfterEnd,
+  ]);
+
+  useEffect(() => {
+    if (!evaluation) {
+      autoExportedEvaluationRef.current = null;
+      return;
+    }
+
+    const evaluationKey = JSON.stringify(evaluation);
+    if (
+      settings.autoExportPdfAfterEvaluation &&
+      autoExportedEvaluationRef.current !== evaluationKey
+    ) {
+      autoExportedEvaluationRef.current = evaluationKey;
+      exportPdf();
+    }
+  }, [evaluation, settings.autoExportPdfAfterEvaluation]);
 
   useEffect(() => {
     if (!isDiscussing) {
@@ -908,9 +1011,14 @@ export default function SansPsPage({
               <button
                 type="button"
                 onClick={() => onNavigate("ps")}
+                disabled={currentMode !== "ps" && !canSwitchModes}
                 className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
                   currentMode === "ps"
                     ? "bg-primary-600 text-white shadow-sm"
+                    : !canSwitchModes
+                      ? darkMode
+                        ? "cursor-not-allowed text-slate-500"
+                        : "cursor-not-allowed text-slate-300"
                     : darkMode
                       ? "text-slate-300 hover:bg-slate-700"
                       : "text-slate-600 hover:bg-slate-50"
@@ -921,9 +1029,14 @@ export default function SansPsPage({
               <button
                 type="button"
                 onClick={() => onNavigate("sans-ps")}
+                disabled={currentMode !== "sans-ps" && !canSwitchModes}
                 className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
                   currentMode === "sans-ps"
                     ? "bg-primary-600 text-white shadow-sm"
+                    : !canSwitchModes
+                      ? darkMode
+                        ? "cursor-not-allowed text-slate-500"
+                        : "cursor-not-allowed text-slate-300"
                     : darkMode
                       ? "text-slate-300 hover:bg-slate-700"
                       : "text-slate-600 hover:bg-slate-50"
@@ -934,7 +1047,7 @@ export default function SansPsPage({
             </div>
 
             <button
-              onClick={() => setDarkMode((current) => !current)}
+              onClick={() => onDarkModeChange(!darkMode)}
               className={`rounded-xl border p-2.5 transition-all duration-200 ${
                 darkMode
                   ? "border-slate-700 bg-slate-800 hover:bg-slate-700"
@@ -947,6 +1060,19 @@ export default function SansPsPage({
               ) : (
                 <MoonIcon className="h-5 w-5 text-slate-600" />
               )}
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className={`rounded-xl border p-2.5 transition-all duration-200 ${
+                darkMode
+                  ? "border-slate-700 bg-slate-800 hover:bg-slate-700"
+                  : "border-slate-200 bg-white hover:bg-slate-50"
+              }`}
+              aria-label="Open settings"
+            >
+              <SettingsIcon className={`h-5 w-5 ${darkMode ? "text-slate-200" : "text-slate-600"}`} />
             </button>
           </div>
         </div>
@@ -1094,7 +1220,7 @@ export default function SansPsPage({
                       <div
                         className={`h-full rounded-full transition-all duration-300 ${timerDanger ? "bg-rose-500" : "bg-primary-500"}`}
                         style={{
-                          width: `${Math.max(0, Math.min(100, (remainingSeconds / (8 * 60)) * 100))}%`,
+                          width: `${Math.max(0, Math.min(100, (remainingSeconds / sessionDurationSeconds) * 100))}%`,
                         }}
                       />
                     </div>
@@ -1206,23 +1332,36 @@ export default function SansPsPage({
                     darkMode ? "bg-slate-950/50" : "bg-slate-50/80"
                   }`}
                 >
-                  {transcript.length === 0 && !showStudentDraftIndicator ? (
+                  {transcriptForDisplay.length === 0 && !showDraftIndicatorForDisplay ? (
                     <div className="flex h-full items-center justify-center">
                       <div className="text-center">
                         <div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl ${subtleBg}`}>
                           <ActivityIcon className={`h-8 w-8 ${mutedText}`} />
                         </div>
-                        <p className={`text-sm ${mutedText}`}>
-                          La transcription du monologue apparaîtra ici
-                        </p>
-                        <p className={`mt-1 text-xs ${mutedText}`}>
-                          Démarrez la session puis laissez les silences segmenter votre discours
-                        </p>
+                        {!settings.showLiveTranscript && !hasEndedDiscussion ? (
+                          <>
+                            <p className={`text-sm ${mutedText}`}>
+                              La transcription en direct est masquée
+                            </p>
+                            <p className={`mt-1 text-xs ${mutedText}`}>
+                              Elle sera visible à la fin du monologue.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className={`text-sm ${mutedText}`}>
+                              La transcription du monologue apparaîtra ici
+                            </p>
+                            <p className={`mt-1 text-xs ${mutedText}`}>
+                              Démarrez la session puis laissez les silences segmenter votre discours
+                            </p>
+                          </>
+                        )}
                       </div>
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {transcript.map((entry) => (
+                      {transcriptForDisplay.map((entry) => (
                         <div
                           key={entry.id}
                           className={`animate-fade-in ${
@@ -1258,7 +1397,7 @@ export default function SansPsPage({
                         </div>
                       ))}
 
-                      {showStudentDraftIndicator && (
+                      {showDraftIndicatorForDisplay && (
                         <div className="ml-auto max-w-[85%] animate-fade-in">
                           <div className="rounded-2xl bg-primary-500/90 px-4 py-3 text-white shadow-sm">
                             <div className="mb-1.5 flex items-center justify-between gap-4 text-[10px] uppercase tracking-wider text-primary-100">
@@ -1287,7 +1426,7 @@ export default function SansPsPage({
             <div className={`xl:col-span-2 rounded-2xl border ${cardBg} p-6 shadow-soft`}>
               <h3 className="mb-4 text-lg font-semibold">Enregistrement audio</h3>
               <div className={`rounded-xl border p-4 ${subCardBg}`}>
-                <audio controls className="w-full" src={recordedAudioUrl}>
+                <audio ref={audioRef} controls className="w-full" src={recordedAudioUrl}>
                   Votre navigateur ne supporte pas la lecture audio.
                 </audio>
               </div>
