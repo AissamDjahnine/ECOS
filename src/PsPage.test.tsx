@@ -354,9 +354,7 @@ describe("PsPage", () => {
     expect(hasFetchCall(fetchMock, "/api/live-token")).toBe(false);
   });
 
-  it("shows 3 female and 3 male voices before revealing more", async () => {
-    const user = userEvent.setup();
-
+  it("renders the full scrollable voice catalog", () => {
     render(
       <PsPage
         currentMode="ps"
@@ -379,19 +377,10 @@ describe("PsPage", () => {
       screen.getByRole("button", { name: "Choisir la voix Puck" }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Choisir la voix Despina" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Choisir la voix Orus" }),
-    ).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Voir plus" }));
-
-    expect(
-      screen.getByRole("button", { name: "Choisir la voix Autonoe" }),
+      screen.getByRole("button", { name: "Choisir la voix Sulafat" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Choisir la voix Orus" }),
+      screen.getByRole("button", { name: "Choisir la voix Pulcherrima" }),
     ).toBeInTheDocument();
   });
 

@@ -36,10 +36,6 @@ export const MALE_VOICE_OPTIONS: VoiceOption[] = [
   { value: "Alnilam", label: "Alnilam", gender: "male" },
   { value: "Schedar", label: "Schedar", gender: "male" },
   { value: "Pulcherrima", label: "Pulcherrima", gender: "male" },
-  { value: "Achird", label: "Achird", gender: "male" },
-  { value: "Zubenelgenubi", label: "Zubenelgenubi", gender: "male" },
-  { value: "Sadachbia", label: "Sadachbia", gender: "male" },
-  { value: "Sadaltager", label: "Sadaltager", gender: "male" },
 ];
 
 export const VOICE_OPTIONS: VoiceOption[] = [

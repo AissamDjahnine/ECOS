@@ -35,7 +35,6 @@ import type {
 const liveModel =
   import.meta.env.VITE_GEMINI_LIVE_MODEL ??
   "gemini-2.5-flash-native-audio-preview-12-2025";
-const INITIAL_VISIBLE_VOICES_PER_GROUP = 3;
 
 type RealtimeAudioInput = {
   data: string;
@@ -374,6 +373,28 @@ function VoiceFemaleIcon({ className }: { className?: string }) {
   );
 }
 
+function HeartIcon({
+  className,
+  filled = false,
+}: {
+  className?: string;
+  filled?: boolean;
+}) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m12 21-1.4-1.27C5.4 15 2 11.86 2 8a5 5 0 0 1 8.2-3.84L12 5.75l1.8-1.59A5 5 0 0 1 22 8c0 3.86-3.4 7-8.6 11.73Z" />
+    </svg>
+  );
+}
+
 function parseScore(score?: string) {
   if (!score) {
     return { value: 0, max: 15, ratio: 0 };
@@ -685,17 +706,12 @@ export default function App({
   const [voiceSelectionMode, setVoiceSelectionMode] = useState<"auto" | "manual">(
     "auto",
   );
-  const [visibleFemaleVoiceCount, setVisibleFemaleVoiceCount] = useState(
-    INITIAL_VISIBLE_VOICES_PER_GROUP,
-  );
-  const [visibleMaleVoiceCount, setVisibleMaleVoiceCount] = useState(
-    INITIAL_VISIBLE_VOICES_PER_GROUP,
-  );
   const [playingVoicePreviewName, setPlayingVoicePreviewName] = useState<
     string | null
   >(null);
   const [isVoicePreviewPaused, setIsVoicePreviewPaused] = useState(false);
   const [voicePreviewProgress, setVoicePreviewProgress] = useState(0);
+  const [favoriteVoiceNames, setFavoriteVoiceNames] = useState<string[]>([]);
 
   const transcriptRef = useRef<HTMLDivElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
@@ -729,19 +745,8 @@ export default function App({
   });
 
   const patientInfo = useMemo(() => extractPatientInfo(parsedCase), [parsedCase]);
-  const visibleFemaleVoices = useMemo(
-    () => FEMALE_VOICE_OPTIONS.slice(0, visibleFemaleVoiceCount),
-    [visibleFemaleVoiceCount],
-  );
-  const visibleMaleVoices = useMemo(
-    () => MALE_VOICE_OPTIONS.slice(0, visibleMaleVoiceCount),
-    [visibleMaleVoiceCount],
-  );
   const sessionDurationSeconds = settings.defaultTimerSeconds;
   const canEditVoice = !isConnecting && !isDiscussing && !isPaused;
-  const canShowMoreVoices =
-    visibleFemaleVoiceCount < FEMALE_VOICE_OPTIONS.length ||
-    visibleMaleVoiceCount < MALE_VOICE_OPTIONS.length;
 
   const parsedReady = Boolean(parsedCase.patientScript && parsedCase.gradingGrid);
   const canStart =
@@ -829,39 +834,6 @@ export default function App({
 
     setSelectedVoiceName(inferVoiceFromPatientSex(parsedCase.patientSex));
   }, [parsedCase.patientSex, voiceSelectionMode]);
-
-  useEffect(() => {
-    const selectedVoice = VOICE_OPTIONS.find(
-      (voice) => voice.value === selectedVoiceName,
-    );
-
-    if (!selectedVoice) {
-      return;
-    }
-
-    if (selectedVoice.gender === "female") {
-      const selectedIndex = FEMALE_VOICE_OPTIONS.findIndex(
-        (voice) => voice.value === selectedVoiceName,
-      );
-      if (selectedIndex >= 0) {
-        const requiredCount =
-          Math.ceil((selectedIndex + 1) / INITIAL_VISIBLE_VOICES_PER_GROUP) *
-          INITIAL_VISIBLE_VOICES_PER_GROUP;
-        setVisibleFemaleVoiceCount((current) => Math.max(current, requiredCount));
-      }
-      return;
-    }
-
-    const selectedIndex = MALE_VOICE_OPTIONS.findIndex(
-      (voice) => voice.value === selectedVoiceName,
-    );
-    if (selectedIndex >= 0) {
-      const requiredCount =
-        Math.ceil((selectedIndex + 1) / INITIAL_VISIBLE_VOICES_PER_GROUP) *
-        INITIAL_VISIBLE_VOICES_PER_GROUP;
-      setVisibleMaleVoiceCount((current) => Math.max(current, requiredCount));
-    }
-  }, [selectedVoiceName]);
 
   useEffect(() => {
     return () => {
@@ -1008,18 +980,11 @@ export default function App({
     );
   }
 
-  function showMoreVoices() {
-    setVisibleFemaleVoiceCount((current) =>
-      Math.min(
-        current + INITIAL_VISIBLE_VOICES_PER_GROUP,
-        FEMALE_VOICE_OPTIONS.length,
-      ),
-    );
-    setVisibleMaleVoiceCount((current) =>
-      Math.min(
-        current + INITIAL_VISIBLE_VOICES_PER_GROUP,
-        MALE_VOICE_OPTIONS.length,
-      ),
+  function toggleFavoriteVoice(voiceName: string) {
+    setFavoriteVoiceNames((current) =>
+      current.includes(voiceName)
+        ? current.filter((entry) => entry !== voiceName)
+        : [...current, voiceName],
     );
   }
 
@@ -1798,8 +1763,6 @@ export default function App({
     setStatus("Mode PS/PSS prêt");
     setVoiceSelectionMode("auto");
     setSelectedVoiceName(inferVoiceFromPatientSex(""));
-    setVisibleFemaleVoiceCount(INITIAL_VISIBLE_VOICES_PER_GROUP);
-    setVisibleMaleVoiceCount(INITIAL_VISIBLE_VOICES_PER_GROUP);
   }
 
   function requestResetSession() {
@@ -2390,12 +2353,12 @@ export default function App({
                   {[
                     {
                       title: "Voix féminines",
-                      voices: visibleFemaleVoices,
+                      voices: FEMALE_VOICE_OPTIONS,
                       gender: "female" as const,
                     },
                     {
                       title: "Voix masculines",
-                      voices: visibleMaleVoices,
+                      voices: MALE_VOICE_OPTIONS,
                       gender: "male" as const,
                     },
                   ].map((group) => (
@@ -2403,13 +2366,18 @@ export default function App({
                       <div className={`mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] ${mutedText}`}>
                         {group.title}
                       </div>
-                      <div className="grid grid-cols-1 gap-2">
+                      <div
+                        className={`max-h-[12.75rem] space-y-2 overflow-y-auto pr-1 ${
+                          darkMode ? "scrollbar-dark" : "scrollbar-light"
+                        }`}
+                      >
                         {group.voices.map((voice) => {
                           const isSelected = selectedVoiceName === voice.value;
                           const disabled = !canEditVoice;
                           const canPreviewVoice = hasVoicePreviewSample(voice.value);
                           const isPreviewPlaying =
                             playingVoicePreviewName === voice.value;
+                          const isFavorite = favoriteVoiceNames.includes(voice.value);
                           const progressRadius = 16;
                           const progressCircumference =
                             2 * Math.PI * progressRadius;
@@ -2419,7 +2387,7 @@ export default function App({
                           return (
                             <div
                               key={voice.value}
-                              className={`flex items-center gap-2 rounded-xl border px-3 py-3 transition-all ${
+                              className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-2.5 transition-all ${
                                 isSelected
                                   ? darkMode
                                     ? "border-primary-400 bg-primary-500/10 text-slate-50"
@@ -2439,10 +2407,10 @@ export default function App({
                                   setVoiceSelectionMode("manual");
                                 }}
                                 disabled={disabled}
-                                className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                                className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden text-left"
                                 aria-label={`Choisir la voix ${voice.value}`}
                               >
-                                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
                                   isSelected
                                     ? darkMode
                                       ? "bg-primary-500/20 text-primary-300"
@@ -2457,14 +2425,41 @@ export default function App({
                                     <VoiceFemaleIcon className="h-4.5 w-4.5" />
                                   )}
                                 </span>
-                                <div className="min-w-0">
-                                  <div className="text-sm font-semibold">{voice.label}</div>
-                                  <div className={`text-xs ${mutedText}`}>
-                                    {voice.gender === "male"
-                                      ? "Voix masculine"
-                                      : "Voix féminine"}
+                                <div className="min-w-0 flex-1 overflow-hidden">
+                                  <div className="truncate pr-1 text-sm font-semibold">
+                                    {voice.label}
                                   </div>
                                 </div>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (disabled) {
+                                    return;
+                                  }
+                                  toggleFavoriteVoice(voice.value);
+                                }}
+                                disabled={disabled}
+                                aria-label={
+                                  isFavorite
+                                    ? `Retirer ${voice.value} des favoris`
+                                    : `Ajouter ${voice.value} aux favoris`
+                                }
+                                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors ${
+                                  isFavorite
+                                    ? darkMode
+                                      ? "border-rose-400/40 bg-rose-500/10 text-rose-300"
+                                      : "border-rose-200 bg-rose-50 text-rose-500"
+                                    : darkMode
+                                      ? "border-slate-700 bg-slate-800 text-slate-500 hover:text-slate-300"
+                                      : "border-slate-200 bg-slate-50 text-slate-300 hover:text-slate-500"
+                                } ${disabled ? "cursor-not-allowed" : ""}`}
+                              >
+                                <HeartIcon
+                                  className="h-3 w-3"
+                                  filled={isFavorite}
+                                />
                               </button>
 
                               <button
@@ -2482,7 +2477,7 @@ export default function App({
                                       : `Écouter l'aperçu ${voice.value}`
                                     : `Aucun aperçu disponible pour ${voice.value}`
                                 }
-                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors ${
+                                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors ${
                                   canPreviewVoice
                                     ? darkMode
                                       ? "border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700"
@@ -2493,9 +2488,9 @@ export default function App({
                                 } ${!canPreviewVoice ? "cursor-not-allowed" : ""}`}
                               >
                                 {canPreviewVoice && isPreviewPlaying ? (
-                                  <span className="relative flex h-7 w-7 items-center justify-center">
+                                  <span className="relative flex h-6 w-6 items-center justify-center">
                                     <svg
-                                      className="absolute inset-0 h-7 w-7 -rotate-90"
+                                      className="absolute inset-0 h-6 w-6 -rotate-90"
                                       viewBox="0 0 40 40"
                                       fill="none"
                                       aria-hidden="true"
@@ -2524,10 +2519,10 @@ export default function App({
                                         }
                                       />
                                     </svg>
-                                    <PauseIcon className="relative z-10 h-3.5 w-3.5" />
+                                    <PauseIcon className="relative z-10 h-3 w-3" />
                                   </span>
                                 ) : (
-                                  <PlayIcon className="h-3.5 w-3.5" />
+                                  <PlayIcon className="h-3 w-3" />
                                 )}
                               </button>
                             </div>
@@ -2537,22 +2532,6 @@ export default function App({
                     </div>
                   ))}
                 </div>
-
-                {canShowMoreVoices ? (
-                  <div className="mt-3 flex justify-center">
-                    <button
-                      type="button"
-                      onClick={showMoreVoices}
-                      className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-                        darkMode
-                          ? "bg-slate-800 text-slate-200 hover:bg-slate-700"
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      }`}
-                    >
-                      Voir plus
-                    </button>
-                  </div>
-                ) : null}
               </div>
             </div>
           </div>
