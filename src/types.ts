@@ -14,6 +14,7 @@ export type ParsedCase = {
   patientName: string;
   patientAge: string;
   patientSummary: string;
+  patientSex?: string;
   patientFirstName?: string;
   patientLastName?: string;
 };

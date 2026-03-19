@@ -48,6 +48,7 @@ function extractStructuredPatientInfo(script: string) {
     patientLastName: lastName,
     patientName,
     patientAge,
+    patientSex: sex,
     patientSummary,
   };
 }
@@ -59,6 +60,7 @@ function extractPatientName(script: string) {
       patientLastName: "",
       patientName: "",
       patientAge: "",
+      patientSex: "",
       patientSummary: "",
     };
   }
@@ -82,6 +84,7 @@ function extractPatientName(script: string) {
       patientLastName: "",
       patientName: explicit[1].trim(),
       patientAge: `${explicit[2]} ans`,
+      patientSex: "",
       patientSummary: "",
     };
   }
@@ -100,6 +103,7 @@ function extractPatientName(script: string) {
     patientLastName: "",
     patientName: line?.slice(0, 40) || "",
     patientAge: "",
+    patientSex: "",
     patientSummary: "",
   };
 }
@@ -169,6 +173,7 @@ export function parseCaseInput(rawInput: string): ParsedCase {
     patientLastName,
     patientName,
     patientAge,
+    patientSex,
     patientSummary: structuredSummary,
   } = extractPatientName(patientScript);
 
@@ -192,6 +197,7 @@ export function parseCaseInput(rawInput: string): ParsedCase {
     patientLastName,
     patientName,
     patientAge,
+    patientSex,
     patientSummary: (structuredSummary || summaryLine).trim(),
   };
 }

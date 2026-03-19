@@ -7,6 +7,11 @@ import {
 } from "./lib/audio";
 import { extractGradingGridOnly, transcriptToPlainText } from "./lib/parser";
 import { buildSansPsPdfDocument } from "./lib/pdf";
+import {
+  FEMALE_VOICE_OPTIONS,
+  hasVoicePreviewSample,
+  MALE_VOICE_OPTIONS,
+} from "./lib/voices";
 import type {
   AppSettings,
   DashboardSnapshot,
@@ -15,6 +20,7 @@ import type {
 } from "./types";
 
 type SessionPhase = "idle" | "student-speaking" | "paused";
+const INITIAL_VISIBLE_VOICES_PER_GROUP = 3;
 
 function createTimestamp() {
   return new Date().toLocaleTimeString("fr-FR", {
@@ -262,6 +268,26 @@ function MicOffIcon({ className }: { className?: string }) {
   );
 }
 
+function VoiceMaleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="10" cy="14" r="5" />
+      <path d="M14 10 21 3" />
+      <path d="M15 3h6v6" />
+    </svg>
+  );
+}
+
+function VoiceFemaleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="5" />
+      <path d="M12 13v8" />
+      <path d="M9 18h6" />
+    </svg>
+  );
+}
+
 function SunIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -357,6 +383,12 @@ export default function SansPsPage({
   } | null>(null);
   const [lastEvaluatedFeedbackDetailLevel, setLastEvaluatedFeedbackDetailLevel] =
     useState<AppSettings["feedbackDetailLevel"] | null>(null);
+  const [visibleFemaleVoiceCount, setVisibleFemaleVoiceCount] = useState(
+    INITIAL_VISIBLE_VOICES_PER_GROUP,
+  );
+  const [visibleMaleVoiceCount, setVisibleMaleVoiceCount] = useState(
+    INITIAL_VISIBLE_VOICES_PER_GROUP,
+  );
 
   const transcriptRef = useRef<HTMLDivElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
@@ -417,6 +449,17 @@ export default function SansPsPage({
   const scoreState = parseScore(evaluation?.score);
   const sessionDurationSeconds = settings.defaultTimerSeconds;
   const canSwitchModes = !isDiscussing && !isPaused;
+  const visibleFemaleVoices = useMemo(
+    () => FEMALE_VOICE_OPTIONS.slice(0, visibleFemaleVoiceCount),
+    [visibleFemaleVoiceCount],
+  );
+  const visibleMaleVoices = useMemo(
+    () => MALE_VOICE_OPTIONS.slice(0, visibleMaleVoiceCount),
+    [visibleMaleVoiceCount],
+  );
+  const canShowMoreVoices =
+    visibleFemaleVoiceCount < FEMALE_VOICE_OPTIONS.length ||
+    visibleMaleVoiceCount < MALE_VOICE_OPTIONS.length;
 
   const theme = darkMode ? "dark" : "light";
   const bgClass = darkMode
@@ -592,6 +635,21 @@ export default function SansPsPage({
     setStatus("Grille prête pour monologue");
   }
 
+  function showMoreVoices() {
+    setVisibleFemaleVoiceCount((current) =>
+      Math.min(
+        current + INITIAL_VISIBLE_VOICES_PER_GROUP,
+        FEMALE_VOICE_OPTIONS.length,
+      ),
+    );
+    setVisibleMaleVoiceCount((current) =>
+      Math.min(
+        current + INITIAL_VISIBLE_VOICES_PER_GROUP,
+        MALE_VOICE_OPTIONS.length,
+      ),
+    );
+  }
+
   function resetRecordingState() {
     currentTurnChunksRef.current = [];
     isSpeechActiveRef.current = false;
@@ -681,6 +739,8 @@ export default function SansPsPage({
     setGradingGrid("");
     setParseError("");
     setStatus("Mode sans PS prêt");
+    setVisibleFemaleVoiceCount(INITIAL_VISIBLE_VOICES_PER_GROUP);
+    setVisibleMaleVoiceCount(INITIAL_VISIBLE_VOICES_PER_GROUP);
   }
 
   function requestResetSession() {
@@ -1390,6 +1450,132 @@ export default function SansPsPage({
                 <p className={`mt-2 text-sm leading-relaxed ${mutedText}`}>
                   Le mode sans PS écoute uniquement l&apos;étudiant, segmente la parole sur les silences, transcrit le monologue au fil de la station, puis compare le texte final à la grille.
                 </p>
+              </div>
+
+              <div className="mt-5 border-t border-slate-200/70 pt-5 dark:border-slate-700/60">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold">Voix du patient</h3>
+                    <p className={`mt-1 text-xs ${mutedText}`}>
+                      Sélection de voix disponible uniquement en mode PS / PSS.
+                    </p>
+                  </div>
+                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
+                    darkMode
+                      ? "bg-slate-800 text-slate-300"
+                      : "bg-slate-100 text-slate-500"
+                  }`}>
+                    Disabled
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  {[
+                    {
+                      title: "Voix féminines",
+                      voices: visibleFemaleVoices,
+                      gender: "female" as const,
+                    },
+                    {
+                      title: "Voix masculines",
+                      voices: visibleMaleVoices,
+                      gender: "male" as const,
+                    },
+                  ].map((group) => (
+                    <div key={group.gender}>
+                      <div className={`mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] ${mutedText}`}>
+                        {group.title}
+                      </div>
+                      <div className="grid grid-cols-1 gap-2">
+                        {group.voices.map((voice, index) => {
+                          const isSelected =
+                            group.gender === "female" ? index === 0 : false;
+                          const canPreviewVoice = hasVoicePreviewSample(voice.value);
+
+                          return (
+                            <div
+                              key={voice.value}
+                              className={`flex items-center gap-2 rounded-xl border px-3 py-3 text-left opacity-60 ${
+                                isSelected
+                                  ? darkMode
+                                    ? "border-primary-400 bg-primary-500/10 text-slate-50"
+                                    : "border-primary-300 bg-primary-50 text-slate-900"
+                                  : darkMode
+                                    ? "border-slate-700 bg-slate-900/60 text-slate-200"
+                                    : "border-slate-200 bg-white text-slate-700"
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                disabled
+                                className="flex min-w-0 flex-1 cursor-not-allowed items-center gap-3 text-left"
+                                aria-label={`Voix désactivée ${voice.value}`}
+                              >
+                                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                                  isSelected
+                                    ? darkMode
+                                      ? "bg-primary-500/20 text-primary-300"
+                                      : "bg-primary-100 text-primary-700"
+                                    : darkMode
+                                      ? "bg-slate-800 text-slate-300"
+                                      : "bg-slate-100 text-slate-500"
+                                }`}>
+                                  {voice.gender === "male" ? (
+                                    <VoiceMaleIcon className="h-4.5 w-4.5" />
+                                  ) : (
+                                    <VoiceFemaleIcon className="h-4.5 w-4.5" />
+                                  )}
+                                </span>
+                                <div className="min-w-0">
+                                  <div className="text-sm font-semibold">{voice.label}</div>
+                                  <div className={`text-xs ${mutedText}`}>
+                                    {voice.gender === "male"
+                                      ? "Voix masculine"
+                                      : "Voix féminine"}
+                                  </div>
+                                </div>
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled
+                                aria-label={
+                                  canPreviewVoice
+                                    ? `Aperçu désactivé ${voice.value}`
+                                    : `Aucun aperçu disponible pour ${voice.value}`
+                                }
+                                className={`flex h-9 w-9 shrink-0 cursor-not-allowed items-center justify-center rounded-xl border ${
+                                  darkMode
+                                    ? "border-slate-700 bg-slate-800 text-slate-300"
+                                    : "border-slate-200 bg-slate-50 text-slate-400"
+                                }`}
+                              >
+                                <PlayIcon className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {canShowMoreVoices ? (
+                  <div className="mt-3 flex justify-center">
+                    <button
+                      type="button"
+                      disabled
+                      onClick={showMoreVoices}
+                      className={`cursor-not-allowed rounded-full px-3.5 py-1.5 text-xs font-semibold opacity-60 ${
+                        darkMode
+                          ? "bg-slate-800 text-slate-200"
+                          : "bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      Voir plus
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>

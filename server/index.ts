@@ -20,6 +20,7 @@ import {
   type UsageEvent,
 } from "./dashboard";
 import { getFeedbackInstruction } from "./evaluation";
+import { isSupportedVoiceName } from "../src/lib/voices";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3001);
@@ -179,6 +180,7 @@ app.post("/api/live-token", async (request, response) => {
     patientScript: z.string().min(1),
     googleApiKey: z.string().optional(),
     sessionId: z.string().optional(),
+    voiceName: z.string().optional(),
   });
 
   const parsed = schema.safeParse(request.body);
@@ -220,6 +222,9 @@ app.post("/api/live-token", async (request, response) => {
     const cleanedPatientScript = stripParentheticalStageDirections(
       parsed.data.patientScript,
     );
+    const voiceName = isSupportedVoiceName(parsed.data.voiceName ?? "")
+      ? parsed.data.voiceName
+      : undefined;
 
     const systemInstruction = [
       "Tu es le patient décrit ci-dessous.",
@@ -255,6 +260,17 @@ app.post("/api/live-token", async (request, response) => {
           model: liveModel,
           config: {
             responseModalities: [Modality.AUDIO],
+            ...(voiceName
+              ? {
+                  speechConfig: {
+                    voiceConfig: {
+                      prebuiltVoiceConfig: {
+                        voiceName,
+                      },
+                    },
+                  },
+                }
+              : {}),
             inputAudioTranscription: {},
             outputAudioTranscription: {},
             realtimeInputConfig: {

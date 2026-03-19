@@ -1,9 +1,17 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { vi } from "vitest";
+import { afterEach, vi } from "vitest";
 import PsPage from "./PsPage";
 import { DEFAULT_SETTINGS } from "./lib/settings";
 import type { DashboardSnapshot } from "./types";
+import { DEFAULT_FEMALE_VOICE } from "./lib/voices";
+
+function hasFetchCall(
+  fetchMock: ReturnType<typeof vi.fn>,
+  pattern: string,
+) {
+  return fetchMock.mock.calls.some(([input]) => String(input).includes(pattern));
+}
 
 const {
   mockLiveConnect,
@@ -11,12 +19,16 @@ const {
   mockStartMicrophoneStream,
   mockPlayerClose,
   mockPlayerResume,
+  mockPreviewPlay,
+  mockPreviewPause,
 } = vi.hoisted(() => ({
   mockLiveConnect: vi.fn(),
   mockRequestMicrophoneStream: vi.fn(),
   mockStartMicrophoneStream: vi.fn(),
   mockPlayerClose: vi.fn(),
   mockPlayerResume: vi.fn(),
+  mockPreviewPlay: vi.fn(),
+  mockPreviewPause: vi.fn(),
 }));
 
 vi.mock("@google/genai", () => ({
@@ -45,6 +57,52 @@ vi.mock("./lib/audio", () => ({
     close = mockPlayerClose;
   },
 }));
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+class MockAudio {
+  src: string;
+  currentTime = 0;
+  duration = 2;
+  paused = true;
+  ended = false;
+  private listeners = new Map<string, Set<() => void>>();
+
+  constructor(src: string) {
+    this.src = src;
+  }
+
+  addEventListener(type: string, listener: () => void) {
+    if (!this.listeners.has(type)) {
+      this.listeners.set(type, new Set());
+    }
+    this.listeners.get(type)?.add(listener);
+  }
+
+  removeEventListener(type: string, listener: () => void) {
+    this.listeners.get(type)?.delete(listener);
+  }
+
+  dispatch(type: string) {
+    this.listeners.get(type)?.forEach((listener) => listener());
+  }
+
+  async play() {
+    this.paused = false;
+    this.ended = false;
+    mockPreviewPlay();
+    this.dispatch("play");
+    return undefined;
+  }
+
+  pause() {
+    this.paused = true;
+    mockPreviewPause();
+    this.dispatch("pause");
+  }
+}
 
 const validCase = [
   "Patient",
@@ -120,6 +178,7 @@ describe("PsPage", () => {
         throw new Error(`Unexpected fetch call: ${url}`);
       }),
     );
+    vi.stubGlobal("Audio", MockAudio as unknown as typeof Audio);
   });
 
   it("disables cross-mode navigation during an active session and re-enables it after terminate", async () => {
@@ -246,18 +305,12 @@ describe("PsPage", () => {
     expect(
       screen.getByText(/session potentiellement instable/i),
     ).toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalledWith(
-      "/api/live-token",
-      expect.anything(),
-    );
+    expect(hasFetchCall(fetchMock, "/api/live-token")).toBe(false);
 
     await user.click(screen.getByRole("button", { name: "Continuer" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/api/live-token",
-        expect.anything(),
-      );
+      expect(hasFetchCall(fetchMock, "/api/live-token")).toBe(true);
     });
   });
 
@@ -298,10 +351,200 @@ describe("PsPage", () => {
     await user.click(screen.getByRole("button", { name: "Démarrer" }));
 
     expect(screen.getByText(/session indisponible/i)).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock).not.toHaveBeenCalledWith(
-      "/api/live-token",
-      expect.anything(),
+    expect(hasFetchCall(fetchMock, "/api/live-token")).toBe(false);
+  });
+
+  it("shows 3 female and 3 male voices before revealing more", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <PsPage
+        currentMode="ps"
+        onNavigate={vi.fn()}
+        settings={DEFAULT_SETTINGS}
+        onOpenDashboard={vi.fn()}
+        onOpenSettings={vi.fn()}
+        darkMode={false}
+        onDarkModeChange={vi.fn()}
+      />,
     );
+
+    expect(
+      screen.getByRole("button", { name: "Choisir la voix Zephyr" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Choisir la voix Kore" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Choisir la voix Puck" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Choisir la voix Despina" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Choisir la voix Orus" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Voir plus" }));
+
+    expect(
+      screen.getByRole("button", { name: "Choisir la voix Autonoe" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Choisir la voix Orus" }),
+    ).toBeInTheDocument();
+  });
+
+  it("toggles voice preview between play and pause states", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <PsPage
+        currentMode="ps"
+        onNavigate={vi.fn()}
+        settings={DEFAULT_SETTINGS}
+        onOpenDashboard={vi.fn()}
+        onOpenSettings={vi.fn()}
+        darkMode={false}
+        onDarkModeChange={vi.fn()}
+      />,
+    );
+
+    const previewButton = screen.getByRole("button", {
+      name: "Écouter l'aperçu Kore",
+    });
+
+    await user.click(previewButton);
+
+    expect(mockPreviewPlay).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("button", { name: "Mettre en pause l'aperçu Kore" }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Mettre en pause l'aperçu Kore" }),
+    );
+
+    expect(mockPreviewPause).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("button", { name: "Reprendre l'aperçu Kore" }),
+    ).toBeInTheDocument();
+  });
+
+  it("defaults the voice from a female patient sex and sends it to live-token", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/api/dashboard")) {
+        return {
+          ok: true,
+          json: async () => buildDashboardSnapshot(),
+        } as Response;
+      }
+      if (url.includes("/api/live-token")) {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { voiceName?: string };
+        expect(body.voiceName).toBe(DEFAULT_FEMALE_VOICE);
+        return {
+          ok: true,
+          json: async () => ({
+            token: "temporary-token",
+            model: "fake-live-model",
+          }),
+        } as Response;
+      }
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <PsPage
+        currentMode="ps"
+        onNavigate={vi.fn()}
+        settings={DEFAULT_SETTINGS}
+        onOpenDashboard={vi.fn()}
+        onOpenSettings={vi.fn()}
+        darkMode={false}
+        onDarkModeChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(
+      screen.getByPlaceholderText(
+        /collez ici la trame du patient et la grille de correction/i,
+      ),
+      {
+        target: {
+          value: [
+            "Patient",
+            "Nom: Doe",
+            "Prénom: Jane",
+            "Sexe: F",
+            "Âge: 81",
+            "Bonjour docteur.",
+            "Grille de correction",
+            "1 Recherche le temps passé au sol",
+          ].join("\n"),
+        },
+      },
+    );
+    await user.click(screen.getByRole("button", { name: "Analyser" }));
+    await user.click(screen.getByRole("button", { name: "Démarrer" }));
+
+    await waitFor(() => {
+      expect(hasFetchCall(fetchMock, "/api/live-token")).toBe(true);
+    });
+  });
+
+  it("sends the manually selected voice to live-token", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/api/dashboard")) {
+        return {
+          ok: true,
+          json: async () => buildDashboardSnapshot(),
+        } as Response;
+      }
+      if (url.includes("/api/live-token")) {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { voiceName?: string };
+        expect(body.voiceName).toBe("Charon");
+        return {
+          ok: true,
+          json: async () => ({
+            token: "temporary-token",
+            model: "fake-live-model",
+          }),
+        } as Response;
+      }
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <PsPage
+        currentMode="ps"
+        onNavigate={vi.fn()}
+        settings={DEFAULT_SETTINGS}
+        onOpenDashboard={vi.fn()}
+        onOpenSettings={vi.fn()}
+        darkMode={false}
+        onDarkModeChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(
+      screen.getByPlaceholderText(
+        /collez ici la trame du patient et la grille de correction/i,
+      ),
+      { target: { value: validCase } },
+    );
+    await user.click(screen.getByRole("button", { name: "Analyser" }));
+    await user.click(screen.getByRole("button", { name: /Choisir la voix Charon/i }));
+    await user.click(screen.getByRole("button", { name: "Démarrer" }));
+
+    await waitFor(() => {
+      expect(hasFetchCall(fetchMock, "/api/live-token")).toBe(true);
+    });
   });
 });

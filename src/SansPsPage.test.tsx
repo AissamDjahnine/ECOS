@@ -220,7 +220,7 @@ describe("SansPsPage", () => {
     await user.click(screen.getByRole("button", { name: "Continuer" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Monologue")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Terminer" })).toBeEnabled();
     });
   });
 
