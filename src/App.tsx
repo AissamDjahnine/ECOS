@@ -475,6 +475,15 @@ function CheckIcon({ className }: { className?: string }) {
   );
 }
 
+function XIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
+    </svg>
+  );
+}
+
 function FileTextIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -563,6 +572,11 @@ export default function App() {
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(8 * 60);
   const [completionToast, setCompletionToast] = useState<{
+    title: string;
+    body: string;
+  } | null>(null);
+  const [evaluationWarning, setEvaluationWarning] = useState<{
+    mode: "confirm" | "blocked";
     title: string;
     body: string;
   } | null>(null);
@@ -1271,6 +1285,30 @@ export default function App() {
     }
   }
 
+  function handleEvaluateClick() {
+    const discussionDurationSeconds = 8 * 60 - remainingSeconds;
+
+    if (discussionDurationSeconds < 120) {
+      setEvaluationWarning({
+        mode: "blocked",
+        title: "Evaluation unavailable",
+        body: "Evaluation is unavailable for discussions shorter than 2 minutes. Please continue the discussion and try again.",
+      });
+      return;
+    }
+
+    if (discussionDurationSeconds < 180) {
+      setEvaluationWarning({
+        mode: "confirm",
+        title: "Short discussion",
+        body: "This discussion is shorter than 3 minutes, so the evaluation may be unreliable. Do you want to continue?",
+      });
+      return;
+    }
+
+    void evaluateDiscussion();
+  }
+
   function exportPdf() {
     const popup = window.open("", "_blank", "width=1200,height=900");
     if (!popup) {
@@ -1606,7 +1644,7 @@ export default function App() {
                   </button>
 
                   <button
-                    onClick={evaluateDiscussion}
+                    onClick={handleEvaluateClick}
                     disabled={!canJudge}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
                       canJudge
@@ -2031,6 +2069,68 @@ export default function App() {
 
             <div className="mt-4 text-center">
               <span className="text-2xl font-bold">{evaluationProgress}%</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {evaluationWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm px-4">
+          <div className={`relative w-full max-w-md rounded-2xl border ${cardBg} p-8 shadow-2xl`}>
+            <button
+              type="button"
+              onClick={() => setEvaluationWarning(null)}
+              className={`absolute right-0 top-0 -translate-y-1/2 translate-x-1/2 rounded-full border p-2 shadow-lg transition-colors ${
+                darkMode
+                  ? "border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800"
+                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              }`}
+              aria-label="Close popup"
+            >
+              <XIcon className="h-4 w-4" />
+            </button>
+
+            <div className="text-center">
+              <h3 className="text-xl font-bold">{evaluationWarning.title}</h3>
+              <p className={`mt-3 text-sm leading-relaxed ${mutedText}`}>
+                {evaluationWarning.body}
+              </p>
+            </div>
+
+            <div className="mt-6 flex items-center justify-center gap-3">
+              {evaluationWarning.mode === "confirm" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setEvaluationWarning(null)}
+                    className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-all ${
+                      darkMode
+                        ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    No
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEvaluationWarning(null);
+                      void evaluateDiscussion();
+                    }}
+                    className="rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-700"
+                  >
+                    Yes
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setEvaluationWarning(null)}
+                  className="rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-700"
+                >
+                  Retry
+                </button>
+              )}
             </div>
           </div>
         </div>
