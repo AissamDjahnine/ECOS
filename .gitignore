@@ -26,5 +26,9 @@ pnpm-debug.log*
 
 # coverage
 coverage/
+test-results/
 
 backup
+
+# local dashboard persistence
+server/data/
