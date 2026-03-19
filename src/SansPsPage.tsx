@@ -267,18 +267,37 @@ function FileTextIcon({ className }: { className?: string }) {
   );
 }
 
+function CopyIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+function ResetIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 2v6h6" />
+      <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" />
+    </svg>
+  );
+}
+
 function PlayIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M8 5v14l11-7z" />
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="5 3 19 12 5 21 5 3" />
     </svg>
   );
 }
 
 function PauseIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M7 5h4v14H7zm6 0h4v14h-4z" />
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="4" height="16" x="6" y="4" />
+      <rect width="4" height="16" x="14" y="4" />
     </svg>
   );
 }
@@ -1387,6 +1406,7 @@ export default function SansPsPage({
                         : "cursor-not-allowed bg-slate-200 text-slate-400 dark:bg-slate-700"
                     }`}
                   >
+                    <ResetIcon className="h-4 w-4" />
                     Reset
                   </button>
                 </div>
@@ -1526,7 +1546,7 @@ export default function SansPsPage({
                       )
                     }
                     disabled={!canCopyTranscript}
-                    className={`rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                    className={`inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
                       canCopyTranscript
                         ? darkMode
                           ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
@@ -1534,6 +1554,7 @@ export default function SansPsPage({
                         : "cursor-not-allowed bg-slate-200 text-slate-400 dark:bg-slate-700"
                     }`}
                   >
+                    <CopyIcon className="h-4 w-4" />
                     Copy transcript
                   </button>
                 </div>
@@ -1658,21 +1679,22 @@ export default function SansPsPage({
                 )}
                 <button
                   type="button"
-                  onClick={() =>
-                    void copyTextToClipboard(
-                      evaluationCopyText,
-                      "L'évaluation a été copiée.",
-                    )
-                  }
-                  disabled={!evaluation}
-                  className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                    evaluation
-                      ? darkMode
-                        ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      : "cursor-not-allowed bg-slate-200 text-slate-400 dark:bg-slate-700"
+                    onClick={() =>
+                      void copyTextToClipboard(
+                        evaluationCopyText,
+                        "L'évaluation a été copiée.",
+                      )
+                    }
+                    disabled={!evaluation}
+                    className={`inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                      evaluation
+                        ? darkMode
+                          ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        : "cursor-not-allowed bg-slate-200 text-slate-400 dark:bg-slate-700"
                   }`}
                 >
+                  <CopyIcon className="h-4 w-4" />
                   Copy evaluation
                 </button>
                 <button

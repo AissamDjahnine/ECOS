@@ -545,6 +545,24 @@ function FileTextIcon({ className }: { className?: string }) {
   );
 }
 
+function CopyIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+function ResetIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 2v6h6" />
+      <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" />
+    </svg>
+  );
+}
+
 function SunIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2027,6 +2045,7 @@ export default function App({
                         : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
                     }`}
                   >
+                    <ResetIcon className="w-4 h-4" />
                     Reset
                   </button>
                 </div>
@@ -2183,7 +2202,7 @@ export default function App({
                       )
                     }
                     disabled={!canCopyTranscript}
-                    className={`rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                    className={`inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
                       canCopyTranscript
                         ? darkMode
                           ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
@@ -2191,6 +2210,7 @@ export default function App({
                         : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
                     }`}
                   >
+                    <CopyIcon className="w-4 h-4" />
                     Copy transcript
                   </button>
                 </div>
@@ -2363,21 +2383,22 @@ export default function App({
                 )}
                 <button
                   type="button"
-                  onClick={() =>
-                    void copyTextToClipboard(
-                      evaluationCopyText,
-                      "L'évaluation a été copiée.",
-                    )
-                  }
-                  disabled={!evaluation}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    evaluation
-                      ? darkMode
-                        ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
+                    onClick={() =>
+                      void copyTextToClipboard(
+                        evaluationCopyText,
+                        "L'évaluation a été copiée.",
+                      )
+                    }
+                    disabled={!evaluation}
+                    className={`inline-flex items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      evaluation
+                        ? darkMode
+                          ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
                   }`}
                 >
+                  <CopyIcon className="w-4 h-4" />
                   Copy evaluation
                 </button>
                 <button
