@@ -9,6 +9,7 @@ import {
   type LiveServerMessage,
 } from "@google/genai";
 import { parseCaseInput, transcriptToPlainText } from "./lib/parser";
+import { buildPsPdfDocument } from "./lib/pdf";
 import {
   PcmPlayer,
   requestMicrophoneStream,
@@ -384,99 +385,6 @@ function scoreColor(ratio: number) {
   }
 
   return "#b91c1c";
-}
-
-function buildPdfDocument(
-  parsedCase: ParsedCase,
-  transcript: TranscriptEntry[],
-  evaluation: EvaluationResult | null,
-) {
-  const transcriptHtml = transcript
-    .filter((entry) => entry.text.trim().length > 0)
-    .map((entry) => {
-      const background =
-        entry.role === "student"
-          ? "#dbeafe"
-          : entry.role === "patient"
-            ? "#dcfce7"
-            : "#e5e7eb";
-
-      const align =
-        entry.role === "student"
-          ? "margin-left:auto;"
-          : entry.role === "patient"
-            ? "margin-right:auto;"
-            : "margin:0 auto;";
-
-      return `
-        <div style="max-width:75%; ${align} background:${background}; border-radius:18px; padding:12px 14px; margin-bottom:10px;">
-          <div style="font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#475569; margin-bottom:6px;">
-            ${entry.role} — ${entry.timestamp}
-          </div>
-          <div style="font-size:14px; line-height:1.5; color:#0f172a; white-space:pre-wrap;">${entry.text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")}</div>
-        </div>
-      `;
-    })
-    .join("");
-
-  const evaluationHtml = evaluation
-    ? `
-      <table style="width:100%; border-collapse:collapse; font-size:13px;">
-        <thead>
-          <tr>
-            <th style="text-align:left; padding:10px; border:1px solid #cbd5e1;">Critère</th>
-            <th style="text-align:left; padding:10px; border:1px solid #cbd5e1;">Résultat</th>
-            <th style="text-align:left; padding:10px; border:1px solid #cbd5e1;">Feedback</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${evaluation.details
-            .map(
-              (detail) => `
-            <tr>
-              <td style="padding:10px; border:1px solid #cbd5e1; vertical-align:top;">${detail.criterion}</td>
-              <td style="padding:10px; border:1px solid #cbd5e1; vertical-align:top;">
-                ${detail.observed ? "Observé" : "Non observé"}
-              </td>
-              <td style="padding:10px; border:1px solid #cbd5e1; vertical-align:top;">${detail.feedback}</td>
-            </tr>
-          `,
-            )
-            .join("")}
-        </tbody>
-      </table>
-    `
-    : `<p style="color:#64748b;">Aucune évaluation disponible.</p>`;
-
-  return `
-    <html>
-      <head>
-        <title>Compte rendu ECOS-AI</title>
-      </head>
-      <body style="font-family:Arial, Helvetica, sans-serif; padding:32px; color:#0f172a;">
-        <h1 style="margin:0 0 8px;">ECOS-AI — Compte rendu</h1>
-        <p style="margin:0 0 24px; color:#475569;">Simulation clinique pilotée par Gemini Live</p>
-
-        <h2>Sujet</h2>
-        <div style="border:1px solid #cbd5e1; border-radius:16px; padding:16px; white-space:pre-wrap;">
-          ${parsedCase.rawInput
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")}
-        </div>
-
-        <h2 style="margin-top:28px;">Transcription</h2>
-        <div>${transcriptHtml || "<p>Aucune transcription.</p>"}</div>
-
-        <h2 style="margin-top:28px;">Évaluation</h2>
-        <p><strong>Note finale :</strong> ${evaluation?.score ?? "--/--"}</p>
-        ${evaluationHtml}
-      </body>
-    </html>
-  `;
 }
 
 function formatFeedbackDetailLabel(level: AppSettings["feedbackDetailLevel"]) {
@@ -1799,7 +1707,14 @@ export default function App({
     }
 
     popup.document.open();
-    popup.document.write(buildPdfDocument(parsedCase, transcript, evaluation));
+    popup.document.write(
+      buildPsPdfDocument(
+        parsedCase,
+        transcript,
+        evaluation,
+        lastEvaluatedFeedbackDetailLevel ?? settings.feedbackDetailLevel,
+      ),
+    );
     popup.document.close();
     popup.focus();
     popup.print();
