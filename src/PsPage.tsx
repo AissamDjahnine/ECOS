@@ -673,6 +673,11 @@ export default function App({
     title: string;
     body: string;
   } | null>(null);
+  const [sessionGuardDialog, setSessionGuardDialog] = useState<{
+    action: "reset" | "clear";
+    title: string;
+    body: string;
+  } | null>(null);
   const [lastEvaluatedFeedbackDetailLevel, setLastEvaluatedFeedbackDetailLevel] =
     useState<AppSettings["feedbackDetailLevel"] | null>(null);
 
@@ -1464,6 +1469,10 @@ export default function App({
 
   async function handleResetSession() {
     await resetSessionState();
+    setCompletionToast({
+      title: "Session réinitialisée",
+      body: "La session a été vidée. Le texte collé est conservé.",
+    });
   }
 
   async function handleClearText() {
@@ -1472,6 +1481,46 @@ export default function App({
     setParsedCase(parseCaseInput(""));
     setParseError("");
     setStatus("Mode PS/PSS prêt");
+  }
+
+  function requestResetSession() {
+    if (!canResetSession) {
+      return;
+    }
+
+    setSessionGuardDialog({
+      action: "reset",
+      title: "Réinitialiser la session ?",
+      body: "Cette action efface la transcription, l'audio et l'évaluation en cours, tout en conservant le texte collé.",
+    });
+  }
+
+  function requestClearText() {
+    if (!canClearText) {
+      return;
+    }
+
+    setSessionGuardDialog({
+      action: "clear",
+      title: "Effacer le texte collé ?",
+      body: "Cette action efface le texte, la session, la transcription et l'évaluation associée.",
+    });
+  }
+
+  function confirmSessionGuardAction() {
+    if (!sessionGuardDialog) {
+      return;
+    }
+
+    const { action } = sessionGuardDialog;
+    setSessionGuardDialog(null);
+
+    if (action === "reset") {
+      void handleResetSession();
+      return;
+    }
+
+    void handleClearText();
   }
 
   async function evaluateDiscussion() {
@@ -1700,6 +1749,22 @@ export default function App({
   }, [completionToast]);
 
   useEffect(() => {
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      if (!isConnecting && !isDiscussing && !isPaused) {
+        return;
+      }
+
+      event.preventDefault();
+      event.returnValue = "";
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [isConnecting, isDiscussing, isPaused]);
+
+  useEffect(() => {
     return () => {
       shouldSendAudioRef.current = false;
       void stopMixedRecorder();
@@ -1891,7 +1956,7 @@ export default function App({
                 </h2>
                 <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
                   <button
-                    onClick={() => void handleClearText()}
+                    onClick={requestClearText}
                     disabled={!canClearText}
                     className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors md:px-4 md:text-sm ${
                       canClearText
@@ -1965,10 +2030,10 @@ export default function App({
           <div className="space-y-6">
             {/* Session Controls */}
             <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                <div className="flex items-center gap-4">
+              <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                <div className="flex min-w-0 items-center gap-4">
                   <div className={`w-3 h-3 rounded-full ${getStatusColor()} ${conversationPhase !== "idle" ? "animate-pulse" : ""}`} />
-                  <div>
+                  <div className="min-w-0">
                     <h2 className="text-lg font-semibold">Session de discussion</h2>
                     <p className={`text-sm ${mutedText}`}>{status}</p>
                   </div>
@@ -1977,7 +2042,7 @@ export default function App({
                   </span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-nowrap items-center gap-3 lg:shrink-0">
                   <button
                     onClick={startDiscussion}
                     disabled={!canStart}
@@ -2035,13 +2100,11 @@ export default function App({
                   </button>
 
                   <button
-                    onClick={() => void handleResetSession()}
+                    onClick={requestResetSession}
                     disabled={!canResetSession}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+                    className={`flex min-w-[112px] items-center justify-center gap-2 rounded-xl px-5 py-2.5 font-medium text-sm transition-all duration-200 ${
                       canResetSession
-                        ? darkMode
-                          ? "border border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700"
-                          : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        ? "bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white shadow-lg shadow-slate-500/20"
                         : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
                     }`}
                   >
@@ -2202,13 +2265,11 @@ export default function App({
                       )
                     }
                     disabled={!canCopyTranscript}
-                    className={`inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
-                      canCopyTranscript
-                        ? darkMode
-                          ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                        : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
-                    }`}
+                    className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                      darkMode
+                        ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
+                        : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
+                    } ${!canCopyTranscript ? "cursor-not-allowed opacity-60" : ""}`}
                   >
                     <CopyIcon className="w-4 h-4" />
                     Copy transcript
@@ -2383,20 +2444,18 @@ export default function App({
                 )}
                 <button
                   type="button"
-                    onClick={() =>
-                      void copyTextToClipboard(
-                        evaluationCopyText,
-                        "L'évaluation a été copiée.",
-                      )
-                    }
-                    disabled={!evaluation}
-                    className={`inline-flex items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      evaluation
-                        ? darkMode
-                          ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                        : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
-                  }`}
+                  onClick={() =>
+                    void copyTextToClipboard(
+                      evaluationCopyText,
+                      "L'évaluation a été copiée.",
+                    )
+                  }
+                  disabled={!evaluation}
+                  className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                    darkMode
+                      ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
+                      : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
+                  } ${!evaluation ? "cursor-not-allowed opacity-60" : ""}`}
                 >
                   <CopyIcon className="w-4 h-4" />
                   Copy evaluation
@@ -2605,6 +2664,40 @@ export default function App({
                   Retry
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sessionGuardDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
+          <div className={`w-full max-w-md rounded-2xl border ${cardBg} p-8 shadow-2xl`}>
+            <div className="text-center">
+              <h3 className="text-xl font-bold">{sessionGuardDialog.title}</h3>
+              <p className={`mt-3 text-sm leading-relaxed ${mutedText}`}>
+                {sessionGuardDialog.body}
+              </p>
+            </div>
+
+            <div className="mt-6 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setSessionGuardDialog(null)}
+                className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-all ${
+                  darkMode
+                    ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={confirmSessionGuardAction}
+                className="rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-700"
+              >
+                Confirmer
+              </button>
             </div>
           </div>
         </div>
