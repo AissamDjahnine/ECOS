@@ -90,6 +90,17 @@ function formatCountdown(totalSeconds: number) {
   return `${minutes}:${seconds}`;
 }
 
+function formatElapsedDiscussion(totalSeconds: number) {
+  const safe = Math.max(0, totalSeconds);
+  const minutes = Math.floor(safe / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (safe % 60).toString().padStart(2, "0");
+  const minuteLabel = minutes === "01" ? "minute" : "minutes";
+  const secondLabel = seconds === "01" ? "seconde" : "secondes";
+  return `${minutes} ${minuteLabel} et ${seconds} ${secondLabel}`;
+}
+
 function uint8ToBase64(uint8: Uint8Array) {
   let binary = "";
   const chunkSize = 0x8000;
@@ -551,9 +562,14 @@ export default function App() {
   const [micPeak, setMicPeak] = useState(0);
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(8 * 60);
+  const [completionToast, setCompletionToast] = useState<{
+    title: string;
+    body: string;
+  } | null>(null);
 
   const transcriptRef = useRef<HTMLDivElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
+  const completionToastTimerRef = useRef<number | null>(null);
 
   const sessionRef = useRef<LiveSession | null>(null);
   const micRef = useRef<AudioStreamer | null>(null);
@@ -573,7 +589,12 @@ export default function App() {
   const patientInfo = useMemo(() => extractPatientInfo(parsedCase), [parsedCase]);
 
   const parsedReady = Boolean(parsedCase.patientScript && parsedCase.gradingGrid);
-  const canStart = parsedReady && !isConnecting && !isDiscussing && !isPaused;
+  const canStart =
+    parsedReady &&
+    !isConnecting &&
+    !isDiscussing &&
+    !isPaused &&
+    !hasEndedDiscussion;
   const canPause = isDiscussing;
   const canEnd = isDiscussing || isPaused;
   const canJudge =
@@ -707,6 +728,7 @@ export default function App() {
     setParsedCase(parsed);
     setEvaluation(null);
     setHasEndedDiscussion(false);
+    setCompletionToast(null);
 
     if (!parsed.patientScript || !parsed.gradingGrid) {
       setParseError(
@@ -833,6 +855,7 @@ export default function App() {
     try {
       setIsConnecting(true);
       setHasEndedDiscussion(false);
+      setCompletionToast(null);
       setStatus("Demande de jeton temporaire");
       setEvaluation(null);
       setRemainingSeconds(8 * 60);
@@ -1144,8 +1167,11 @@ export default function App() {
 
   async function stopDiscussion() {
     setStatus("Fermeture de la discussion");
+    let discussionFinished = false;
+    let elapsedSummary = "";
 
     try {
+      elapsedSummary = formatElapsedDiscussion(8 * 60 - remainingSeconds);
       shouldSendAudioRef.current = false;
       await finalizeStudentDraft();
       sessionRef.current?.sendRealtimeInput?.({ audioStreamEnd: true });
@@ -1161,6 +1187,8 @@ export default function App() {
       await micRef.current?.stop();
       sessionRef.current?.close();
       await playerRef.current?.close();
+      await cleanupStudentTranscriptAtEnd();
+      discussionFinished = true;
     } finally {
       micRef.current = null;
       sessionRef.current = null;
@@ -1179,6 +1207,13 @@ export default function App() {
       setStatus("Discussion terminée. Transcription prête pour évaluation.");
       setMicLevel(0);
       setMicPeak(0);
+
+      if (discussionFinished) {
+        setCompletionToast({
+          title: "Discussion terminée",
+          body: `Vous avez fini en ${elapsedSummary}.`,
+        });
+      }
     }
   }
 
@@ -1298,6 +1333,29 @@ export default function App() {
   }, [isEvaluating]);
 
   useEffect(() => {
+    if (completionToastTimerRef.current) {
+      window.clearTimeout(completionToastTimerRef.current);
+      completionToastTimerRef.current = null;
+    }
+
+    if (!completionToast) {
+      return;
+    }
+
+    completionToastTimerRef.current = window.setTimeout(() => {
+      setCompletionToast(null);
+      completionToastTimerRef.current = null;
+    }, 3000);
+
+    return () => {
+      if (completionToastTimerRef.current) {
+        window.clearTimeout(completionToastTimerRef.current);
+        completionToastTimerRef.current = null;
+      }
+    };
+  }, [completionToast]);
+
+  useEffect(() => {
     return () => {
       shouldSendAudioRef.current = false;
       void stopMixedRecorder();
@@ -1307,6 +1365,10 @@ export default function App() {
 
       if (recordedAudioUrlRef.current) {
         URL.revokeObjectURL(recordedAudioUrlRef.current);
+      }
+
+      if (completionToastTimerRef.current) {
+        window.clearTimeout(completionToastTimerRef.current);
       }
     };
   }, []);
@@ -1730,34 +1792,77 @@ export default function App() {
                               ? "ml-auto"
                               : entry.role === "patient"
                                 ? "mr-auto"
-                                : "mx-auto"
+                                : "mx-auto max-w-full"
                           }`}
                         >
-                          <div
-                            className={`rounded-2xl px-4 py-3 ${
-                              entry.role === "student"
-                                ? "bg-primary-600 text-white"
-                                : entry.role === "patient"
-                                  ? darkMode
+                          {entry.role === "system" ? (
+                            <div className="mx-auto max-w-[78%] py-1.5 text-center">
+                              <div className="flex items-center gap-3">
+                                <span
+                                  className={`h-px flex-1 ${
+                                    entry.text.toLowerCase().startsWith("erreur")
+                                      ? darkMode
+                                        ? "bg-rose-800/70"
+                                        : "bg-rose-200"
+                                      : darkMode
+                                        ? "bg-slate-800"
+                                        : "bg-slate-200"
+                                  }`}
+                                />
+                                <span
+                                  className={`max-w-[80%] text-[11px] font-medium leading-relaxed whitespace-pre-wrap ${
+                                    entry.text.toLowerCase().startsWith("erreur")
+                                      ? darkMode
+                                        ? "text-rose-300"
+                                        : "text-rose-700"
+                                      : darkMode
+                                        ? "text-slate-400"
+                                        : "text-slate-500"
+                                  }`}
+                                >
+                                  {entry.text}
+                                </span>
+                                <span
+                                  className={`h-px flex-1 ${
+                                    entry.text.toLowerCase().startsWith("erreur")
+                                      ? darkMode
+                                        ? "bg-rose-800/70"
+                                        : "bg-rose-200"
+                                      : darkMode
+                                        ? "bg-slate-800"
+                                        : "bg-slate-200"
+                                  }`}
+                                />
+                              </div>
+                              <div
+                                className={`mt-1 text-[10px] ${
+                                  darkMode ? "text-slate-500" : "text-slate-400"
+                                }`}
+                              >
+                                {entry.timestamp}
+                              </div>
+                            </div>
+                          ) : (
+                            <div
+                              className={`rounded-2xl px-4 py-3 ${
+                                entry.role === "student"
+                                  ? "bg-primary-600 text-white"
+                                  : darkMode
                                     ? "bg-slate-800 border border-slate-700"
                                     : "bg-white border border-slate-200 shadow-sm"
-                                  : "bg-slate-200/50 dark:bg-slate-800/50 text-center"
-                            }`}
-                          >
-                            <div className={`flex items-center justify-between gap-4 text-[10px] uppercase tracking-wider mb-1.5 ${
-                              entry.role === "student"
-                                ? "text-primary-100"
-                                : entry.role === "patient"
-                                  ? mutedText
-                                  : mutedText
-                            }`}>
-                              <span className="font-semibold">{entry.role}</span>
-                              <span>{entry.timestamp}</span>
+                              }`}
+                            >
+                              <div className={`flex items-center justify-between gap-4 text-[10px] uppercase tracking-wider mb-1.5 ${
+                                entry.role === "student" ? "text-primary-100" : mutedText
+                              }`}>
+                                <span className="font-semibold">{entry.role}</span>
+                                <span>{entry.timestamp}</span>
+                              </div>
+                              <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                                {entry.text}
+                              </div>
                             </div>
-                            <div className="text-sm leading-relaxed whitespace-pre-wrap">
-                              {entry.text}
-                            </div>
-                          </div>
+                          )}
                         </div>
                       ))}
 
@@ -1927,6 +2032,20 @@ export default function App() {
 
             <div className="mt-4 text-center">
               <span className="text-2xl font-bold">{evaluationProgress}%</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {completionToast && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/10 backdrop-blur-[1px] pointer-events-none">
+          <div className={`w-full max-w-sm rounded-2xl border ${cardBg} px-6 py-5 shadow-2xl`}>
+            <div className="text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                <CheckIcon className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-semibold">{completionToast.title}</h3>
+              <p className={`mt-2 text-sm ${mutedText}`}>{completionToast.body}</p>
             </div>
           </div>
         </div>
