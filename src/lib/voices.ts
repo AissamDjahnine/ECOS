@@ -47,12 +47,32 @@ export const DEFAULT_FEMALE_VOICE = FEMALE_VOICE_OPTIONS[0].value;
 export const DEFAULT_MALE_VOICE = MALE_VOICE_OPTIONS[0].value;
 export const DEFAULT_UNKNOWN_VOICE = DEFAULT_FEMALE_VOICE;
 export const PREVIEW_SAMPLE_VOICE_NAMES = new Set([
+  "Achernar",
   "Aoede",
+  "Autonoe",
+  "Callirrhoe",
   "Charon",
+  "Despina",
+  "Erinome",
   "Fenrir",
+  "Gacrux",
+  "Laomedeia",
   "Kore",
   "Leda",
+  "Puck",
+  "Orus",
+  "Enceladus",
+  "Iapetus",
+  "Umbriel",
+  "Algieba",
+  "Algenib",
+  "Rasalgethi",
+  "Alnilam",
+  "Schedar",
+  "Pulcherrima",
+  "Sulafat",
   "Vindemiatrix",
+  "Zephyr",
 ]);
 
 export function isSupportedVoiceName(value: string): boolean {

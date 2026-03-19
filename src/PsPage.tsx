@@ -747,6 +747,7 @@ export default function App({
   const sessionDurationSeconds = settings.defaultTimerSeconds;
   const canEditVoice =
     parsedReady && !isConnecting && !isDiscussing && !isPaused;
+  const canToggleFavoriteVoice = !isConnecting && !isDiscussing && !isPaused;
   const canStart =
     parsedReady &&
     !isConnecting &&
@@ -2371,6 +2372,7 @@ export default function App({
                         {group.voices.map((voice) => {
                           const isSelected = selectedVoiceName === voice.value;
                           const disabled = !canEditVoice;
+                          const favoriteDisabled = !canToggleFavoriteVoice;
                           const canPreviewVoice = hasVoicePreviewSample(voice.value);
                           const isPreviewPlaying =
                             playingVoicePreviewName === voice.value;
@@ -2432,29 +2434,30 @@ export default function App({
                               <button
                                 type="button"
                                 onClick={() => {
-                                  if (disabled) {
+                                  if (favoriteDisabled) {
                                     return;
                                   }
                                   toggleFavoriteVoice(voice.value);
                                 }}
-                                disabled={disabled}
+                                disabled={favoriteDisabled}
                                 aria-label={
                                   isFavorite
                                     ? `Retirer ${voice.value} des favoris`
                                     : `Ajouter ${voice.value} aux favoris`
                                 }
+                                aria-pressed={isFavorite}
                                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors ${
                                   isFavorite
                                     ? darkMode
-                                      ? "border-rose-400/40 bg-rose-500/10 text-rose-300"
-                                      : "border-rose-200 bg-rose-50 text-rose-500"
+                                      ? "border-rose-400 bg-rose-500 text-white shadow-sm shadow-rose-500/30"
+                                      : "border-rose-500 bg-rose-500 text-white shadow-sm shadow-rose-200"
                                     : darkMode
-                                      ? "border-slate-700 bg-slate-800 text-slate-500 hover:text-slate-300"
-                                      : "border-slate-200 bg-slate-50 text-slate-300 hover:text-slate-500"
-                                } ${disabled ? "cursor-not-allowed" : ""}`}
+                                      ? "border-slate-600 bg-slate-800 text-slate-300 hover:border-slate-500 hover:bg-slate-700 hover:text-slate-100"
+                                      : "border-slate-300 bg-white text-slate-500 hover:border-slate-400 hover:bg-slate-50 hover:text-slate-700"
+                                } ${favoriteDisabled ? "cursor-not-allowed" : ""}`}
                               >
                                 <HeartIcon
-                                  className="h-3 w-3"
+                                  className="h-3.5 w-3.5"
                                   filled={isFavorite}
                                 />
                               </button>
@@ -2477,8 +2480,8 @@ export default function App({
                                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors ${
                                   canPreviewVoice
                                     ? darkMode
-                                      ? "border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700"
-                                      : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                                      ? "border-slate-600 bg-slate-800 text-slate-200 hover:border-slate-500 hover:bg-slate-700"
+                                      : "border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:bg-slate-50"
                                     : darkMode
                                       ? "border-slate-800 bg-slate-900 text-slate-600"
                                       : "border-slate-200 bg-slate-50 text-slate-300"

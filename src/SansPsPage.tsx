@@ -1525,8 +1525,8 @@ export default function SansPsPage({
                                 aria-label={`Favori désactivé ${voice.value}`}
                                 className={`flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-lg border ${
                                   darkMode
-                                    ? "border-slate-700 bg-slate-800 text-slate-500"
-                                    : "border-slate-200 bg-slate-50 text-slate-300"
+                                    ? "border-slate-600 bg-slate-800 text-slate-300"
+                                    : "border-slate-300 bg-white text-slate-400"
                                 }`}
                               >
                                 <HeartIcon className="h-3 w-3" />
@@ -1542,8 +1542,8 @@ export default function SansPsPage({
                                 }
                                 className={`flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-lg border ${
                                   darkMode
-                                    ? "border-slate-700 bg-slate-800 text-slate-300"
-                                    : "border-slate-200 bg-slate-50 text-slate-400"
+                                    ? "border-slate-600 bg-slate-800 text-slate-200"
+                                    : "border-slate-300 bg-white text-slate-500"
                                 }`}
                               >
                                 <PlayIcon className="h-3 w-3" />

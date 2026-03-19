@@ -388,6 +388,36 @@ describe("PsPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("allows favoriting a voice before analyzing the case", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <PsPage
+        currentMode="ps"
+        onNavigate={vi.fn()}
+        settings={DEFAULT_SETTINGS}
+        onOpenDashboard={vi.fn()}
+        onOpenSettings={vi.fn()}
+        darkMode={false}
+        onDarkModeChange={vi.fn()}
+      />,
+    );
+
+    const favoriteButton = screen.getByRole("button", {
+      name: "Ajouter Zephyr aux favoris",
+    });
+
+    expect(favoriteButton).toBeEnabled();
+
+    await user.click(favoriteButton);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Retirer Zephyr des favoris" }),
+      ).toBeInTheDocument();
+    });
+  });
+
   it("toggles voice preview between play and pause states", async () => {
     const user = userEvent.setup();
 
