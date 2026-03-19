@@ -1178,7 +1178,7 @@ export default function SansPsPage({
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight">ECOS-AI</h1>
-              <p className={`text-xs ${mutedText}`}>Mode sans PS</p>
+              <p className={`text-xs ${mutedText}`}>Simulateur d&apos;examen clinique</p>
             </div>
           </div>
 
