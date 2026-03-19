@@ -1,67 +1,49 @@
-# 🎙️ ECOS-AI
+# ECOS-AI
 
-**A high-fidelity, interactive voice ECOS simulator for medical students—designed as a flexible, free alternative to subscription-based platforms.**
+Voice-first ECOS practice with a live AI patient, transcript review, audio replay, and automatic grading against a case-specific correction grid.
 
-## 📖 Overview
+![ECOS-AI interface](assets/screenshots/ecos-ai-ui.png)
 
-Traditional **ECOS** (*Examen Clinique Objectif Structuré*) preparation often relies on static PDFs or peer roleplay. While established platforms provide digital training, **ECOS-AI** offers a different philosophy: **total user autonomy through a "bring-your-own-key" model.**
+## Overview
 
-### The Landscape
-Many medical students use excellent commercial platforms such as:
-* [**Hypocampus**](https://www.hypocampus.fr/medecine-ecos/): Features a popular **"ECOS Bot"**. It is primarily a **textual chatbot** experience. Even when using the microphone, it functions as a "speech-to-text" input for a text-based chat, rather than a continuous, natively oral interaction.
-* [**DocECOS**](https://www.docecos.fr/): Offers **"DocIA"**, an interactive voice AI. While powerful, it is part of a premium subscription model which can be a financial barrier for many students.
-* [**EDN.fr**](https://www.edn.fr/): Provides "IA 2.0" stations focusing on knowledge anchoring through structured text interfaces.
+ECOS-AI is a local training app for medical students preparing oral ECOS stations. You paste a patient scenario and grading grid, launch a real-time voice conversation with an AI patient, then review the transcript and run a criterion-by-criterion evaluation.
 
-### 🚀 What Makes This Project Different?
+The project is built around a bring-your-own-key approach: you run the app locally and use your own Gemini API key instead of a subscription platform.
 
-Instead of a monthly subscription or a text-only interface, this project is a **free, open-source alternative** that puts you in control:
+## What It Does
 
-1.  **True Voice-First Interaction:** Move beyond "text bots." This is a fully **AI Interactive Voice** experience. You speak naturally to a live AI patient that handles interruptions, tone, and clinical nuances in real time—simulating the actual oral stress of the exam.
-2.  **Bring Your Own API Key:** Use your own Google Gemini API key. This means you only pay for your actual usage (often staying within the Google AI Studio free tiers), avoiding the heavy markups of monthly subscriptions.
-3.  **Hypocampus Integration:** For the moment, the parser is specifically optimized **exclusively for Hypocampus** content. You can copy-paste your "grilles" and "situations" directly from their platform, and the app will intelligently extract the clinical data for a voice session.
-4.  **Privacy & Portability:** Since you run the app locally and provide your own key, your training data remains yours.
+- Runs a live voice discussion with an AI patient using Gemini Live.
+- Parses copied ECOS material into patient context and grading criteria.
+- Displays the discussion transcript in real time.
+- Records the station audio for replay after the discussion ends.
+- Evaluates the student performance against the provided correction grid.
+- Adds guardrails around very short discussions before evaluation starts.
 
+## Current Focus
 
-## ✨ Features
-
-- **Live Voice Interaction:** Standardized patient simulation with a continuous, natural speech flow.
-- **Real-Time Responses:** AI patient answers orally with minimal latency via Gemini Live (Multimodal).
-- **Hypocampus Case Parsing:** Seamless extraction of scripts and grading grids directly from Hypocampus text.
-- **Automatic Evaluation:** Post-station debriefing that compares your transcript against the specific grading grid to identify missed points.
-- **Audio Replay:** Listen back to your own voice performance recorded locally to improve your communication skills.
-- **8-Minute Timer:** Built-in countdown to match official national ECOS conditions.
-
-
-## 🛠️ Main Workflow
-
-1.  **Setup:** Paste your material (Situation + Grille) copied from **Hypocampus** into the setup area.
-2.  **Parse:** The system automatically identifies the patient persona and the scoring criteria.
-3.  **Interact:** Start the live discussion and speak to the simulated patient.
-4.  **Review:** Examine the live transcript and listen to your audio recording.
-5.  **Judge:** Send the transcript to the evaluator model for a criterion-by-criterion breakdown.
-
+- Oral simulation rather than text-only interaction.
+- Local usage with your own API key.
+- Fast iteration on UI, scoring quality, and realism.
+- Hypocampus-style copy-paste workflows.
 
 ## Stack
 
-### Frontend
 - React
 - TypeScript
 - Vite
 - Tailwind CSS
-
-### Backend
 - Node.js
 - Express
-- TypeScript
-
-### AI
 - Google Gemini Live API
 - Google Gemini evaluation model
 
-## Project structure
+## Project Structure
 
 ```text
 ECOS/
+├── assets/
+│   └── screenshots/
+│       └── ecos-ai-ui.png
 ├── server/
 │   └── index.ts
 ├── src/
@@ -69,125 +51,77 @@ ECOS/
 │   │   ├── audio.ts
 │   │   └── parser.ts
 │   ├── App.tsx
-│   ├── main.tsx
 │   ├── index.css
+│   ├── main.tsx
 │   └── types.ts
-├── .env
 ├── .env.example
 ├── package.json
 ├── vite.config.ts
 └── README.md
 ```
 
-## Installation
+## Setup
 
-### 1. Clone the repository
+1. Clone the repository.
+2. Install dependencies with `npm install`.
+3. Create a `.env` file at the project root.
+4. Add your Gemini configuration:
 
-Open a terminal and run:
+```env
+GEMINI_API_KEY=your_api_key_here
+GEMINI_EVAL_MODEL=gemini-2.5-flash
+GEMINI_LIVE_MODEL=gemini-2.5-flash-native-audio-preview-12-2025
+```
 
-`git clone https://github.com/AissamDjahnine/ecos-ai`  
-`cd ECOS`
+## Run Locally
 
-### 2. Install dependencies
+Start the app with:
 
-This project has a frontend and a backend.  
-Install all required packages with:
+```bash
+npm run dev
+```
 
-`npm install`
+This runs:
 
-### 3. Create the environment file
+- the Vite frontend
+- the Express backend
 
-At the root of the backend, create a `.env` file and add your Gemini configuration variables:
+Typical local URLs:
 
-`GEMINI_API_KEY=your_api_key_here`  
-`GEMINI_EVAL_MODEL=gemini-2.5-flash`  
-`GEMINI_LIVE_MODEL=gemini-2.5-flash-native-audio-preview-12-2025`
+- frontend: `http://localhost:5173`
+- backend: `http://localhost:3001`
 
-### 4. Start the backend
+## Typical Workflow
 
-Run:
+1. Paste the ECOS case material into the input area.
+2. Let the parser extract the patient script and grading grid.
+3. Start the discussion and conduct the station orally.
+4. Pause or end the station when appropriate.
+5. Review the transcript and replay the recorded audio.
+6. Launch the evaluation and inspect the criterion-by-criterion feedback.
 
-`npm run dev`
+## Notes
 
-This starts the API server, usually on:
+- Browser microphone permission is required.
+- A stable internet connection is required for Gemini Live.
+- Evaluation quality depends on transcript quality and grading prompt quality.
+- This is a training tool, not a certified medical assessment platform.
 
-`http://localhost:3001`
+## Limitations
 
-### 5. Start the frontend
+- Parsing still expects relatively structured source material.
+- Case ingestion is currently optimized around Hypocampus-style formatting.
+- Very short discussions may produce unreliable evaluation signals.
+- AI grading is useful for training, but it is not a formal examiner.
 
-In another terminal, run:
+## Roadmap
 
-`npm run dev`
-
-This starts the frontend development server, usually on a local Vite URL such as:
-
-`http://localhost:5173`
-
-### 6. Open the app
-
-Open the frontend URL in your browser.  
-Paste a patient case and grading grid, click **Parse & Prepare**, then start the live ECOS discussion.
-
-### Notes
-
-- Make sure the backend is running before starting a live discussion.
-- Microphone permission must be allowed in the browser.
-- A stable internet connection is required for Gemini Live audio.
-
-## Typical workflow
-	1.	Open the app
-	2.	Paste the full ECOS material into the setup textarea
-	3.	Click Parse & Prepare
-	4.	Check the extracted patient information
-	5.	Choose a voice
-	6.	Click Start Discussion
-	7.	Conduct the station orally
-	8.	Click End Discussion
-	9.	Click Judge Transcript
-	10.	Review the evaluation results
-
-## Current limitations
-	•	Voice selection does not automatically adapt to patient sex or age
-	•	Parsing still depends on relatively structured source formatting
-	•	Evaluation quality depends on transcript quality
-	•	Live transcription may still vary with microphone quality, noise, and turn timing
-	•	This is a training tool, not a certified medical assessment platform
-
-## Why this project matters
-
-This project aims to move ECOS preparation from:
-	•	static reading
-	•	manual roleplay
-	•	text-only bots
-
-toward:
-	•	live oral simulation
-	•	more realistic station dynamics
-	•	immediate structured feedback
-
-The objective is not just to generate answers, but to reproduce the experience of a spoken ECOS encounter as closely as possible.
-
-## Vision
-
-This can become a base for:
-	•	specialty-specific ECOS stations
-	•	multilingual stations
-	•	adaptive patient behavior
-	•	better automatic scoring
-	•	institutional training platforms
-	•	complete voice-first clinical communication training
-
-## Status
-
-Early working version with:
-	•	live patient audio
-	•	transcript display
-	•	parsing
-	•	evaluation
-	•	voice selection
-	•	timer
-	•	audio replay
+- Better scoring precision for student-led vs patient-volunteered information
+- More robust parsing across different ECOS content sources
+- Better station realism and patient behavior controls
+- Stronger transcript cleanup and evaluation traceability
+- Expanded support for specialty-specific stations
 
 ## Author
 
-Built as an experimental ECOS training platform exploring real-time voice AI for clinical education.
+Built as an experimental voice-first ECOS simulator for clinical communication training.
