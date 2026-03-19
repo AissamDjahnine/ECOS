@@ -1590,7 +1590,7 @@ export default function App() {
                 {/* Audio Level */}
                 <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
                   <div className="mb-5">
-                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-2">
                         {isMicMuted ? (
                           <MicOffIcon className={`w-4 h-4 ${mutedText}`} />
