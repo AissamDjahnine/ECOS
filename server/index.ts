@@ -78,6 +78,8 @@ app.post("/api/live-token", async (request, response) => {
       "Les émotions éventuelles doivent être exprimées uniquement par le ton, les pauses, l'intonation et la voix.",
       "Ne lis jamais de didascalies, de parenthèses, d'émotions ou d'indications scéniques à voix haute.",
       "Ne prononce jamais des mots comme fatiguée, gênée, stressée, perdue, soupir, hésitante, embarrassée, sauf si le patient les dit réellement comme contenu de sa réponse.",
+      "Ne mentionne jamais d'informations qui sont déjà présentes sur la grille d'évaluation.",
+      "Ne donne aucun détail supplémentaire si le médecin ne te le demande pas explicitement.",
       "",
       cleanedPatientScript,
     ].join("\n");
@@ -155,6 +157,11 @@ app.post("/api/evaluate", async (request, response) => {
               text: [
                 "Tu es un correcteur ECOS.",
                 "Analyse le transcript complet face à la grille de correction.",
+                "Un critère est observé uniquement si l'étudiant l'a activement recherché, demandé, vérifié, reformulé ou exploré.",
+                "Une information donnée spontanément par le patient ne suffit jamais à valider un critère.",
+                "Si seul le patient mentionne un élément sans question, vérification ou exploration claire par l'étudiant, le critère doit être non observé.",
+                "Ne crédite pas l'étudiant pour une information simplement entendue, acceptée passivement ou suivie d'un acquiescement vague.",
+                "Le feedback doit expliquer brièvement ce que l'étudiant a réellement fait ou n'a pas fait pour chaque critère.",
                 "Retourne uniquement un JSON conforme au schema.",
                 "",
                 "Transcript:",
@@ -204,6 +211,58 @@ app.post("/api/evaluate", async (request, response) => {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unable to evaluate transcript.";
+    response.status(500).send(message);
+  }
+});
+
+app.post("/api/transcribe-turn", async (request, response) => {
+  if (!geminiApiKey) {
+    response.status(500).send("Missing GEMINI_API_KEY.");
+    return;
+  }
+
+  const schema = z.object({
+    audioBase64: z.string().min(1),
+    mimeType: z.string().min(1),
+  });
+
+  const parsed = schema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json(parsed.error.flatten());
+    return;
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+
+    const result = await ai.models.generateContent({
+      model: evalModel,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: [
+                "Transcris fidèlement cet audio en français.",
+                "Retourne uniquement le texte prononcé.",
+                "N'ajoute aucun commentaire, aucune explication, aucun formatage.",
+              ].join("\n"),
+            },
+            {
+              inlineData: {
+                data: parsed.data.audioBase64,
+                mimeType: parsed.data.mimeType,
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    response.json({ text: result.text?.trim() ?? "" });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unable to transcribe audio.";
     response.status(500).send(message);
   }
 });
