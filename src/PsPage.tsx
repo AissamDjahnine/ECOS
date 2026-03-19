@@ -18,6 +18,7 @@ import {
 } from "./lib/audio";
 import type {
   AppSettings,
+  DashboardSnapshot,
   EvaluationResult,
   ParsedCase,
   TranscriptEntry,
@@ -735,6 +736,11 @@ export default function App({
     title: string;
     body: string;
   } | null>(null);
+  const [readinessDialog, setReadinessDialog] = useState<{
+    mode: "confirm" | "blocked";
+    title: string;
+    body: string;
+  } | null>(null);
   const [lastEvaluatedFeedbackDetailLevel, setLastEvaluatedFeedbackDetailLevel] =
     useState<AppSettings["feedbackDetailLevel"] | null>(null);
 
@@ -1098,7 +1104,26 @@ export default function App({
     ]);
   }
 
-  async function startDiscussion() {
+  async function fetchReadinessSnapshot() {
+    const response = await fetch("/api/dashboard", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        googleApiKey: settings.googleApiKey || undefined,
+        window: "1h",
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+
+    return (await response.json()) as DashboardSnapshot;
+  }
+
+  async function startDiscussionInternal() {
     try {
       currentSessionIdRef.current = crypto.randomUUID();
       setIsConnecting(true);
@@ -1469,6 +1494,40 @@ export default function App({
       ]);
     } finally {
       setIsConnecting(false);
+    }
+  }
+
+  async function startDiscussion() {
+    try {
+      const snapshot = await fetchReadinessSnapshot();
+
+      if (snapshot.status === "blocked") {
+        setReadinessDialog({
+          mode: "blocked",
+          title: "Session indisponible",
+          body: snapshot.statusMessage,
+        });
+        return;
+      }
+
+      if (snapshot.status === "risky") {
+        setReadinessDialog({
+          mode: "confirm",
+          title: "Session potentiellement instable",
+          body: snapshot.statusMessage,
+        });
+        return;
+      }
+
+      await startDiscussionInternal();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Vérification indisponible.";
+      setReadinessDialog({
+        mode: "confirm",
+        title: "Vérification indisponible",
+        body: `${message} Vous pouvez continuer si vous souhaitez tenter le démarrage.`,
+      });
     }
   }
 
@@ -2840,6 +2899,55 @@ export default function App({
               >
                 Confirmer
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {readinessDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
+          <div className={`w-full max-w-md rounded-2xl border ${cardBg} p-8 shadow-2xl`}>
+            <div className="text-center">
+              <h3 className="text-xl font-bold">{readinessDialog.title}</h3>
+              <p className={`mt-3 text-sm leading-relaxed ${mutedText}`}>
+                {readinessDialog.body}
+              </p>
+            </div>
+
+            <div className="mt-6 flex items-center justify-center gap-3">
+              {readinessDialog.mode === "confirm" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setReadinessDialog(null)}
+                    className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-all ${
+                      darkMode
+                        ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReadinessDialog(null);
+                      void startDiscussionInternal();
+                    }}
+                    className="rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-700"
+                  >
+                    Continuer
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setReadinessDialog(null)}
+                  className="rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-700"
+                >
+                  Fermer
+                </button>
+              )}
             </div>
           </div>
         </div>
