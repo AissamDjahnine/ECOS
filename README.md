@@ -1,29 +1,35 @@
 # ECOS-AI
 
-Voice-first ECOS practice with a live AI patient, transcript review, audio replay, and automatic grading against a case-specific correction grid.
+Voice-first ECOS practice with a live AI patient, transcript review, audio replay, usage monitoring, and automatic grading against a case-specific correction grid.
 
 ![ECOS-AI interface](assets/screenshots/ecos-ai-ui.png)
 
 ## Overview
 
-ECOS-AI is a local training app for medical students preparing oral ECOS stations. You paste a patient scenario and grading grid, launch a real-time voice conversation with an AI patient, then review the transcript and run a criterion-by-criterion evaluation.
+ECOS-AI is a local training app for medical students preparing oral ECOS stations. You paste station material, launch either a live simulated patient discussion or a monologue session, then review the transcript, replay the audio, and run a criterion-by-criterion evaluation.
 
-The project is built around a bring-your-own-key approach: you run the app locally and use your own Gemini API key instead of a subscription platform.
+The project follows a bring-your-own-key workflow: you run the app locally and use either a server Gemini key or your own local override from the settings drawer.
 
 ## What It Does
 
-- Runs a live voice discussion with an AI patient using Gemini Live.
+- Supports two station modes:
+  - `PS / PSS`: live voice discussion with an AI patient using Gemini Live
+  - `Sans PS`: monologue mode with silence-based student transcription
 - Parses copied ECOS material into patient context and grading criteria.
-- Displays the discussion transcript in real time.
+- Displays the discussion transcript in real time, with configurable transcript and system-message visibility.
 - Records the station audio for replay after the discussion ends.
-- Evaluates the student performance against the provided correction grid.
+- Evaluates student performance against the provided correction grid.
 - Adds guardrails around very short discussions before evaluation starts.
+- Exports formatted PDF reports with transcript, score, mode, and evaluation detail level.
+- Tracks local API usage, token estimates, readiness state, and estimated spend in a dashboard drawer.
+- Lets you configure timer defaults, auto-evaluation, playback speed, PDF export behavior, and feedback detail level.
+- Lets you choose the patient voice in `PS / PSS`, with sex-guided auto-selection, favorites, and local preview samples.
 
 ## Current Focus
 
 - Oral simulation rather than text-only interaction.
 - Local usage with your own API key.
-- Fast iteration on UI, scoring quality, and realism.
+- Fast iteration on UI, scoring quality, realism, and operational guardrails.
 - Hypocampus-style copy-paste workflows.
 
 ## Stack
@@ -45,18 +51,37 @@ ECOS/
 │   └── screenshots/
 │       └── ecos-ai-ui.png
 ├── server/
+│   ├── dashboard.ts
+│   ├── evaluation.test.ts
 │   └── index.ts
+├── public/
+│   └── voice-samples/
+├── scripts/
+│   └── generate_voice_samples.mjs
 ├── src/
 │   ├── lib/
 │   │   ├── audio.ts
-│   │   └── parser.ts
+│   │   ├── parser.ts
+│   │   ├── pdf.ts
+│   │   ├── settings.ts
+│   │   └── voices.ts
 │   ├── App.tsx
+│   ├── DashboardDrawer.tsx
+│   ├── PsPage.tsx
+│   ├── SansPsPage.tsx
+│   ├── SettingsDrawer.tsx
 │   ├── index.css
 │   ├── main.tsx
 │   └── types.ts
+├── tests/
+│   └── e2e/
+├── .github/
+│   └── workflows/
+│       └── ci.yml
 ├── .env.example
 ├── package.json
 ├── vite.config.ts
+├── playwright.config.ts
 └── README.md
 ```
 
@@ -72,6 +97,10 @@ GEMINI_API_KEY=your_api_key_here
 GEMINI_EVAL_MODEL=gemini-2.5-flash
 GEMINI_LIVE_MODEL=gemini-2.5-flash-native-audio-preview-12-2025
 ```
+
+Optional:
+- keep using the server key from `.env`
+- or override it locally from the in-app settings drawer with a per-browser API key
 
 ## Run Locally
 
@@ -91,20 +120,93 @@ Typical local URLs:
 - frontend: `http://localhost:5173`
 - backend: `http://localhost:3001`
 
+## Modes
+
+### PS / PSS
+
+- Parses patient metadata and correction grid.
+- Starts a live AI patient conversation.
+- Uses the selected patient voice for the live session.
+- Preserves transcript, audio replay, PDF export, and evaluation workflow.
+
+### Sans PS
+
+- Extracts the grading grid only.
+- Records a student monologue with silence-based transcription.
+- Reuses the same timer, transcript, replay, evaluation, PDF export, dashboard, and settings patterns.
+
+## Settings
+
+The settings drawer lets you configure:
+
+- default timer duration
+- auto-open evaluation after session end
+- live transcript visibility
+- system-message visibility
+- auto-export PDF after evaluation
+- feedback detail level
+- recorded audio playback speed
+- local Google API key override
+
+These settings are persisted in `localStorage`.
+
+## Dashboard
+
+The dashboard drawer provides a local operational view of API usage:
+
+- readiness state: `Ready`, `At risk`, or `Blocked`
+- token and estimated cost snapshots
+- period filters: `1h`, `1j`, `7j`, `30j`
+- live vs backend usage split
+- last session usage
+- key source and active models
+
+Usage history is persisted locally by the backend in JSON so it survives server restarts. It only reflects usage performed through this app.
+
+## Voice Selection
+
+In `PS / PSS` mode:
+
+- patient voice is auto-selected from parsed sex metadata
+- the auto choice can be overridden after `Analyser` and before `Démarrer`
+- voices can be previewed locally from bundled audio samples
+- favorite voices can be marked in the selector
+
+In `Sans PS` mode, the same selector layout remains visible but disabled to preserve the page structure.
+
 ## Typical Workflow
 
-1. Paste the ECOS case material into the input area.
-2. Let the parser extract the patient script and grading grid.
-3. Start the discussion and conduct the station orally.
-4. Pause or end the station when appropriate.
-5. Review the transcript and replay the recorded audio.
-6. Launch the evaluation and inspect the criterion-by-criterion feedback.
+1. Choose `PS / PSS` or `Sans PS`.
+2. Paste the station material into the input area.
+3. Click `Analyser`.
+4. In `PS / PSS`, optionally adjust the patient voice before starting.
+5. Start the session and conduct the station orally.
+6. Pause or end the station when appropriate.
+7. Review the transcript and replay the recorded audio.
+8. Launch the evaluation and inspect the criterion-by-criterion feedback.
+9. Export the PDF report if needed.
+
+## Testing
+
+Run the local checks with:
+
+```bash
+npm run build
+npm run test
+npm run test:e2e
+```
+
+The project includes:
+
+- `Vitest` + Testing Library for component and logic regressions
+- `Playwright` for end-to-end smoke coverage
+- GitHub Actions CI on pushes and pull requests
 
 ## Notes
 
 - Browser microphone permission is required.
 - A stable internet connection is required for Gemini Live.
-- Evaluation quality depends on transcript quality and grading prompt quality.
+- Evaluation quality depends on transcript quality, grading prompt quality, and station structure.
 - This is a training tool, not a certified medical assessment platform.
 
 ## Limitations
@@ -112,14 +214,15 @@ Typical local URLs:
 - Parsing still expects relatively structured source material.
 - Case ingestion is currently optimized around Hypocampus-style formatting.
 - Very short discussions may produce unreliable evaluation signals.
+- Dashboard usage and spend remain app-local estimates, not official provider billing counters.
 - AI grading is useful for training, but it is not a formal examiner.
 
 ## Roadmap
 
-- Better scoring precision for student-led vs patient-volunteered information
+- Persistent session history and richer dashboard analytics
+- Better quota/readiness preflight and usage visibility
 - More robust parsing across different ECOS content sources
-- Better station realism and patient behavior controls
-- Stronger transcript cleanup and evaluation traceability
+- More complete local voice preview coverage
 - Expanded support for specialty-specific stations
 
 ## Author
