@@ -10,6 +10,7 @@ import {
   TurnCoverage,
 } from "@google/genai";
 import { z } from "zod";
+import { getFeedbackInstruction } from "./evaluation";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3001);
@@ -151,12 +152,9 @@ app.post("/api/evaluate", async (request, response) => {
   try {
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
 
-    const feedbackInstruction =
-      parsed.data.feedbackDetailLevel === "brief"
-        ? "Le feedback doit rester très concis, en une justification courte par critère."
-        : parsed.data.feedbackDetailLevel === "detailed"
-          ? "Le feedback doit être détaillé, explicite et relier précisément chaque critère aux actions ou omissions de l'étudiant."
-          : "Le feedback doit expliquer brièvement ce que l'étudiant a réellement fait ou n'a pas fait pour chaque critère.";
+    const feedbackInstruction = getFeedbackInstruction(
+      parsed.data.feedbackDetailLevel,
+    );
 
     const result = await ai.models.generateContent({
       model: evalModel,
