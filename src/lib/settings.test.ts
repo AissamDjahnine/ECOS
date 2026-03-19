@@ -20,6 +20,7 @@ describe("settings helpers", () => {
       showSystemMessages: "yes",
       autoExportPdfAfterEvaluation: true,
       feedbackDetailLevel: "verbose",
+      googleApiKey: "  abc123  ",
     });
 
     expect(result).toEqual({
@@ -28,6 +29,7 @@ describe("settings helpers", () => {
       recordedAudioPlaybackRate: 1.5,
       showLiveTranscript: false,
       autoExportPdfAfterEvaluation: true,
+      googleApiKey: "abc123",
     });
   });
 
@@ -41,6 +43,7 @@ describe("settings helpers", () => {
       showSystemMessages: false,
       autoExportPdfAfterEvaluation: true,
       feedbackDetailLevel: "detailed" as const,
+      googleApiKey: "test-google-key",
     };
 
     persistSettings(custom);

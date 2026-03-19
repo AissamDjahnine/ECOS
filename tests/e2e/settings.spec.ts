@@ -8,7 +8,7 @@ test.describe("settings and navigation", () => {
     await page.getByRole("button", { name: "Sans PS" }).click();
     await expect(page).toHaveURL(/\/sans-ps$/);
     await expect(
-      page.getByRole("heading", { name: "Session Monologue" }),
+      page.getByPlaceholder("Collez ici la station sans PS et sa grille de correction..."),
     ).toBeVisible();
   });
 

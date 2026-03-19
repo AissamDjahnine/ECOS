@@ -43,4 +43,5 @@ export type AppSettings = {
   showSystemMessages: boolean;
   autoExportPdfAfterEvaluation: boolean;
   feedbackDetailLevel: FeedbackDetailLevel;
+  googleApiKey: string;
 };

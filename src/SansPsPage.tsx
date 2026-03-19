@@ -582,6 +582,7 @@ export default function SansPsPage({
       body: JSON.stringify({
         audioBase64: base64Audio,
         mimeType: "audio/pcm;rate=16000",
+        googleApiKey: settings.googleApiKey || undefined,
       }),
     });
 
@@ -987,6 +988,7 @@ export default function SansPsPage({
           transcript: cleanedTranscript,
           gradingGrid,
           feedbackDetailLevel: settings.feedbackDetailLevel,
+          googleApiKey: settings.googleApiKey || undefined,
         }),
       });
 

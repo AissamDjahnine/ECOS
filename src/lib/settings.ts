@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   showSystemMessages: true,
   autoExportPdfAfterEvaluation: false,
   feedbackDetailLevel: "standard",
+  googleApiKey: "",
 };
 
 const VALID_TIMER_SECONDS = new Set([120, 180, 300, 480, 600, 720]);
@@ -75,6 +76,10 @@ export function sanitizeSettings(value: unknown): AppSettings {
         ? value.autoExportPdfAfterEvaluation
         : DEFAULT_SETTINGS.autoExportPdfAfterEvaluation,
     feedbackDetailLevel: nextFeedbackLevel,
+    googleApiKey:
+      typeof value.googleApiKey === "string"
+        ? value.googleApiKey.trim()
+        : DEFAULT_SETTINGS.googleApiKey,
   };
 }
 

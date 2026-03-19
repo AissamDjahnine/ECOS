@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { formatTimerLabel } from "./lib/settings";
 import type { AppSettings, AudioPlaybackRate, FeedbackDetailLevel } from "./types";
 
@@ -34,6 +34,25 @@ function InfoIcon({ className }: { className?: string }) {
       <circle cx="12" cy="12" r="10" />
       <path d="M12 16v-4" />
       <path d="M12 8h.01" />
+    </svg>
+  );
+}
+
+function PencilIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9" />
+      <path d="m16.5 3.5 4 4L7 21l-4 1 1-4z" />
+    </svg>
+  );
+}
+
+function SaveIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+      <path d="M17 21v-8H7v8" />
+      <path d="M7 3v5h8" />
     </svg>
   );
 }
@@ -110,6 +129,37 @@ function Toggle({
         }`}
       />
     </button>
+  );
+}
+
+function TextField({
+  value,
+  onChange,
+  darkMode,
+  placeholder,
+  disabled = false,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  darkMode: boolean;
+  placeholder?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <input
+      type="password"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder={placeholder}
+      autoComplete="off"
+      spellCheck={false}
+      disabled={disabled}
+      className={`w-full rounded-xl border px-4 py-3 text-sm font-medium outline-none transition-all ${
+        darkMode
+          ? "border-slate-700 bg-slate-900 text-slate-100 placeholder:text-slate-500 focus:border-primary-500 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-950 disabled:text-slate-400"
+          : "border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+      }`}
+    />
   );
 }
 
@@ -206,10 +256,25 @@ export function SettingsDrawer({
   onClose,
   onChange,
 }: SettingsDrawerProps) {
+  const [apiKeyDraft, setApiKeyDraft] = useState(settings.googleApiKey);
+  const [isEditingApiKey, setIsEditingApiKey] = useState(false);
+
+  useEffect(() => {
+    if (!isEditingApiKey) {
+      setApiKeyDraft(settings.googleApiKey);
+    }
+  }, [isEditingApiKey, settings.googleApiKey]);
+
   const overlayClass = isOpen
     ? "pointer-events-auto opacity-100"
     : "pointer-events-none opacity-0";
   const panelClass = isOpen ? "translate-x-0" : "translate-x-full";
+  const trimmedDraft = apiKeyDraft.trim();
+  const hasApiKeyChanges = trimmedDraft !== settings.googleApiKey;
+
+  const apiKeyActionButtonClass = darkMode
+    ? "border-slate-700 bg-slate-900/90 text-slate-300 hover:border-slate-600 hover:bg-slate-800 disabled:border-slate-800 disabled:bg-slate-950 disabled:text-slate-600"
+    : "border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300 hover:bg-white hover:text-slate-700 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-300";
 
   return (
     <div className={`fixed inset-0 z-50 transition-opacity duration-200 ${overlayClass}`}>
@@ -260,6 +325,54 @@ export function SettingsDrawer({
           </div>
 
           <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
+            <section className="space-y-2.5">
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-[0.22em] text-primary-500">API</h3>
+                <p className={`mt-1 text-[0.95rem] ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
+                  Clé locale optionnelle envoyée au backend pour cette session.
+                </p>
+              </div>
+              <SettingRow
+                darkMode={darkMode}
+                title="Google API Key"
+                description="Clé locale conservée dans votre navigateur. Si elle est vide, le backend utilise la clé serveur configurée."
+                control={
+                  <div className="flex items-center gap-2">
+                    <TextField
+                      darkMode={darkMode}
+                      value={apiKeyDraft}
+                      placeholder="AIza..."
+                      disabled={!isEditingApiKey}
+                      onChange={setApiKeyDraft}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setApiKeyDraft(settings.googleApiKey);
+                        setIsEditingApiKey(true);
+                      }}
+                      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-all ${apiKeyActionButtonClass}`}
+                      aria-label="Modifier la clé API Google"
+                    >
+                      <PencilIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onChange({ googleApiKey: trimmedDraft });
+                        setIsEditingApiKey(false);
+                      }}
+                      disabled={!isEditingApiKey || !hasApiKeyChanges}
+                      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-all ${apiKeyActionButtonClass}`}
+                      aria-label="Enregistrer la clé API Google"
+                    >
+                      <SaveIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                }
+              />
+            </section>
+
             <section className="space-y-2.5">
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-[0.22em] text-primary-500">Session</h3>

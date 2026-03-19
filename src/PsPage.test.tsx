@@ -150,12 +150,15 @@ describe("PsPage", () => {
     });
 
     await user.click(screen.getByRole("button", { name: "Reset" }));
+    await user.click(screen.getByRole("button", { name: "Confirmer" }));
 
     await waitFor(() => {
       expect(textarea).toHaveValue(validCase);
-      expect(screen.getByText("Cas préparé")).toBeInTheDocument();
       expect(
         screen.getByText(/la transcription apparaîtra ici/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/session réinitialisée/i),
       ).toBeInTheDocument();
     });
   }, 10000);

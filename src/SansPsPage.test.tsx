@@ -128,8 +128,9 @@ describe("SansPsPage", () => {
 
     fireEvent.change(textarea, { target: { value: validStation } });
     await user.click(screen.getByRole("button", { name: "Clear" }));
+    await user.click(screen.getByRole("button", { name: "Confirmer" }));
 
-    expect(screen.getByDisplayValue("")).toBe(textarea);
+    expect(textarea).toHaveValue("");
     expect(screen.getByText("Mode sans PS prêt")).toBeInTheDocument();
   });
 

@@ -21,6 +21,15 @@ const liveModel =
   process.env.GEMINI_LIVE_MODEL ??
   "gemini-2.5-flash-native-audio-preview-12-2025";
 
+function resolveApiKey(override?: string) {
+  const trimmedOverride = override?.trim();
+  if (trimmedOverride) {
+    return trimmedOverride;
+  }
+
+  return geminiApiKey;
+}
+
 function stripParentheticalStageDirections(text: string) {
   return text.replace(/\s*\(([^)]*)\)\s*/g, " ").replace(/\s{2,}/g, " ").trim();
 }
@@ -38,13 +47,9 @@ app.get("/api/health", (_request, response) => {
 });
 
 app.post("/api/live-token", async (request, response) => {
-  if (!geminiApiKey) {
-    response.status(500).send("Missing GEMINI_API_KEY.");
-    return;
-  }
-
   const schema = z.object({
     patientScript: z.string().min(1),
+    googleApiKey: z.string().optional(),
   });
 
   const parsed = schema.safeParse(request.body);
@@ -54,8 +59,14 @@ app.post("/api/live-token", async (request, response) => {
   }
 
   try {
+    const apiKey = resolveApiKey(parsed.data.googleApiKey);
+    if (!apiKey) {
+      response.status(500).send("Missing GEMINI_API_KEY.");
+      return;
+    }
+
     const ai = new GoogleGenAI({
-      apiKey: geminiApiKey,
+      apiKey,
       httpOptions: {
         apiVersion: "v1alpha",
       },
@@ -128,12 +139,6 @@ app.post("/api/live-token", async (request, response) => {
 });
 
 app.post("/api/evaluate", async (request, response) => {
-  if (!geminiApiKey) {
-    response.status(500).send("Missing GEMINI_API_KEY.");
-    return;
-  }
-
-
   const schema = z.object({
     transcript: z.string().min(1),
     gradingGrid: z.string().min(1),
@@ -141,6 +146,7 @@ app.post("/api/evaluate", async (request, response) => {
       .enum(["brief", "standard", "detailed"])
       .optional()
       .default("standard"),
+    googleApiKey: z.string().optional(),
   });
 
   const parsed = schema.safeParse(request.body);
@@ -150,7 +156,13 @@ app.post("/api/evaluate", async (request, response) => {
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+    const apiKey = resolveApiKey(parsed.data.googleApiKey);
+    if (!apiKey) {
+      response.status(500).send("Missing GEMINI_API_KEY.");
+      return;
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
 
     const feedbackInstruction = getFeedbackInstruction(
       parsed.data.feedbackDetailLevel,
@@ -225,14 +237,10 @@ app.post("/api/evaluate", async (request, response) => {
 });
 
 app.post("/api/transcribe-turn", async (request, response) => {
-  if (!geminiApiKey) {
-    response.status(500).send("Missing GEMINI_API_KEY.");
-    return;
-  }
-
   const schema = z.object({
     audioBase64: z.string().min(1),
     mimeType: z.string().min(1),
+    googleApiKey: z.string().optional(),
   });
 
   const parsed = schema.safeParse(request.body);
@@ -242,7 +250,13 @@ app.post("/api/transcribe-turn", async (request, response) => {
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+    const apiKey = resolveApiKey(parsed.data.googleApiKey);
+    if (!apiKey) {
+      response.status(500).send("Missing GEMINI_API_KEY.");
+      return;
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
 
     const result = await ai.models.generateContent({
       model: evalModel,
