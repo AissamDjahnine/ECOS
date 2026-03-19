@@ -1187,7 +1187,6 @@ export default function App() {
       await micRef.current?.stop();
       sessionRef.current?.close();
       await playerRef.current?.close();
-      await cleanupStudentTranscriptAtEnd();
       discussionFinished = true;
     } finally {
       micRef.current = null;
