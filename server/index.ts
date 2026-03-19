@@ -13,7 +13,10 @@ import { z } from "zod";
 import {
   buildDashboardSnapshot,
   classifyErrorType,
+  DEFAULT_USAGE_LEDGER_PATH,
   estimateCostUsd,
+  loadUsageLedger,
+  persistUsageLedger,
   type UsageEvent,
 } from "./dashboard";
 import { getFeedbackInstruction } from "./evaluation";
@@ -27,6 +30,7 @@ const liveModel =
   process.env.GEMINI_LIVE_MODEL ??
   "gemini-2.5-flash-native-audio-preview-12-2025";
 const usageEvents: UsageEvent[] = [];
+let usageLedgerWrite = Promise.resolve();
 
 function resolveApiKey(override?: string) {
   const trimmedOverride = override?.trim();
@@ -53,9 +57,16 @@ function resolveTrackableKeySource(override?: string) {
 function recordUsageEvent(event: UsageEvent) {
   usageEvents.push(event);
 
-  if (usageEvents.length > 500) {
-    usageEvents.splice(0, usageEvents.length - 500);
+  if (usageEvents.length > 5000) {
+    usageEvents.splice(0, usageEvents.length - 5000);
   }
+
+  usageLedgerWrite = usageLedgerWrite
+    .catch(() => undefined)
+    .then(() => persistUsageLedger(usageEvents, DEFAULT_USAGE_LEDGER_PATH))
+    .catch((error) => {
+      console.error("Failed to persist usage ledger:", error);
+    });
 }
 
 function usageMetadataToCounts(usageMetadata?: {
@@ -92,6 +103,7 @@ app.get("/api/health", (_request, response) => {
 app.post("/api/dashboard", (request, response) => {
   const schema = z.object({
     googleApiKey: z.string().optional(),
+    window: z.enum(["1h", "1d", "7d", "30d"]).optional().default("1d"),
   });
 
   const parsed = schema.safeParse(request.body);
@@ -106,6 +118,7 @@ app.post("/api/dashboard", (request, response) => {
       keySource: resolveKeySource(parsed.data.googleApiKey),
       liveModel,
       evalModel,
+      window: parsed.data.window,
     }),
   );
 });
@@ -531,6 +544,13 @@ app.post("/api/transcribe-turn", async (request, response) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`ECOS server listening on http://localhost:${port}`);
-});
+async function bootstrap() {
+  const persistedEvents = await loadUsageLedger(DEFAULT_USAGE_LEDGER_PATH);
+  usageEvents.splice(0, usageEvents.length, ...persistedEvents);
+
+  app.listen(port, () => {
+    console.log(`ECOS server listening on http://localhost:${port}`);
+  });
+}
+
+void bootstrap();

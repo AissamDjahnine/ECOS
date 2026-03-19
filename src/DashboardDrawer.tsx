@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import type { AppSettings, DashboardSnapshot, DashboardStatus } from "./types";
+import type {
+  AppSettings,
+  DashboardSnapshot,
+  DashboardStatus,
+  DashboardWindow,
+} from "./types";
 
 type DashboardDrawerProps = {
   isOpen: boolean;
@@ -70,8 +75,13 @@ const EMPTY_DASHBOARD: DashboardSnapshot = {
   keySource: "missing",
   liveModel: "",
   evalModel: "",
+  window: "1d",
+  windowLabel: "Dernier jour",
+  period: { inputTokens: 0, outputTokens: 0, totalTokens: 0, estimatedCostUsd: 0 },
   today: { inputTokens: 0, outputTokens: 0, totalTokens: 0, estimatedCostUsd: 0 },
   lastSession: { inputTokens: 0, outputTokens: 0, totalTokens: 0, estimatedCostUsd: 0 },
+  livePeriod: { inputTokens: 0, outputTokens: 0, totalTokens: 0, estimatedCostUsd: 0 },
+  backendPeriod: { inputTokens: 0, outputTokens: 0, totalTokens: 0, estimatedCostUsd: 0 },
   liveToday: { inputTokens: 0, outputTokens: 0, totalTokens: 0, estimatedCostUsd: 0 },
   backendToday: { inputTokens: 0, outputTokens: 0, totalTokens: 0, estimatedCostUsd: 0 },
   recentFailures: 0,
@@ -79,6 +89,13 @@ const EMPTY_DASHBOARD: DashboardSnapshot = {
   limitsHint: "",
   updatedAt: "",
 };
+
+const WINDOW_OPTIONS: Array<{ value: DashboardWindow; label: string }> = [
+  { value: "1h", label: "1h" },
+  { value: "1d", label: "1j" },
+  { value: "7d", label: "7j" },
+  { value: "30d", label: "30j" },
+];
 
 function formatInteger(value: number) {
   return new Intl.NumberFormat("fr-FR").format(Math.round(value));
@@ -302,6 +319,7 @@ export function DashboardDrawer({
   onClose,
 }: DashboardDrawerProps) {
   const [dashboard, setDashboard] = useState<DashboardSnapshot>(EMPTY_DASHBOARD);
+  const [selectedWindow, setSelectedWindow] = useState<DashboardWindow>("1d");
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -317,6 +335,7 @@ export function DashboardDrawer({
         },
         body: JSON.stringify({
           googleApiKey: settings.googleApiKey || undefined,
+          window: selectedWindow,
         }),
       });
 
@@ -345,7 +364,7 @@ export function DashboardDrawer({
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [isOpen, settings.googleApiKey]);
+  }, [isOpen, selectedWindow, settings.googleApiKey]);
 
   const overlayClass = isOpen
     ? "pointer-events-auto opacity-100"
@@ -441,6 +460,24 @@ export function DashboardDrawer({
                       Mis à jour à {formatUpdatedAt(dashboard.updatedAt)}
                     </span>
                   </div>
+                  <div className="mt-3 inline-flex rounded-xl border border-white/50 bg-white/50 p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+                    {WINDOW_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setSelectedWindow(option.value)}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                          selectedWindow === option.value
+                            ? "bg-primary-600 text-white shadow-sm"
+                            : darkMode
+                              ? "text-slate-200 hover:bg-slate-800"
+                              : "text-slate-300 hover:bg-slate-100 hover:text-slate-500"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
                   <h3 className={`mt-3 text-[2rem] font-semibold leading-tight tracking-tight ${visual.accent}`}>
                     {dashboard.statusMessage}
                   </h3>
@@ -451,11 +488,14 @@ export function DashboardDrawer({
                 <div className={`min-w-[142px] rounded-[24px] border px-4 py-3 text-right shadow-sm ${
                   darkMode ? "border-slate-700 bg-slate-900/90" : "border-white/70 bg-white/90"
                 }`}>
-                  <div className={`text-xs font-semibold uppercase tracking-[0.18em] ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                    Dépense estimée aujourd’hui
+                  <div className={`text-xs font-semibold uppercase tracking-[0.16em] ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                    Coût estimé
+                  </div>
+                  <div className={`mt-1 text-[0.7rem] font-semibold uppercase tracking-[0.14em] ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+                    {dashboard.windowLabel}
                   </div>
                   <div className={`mt-2 text-[2.2rem] font-semibold leading-none tracking-tight ${darkMode ? "text-slate-50" : "text-slate-900"}`}>
-                    {formatUsd(dashboard.today.estimatedCostUsd)}
+                    {formatUsd(dashboard.period.estimatedCostUsd)}
                   </div>
                 </div>
               </div>
@@ -473,33 +513,55 @@ export function DashboardDrawer({
 
             <section className="space-y-3">
               <div>
-                <h3 className="text-sm font-semibold uppercase tracking-[0.22em] text-primary-500">
-                  Vue d’ensemble
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold uppercase tracking-[0.22em] text-primary-500">
+                    Vue d’ensemble
+                  </h3>
+                  <span
+                    className={`rounded-full border px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.16em] ${
+                      darkMode
+                        ? "border-slate-700 bg-slate-900 text-slate-200"
+                        : "border-slate-200 bg-white text-slate-700"
+                    }`}
+                  >
+                    {dashboard.windowLabel}
+                  </span>
+                </div>
                 <p className={`mt-1 text-[0.95rem] ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
-                  Organisation des volumes et coûts estimés sur la journée.
+                  Organisation des volumes et coûts estimés sur {dashboard.windowLabel.toLowerCase()}.
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <StatCard darkMode={darkMode} label="Input tokens" description="Tous les tokens envoyés aujourd’hui vers l’API, toutes routes confondues." value={formatInteger(dashboard.today.inputTokens)} />
-                <StatCard darkMode={darkMode} label="Output tokens" description="Tous les tokens retournés aujourd’hui par les modèles suivis par l’application." value={formatInteger(dashboard.today.outputTokens)} />
-                <StatCard darkMode={darkMode} label="Total tokens" description="Somme des tokens d’entrée et de sortie observés aujourd’hui." value={formatInteger(dashboard.today.totalTokens)} />
-                <StatCard darkMode={darkMode} label="Erreurs récentes" description="Nombre d’échecs sur les dix dernières minutes. Un pic récent rend le lancement d’une session plus risqué." value={formatInteger(dashboard.recentFailures)} tone={dashboard.recentFailures > 0 ? visual.accent : undefined} />
+                <StatCard darkMode={darkMode} label="Input tokens" description={`Tous les tokens envoyés vers l’API sur ${dashboard.windowLabel.toLowerCase()}.`} value={formatInteger(dashboard.period.inputTokens)} />
+                <StatCard darkMode={darkMode} label="Output tokens" description={`Tous les tokens retournés par les modèles sur ${dashboard.windowLabel.toLowerCase()}.`} value={formatInteger(dashboard.period.outputTokens)} />
+                <StatCard darkMode={darkMode} label="Total tokens" description={`Somme des tokens d’entrée et de sortie observés sur ${dashboard.windowLabel.toLowerCase()}.`} value={formatInteger(dashboard.period.totalTokens)} />
+                <StatCard darkMode={darkMode} label="Erreurs récentes" description="Nombre d’échecs sur la dernière heure. Un pic récent rend le lancement d’une session plus risqué." value={formatInteger(dashboard.recentFailures)} tone={dashboard.recentFailures > 0 ? visual.accent : undefined} />
               </div>
             </section>
 
             <section className="space-y-3">
               <div>
-                <h3 className="text-sm font-semibold uppercase tracking-[0.22em] text-primary-500">
-                  Répartition
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold uppercase tracking-[0.22em] text-primary-500">
+                    Répartition
+                  </h3>
+                  <span
+                    className={`rounded-full border px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.16em] ${
+                      darkMode
+                        ? "border-slate-700 bg-slate-900 text-slate-200"
+                        : "border-slate-200 bg-white text-slate-700"
+                    }`}
+                  >
+                    {dashboard.windowLabel}
+                  </span>
+                </div>
                 <p className={`mt-1 text-[0.95rem] ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
-                  Distinction entre activité live et appels backend observés.
+                  Distinction entre activité live et appels backend sur {dashboard.windowLabel.toLowerCase()}.
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <SplitStatCard darkMode={darkMode} label="Live aujourd’hui" description="Tokens live observés via les métadonnées renvoyées au client plus le coût estimé du prompt d’ouverture." primaryValue={formatInteger(dashboard.liveToday.totalTokens)} secondaryLabel="Coût" secondaryValue={formatUsd(dashboard.liveToday.estimatedCostUsd)} />
-                <SplitStatCard darkMode={darkMode} label="Backend aujourd’hui" description="Transcription et évaluation transitant par le backend, avec coûts estimés à partir des usages renvoyés par Gemini." primaryValue={formatInteger(dashboard.backendToday.totalTokens)} secondaryLabel="Coût" secondaryValue={formatUsd(dashboard.backendToday.estimatedCostUsd)} />
+                <SplitStatCard darkMode={darkMode} label="Live période" description={`Tokens live observés sur ${dashboard.windowLabel.toLowerCase()}, via les métadonnées renvoyées au client plus le coût estimé du prompt d’ouverture.`} primaryValue={formatInteger(dashboard.livePeriod.totalTokens)} secondaryLabel="Coût" secondaryValue={formatUsd(dashboard.livePeriod.estimatedCostUsd)} />
+                <SplitStatCard darkMode={darkMode} label="Backend période" description={`Transcription et évaluation transitant par le backend sur ${dashboard.windowLabel.toLowerCase()}.`} primaryValue={formatInteger(dashboard.backendPeriod.totalTokens)} secondaryLabel="Coût" secondaryValue={formatUsd(dashboard.backendPeriod.estimatedCostUsd)} />
                 <SplitStatCard darkMode={darkMode} label="Dernière session" description="Agrégation de la dernière session identifiée par l’application, utile pour estimer le poids d’un cas récent." primaryValue={formatInteger(dashboard.lastSession.totalTokens)} secondaryLabel="Coût" secondaryValue={formatUsd(dashboard.lastSession.estimatedCostUsd)} />
                 <StatCard darkMode={darkMode} label="Source de clé" description="Indique si l’application consomme la clé locale fournie dans les réglages ou la clé serveur." value={dashboard.keySource === "custom" ? "Clé locale" : dashboard.keySource === "server" ? "Clé serveur" : "Aucune clé"} valueClassName="text-[1.55rem]" />
               </div>

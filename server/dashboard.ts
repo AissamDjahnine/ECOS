@@ -1,7 +1,10 @@
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import path from "node:path";
 import type {
   DashboardKeySource,
   DashboardSnapshot,
   DashboardStatus,
+  DashboardWindow,
 } from "../src/types";
 
 export type UsageEvent = {
@@ -18,6 +21,11 @@ export type UsageEvent = {
   outputTokens: number;
   totalTokens: number;
   estimatedCostUsd: number;
+};
+
+type UsageLedger = {
+  version: 1;
+  events: UsageEvent[];
 };
 
 type ModelPricing = {
@@ -41,13 +49,26 @@ const MODEL_PRICING: Record<string, ModelPricing> = {
   },
 };
 
-function sameLocalDay(left: Date, right: Date) {
-  return (
-    left.getFullYear() === right.getFullYear() &&
-    left.getMonth() === right.getMonth() &&
-    left.getDate() === right.getDate()
-  );
-}
+const WINDOW_DURATIONS_MS: Record<DashboardWindow, number> = {
+  "1h": 60 * 60 * 1000,
+  "1d": 24 * 60 * 60 * 1000,
+  "7d": 7 * 24 * 60 * 60 * 1000,
+  "30d": 30 * 24 * 60 * 60 * 1000,
+};
+
+const WINDOW_LABELS: Record<DashboardWindow, string> = {
+  "1h": "Dernière heure",
+  "1d": "Dernier jour",
+  "7d": "7 derniers jours",
+  "30d": "30 derniers jours",
+};
+
+export const DEFAULT_USAGE_LEDGER_PATH = path.join(
+  process.cwd(),
+  "server",
+  "data",
+  "usage-ledger.json",
+);
 
 function zeroStats() {
   return {
@@ -56,6 +77,74 @@ function zeroStats() {
     totalTokens: 0,
     estimatedCostUsd: 0,
   };
+}
+
+function isUsageEvent(value: unknown): value is UsageEvent {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<UsageEvent>;
+  return (
+    typeof candidate.endpoint === "string" &&
+    typeof candidate.model === "string" &&
+    (candidate.keySource === "custom" || candidate.keySource === "server") &&
+    typeof candidate.occurredAt === "string" &&
+    typeof candidate.statusCode === "number" &&
+    (candidate.outcome === "success" || candidate.outcome === "error") &&
+    typeof candidate.inputTokens === "number" &&
+    typeof candidate.outputTokens === "number" &&
+    typeof candidate.totalTokens === "number" &&
+    typeof candidate.estimatedCostUsd === "number"
+  );
+}
+
+export function sanitizeUsageEvents(value: unknown) {
+  if (!value || typeof value !== "object") {
+    return [] as UsageEvent[];
+  }
+
+  const events = (value as { events?: unknown[] }).events;
+  if (!Array.isArray(events)) {
+    return [] as UsageEvent[];
+  }
+
+  return events.filter(isUsageEvent).sort((left, right) =>
+    left.occurredAt.localeCompare(right.occurredAt),
+  );
+}
+
+export async function loadUsageLedger(filePath = DEFAULT_USAGE_LEDGER_PATH) {
+  try {
+    const raw = await readFile(filePath, "utf8");
+    return sanitizeUsageEvents(JSON.parse(raw));
+  } catch {
+    return [] as UsageEvent[];
+  }
+}
+
+export async function persistUsageLedger(
+  events: UsageEvent[],
+  filePath = DEFAULT_USAGE_LEDGER_PATH,
+) {
+  const directory = path.dirname(filePath);
+  await mkdir(directory, { recursive: true });
+
+  const payload: UsageLedger = {
+    version: 1,
+    events,
+  };
+  const tempPath = `${filePath}.tmp`;
+  await writeFile(tempPath, JSON.stringify(payload, null, 2), "utf8");
+  await rename(tempPath, filePath);
+}
+
+function sameLocalDay(left: Date, right: Date) {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  );
 }
 
 function sumEvents(events: UsageEvent[]) {
@@ -148,21 +237,41 @@ export function estimateCostUsd(params: {
   return Number(cost.toFixed(6));
 }
 
+function filterEventsForWindow(
+  events: UsageEvent[],
+  window: DashboardWindow,
+  now: Date,
+) {
+  const thresholdMs = WINDOW_DURATIONS_MS[window];
+  return events.filter((event) => {
+    const ageMs = now.getTime() - new Date(event.occurredAt).getTime();
+    return ageMs >= 0 && ageMs <= thresholdMs;
+  });
+}
+
 export function buildDashboardSnapshot(params: {
   events: UsageEvent[];
   keySource: DashboardKeySource;
   liveModel: string;
   evalModel: string;
+  window: DashboardWindow;
   now?: Date;
 }): DashboardSnapshot {
   const now = params.now ?? new Date();
   const todayEvents = params.events.filter((event) =>
     sameLocalDay(new Date(event.occurredAt), now),
   );
+  const periodEvents = filterEventsForWindow(params.events, params.window, now);
   const liveTodayEvents = todayEvents.filter(
     (event) => event.endpoint === "live-token" || event.endpoint === "live-usage",
   );
   const backendTodayEvents = todayEvents.filter(
+    (event) => event.endpoint === "evaluate" || event.endpoint === "transcribe-turn",
+  );
+  const livePeriodEvents = periodEvents.filter(
+    (event) => event.endpoint === "live-token" || event.endpoint === "live-usage",
+  );
+  const backendPeriodEvents = periodEvents.filter(
     (event) => event.endpoint === "evaluate" || event.endpoint === "transcribe-turn",
   );
   const latestEvent = getLatestEvent(params.events);
@@ -170,10 +279,9 @@ export function buildDashboardSnapshot(params: {
   const lastSessionEvents = latestSessionId
     ? params.events.filter((event) => event.sessionId === latestSessionId)
     : [];
-  const recentFailureEvents = params.events.filter((event) => {
-    const ageMs = now.getTime() - new Date(event.occurredAt).getTime();
-    return event.outcome === "error" && ageMs <= 10 * 60 * 1000;
-  });
+  const recentFailureEvents = filterEventsForWindow(params.events, "1h", now).filter(
+    (event) => event.outcome === "error",
+  );
 
   let status: DashboardStatus = "ready";
   let statusMessage =
@@ -207,8 +315,13 @@ export function buildDashboardSnapshot(params: {
     keySource: params.keySource,
     liveModel: params.liveModel,
     evalModel: params.evalModel,
+    window: params.window,
+    windowLabel: WINDOW_LABELS[params.window],
+    period: sumEvents(periodEvents),
     today: sumEvents(todayEvents),
     lastSession: sumEvents(lastSessionEvents),
+    livePeriod: sumEvents(livePeriodEvents),
+    backendPeriod: sumEvents(backendPeriodEvents),
     liveToday: sumEvents(liveTodayEvents),
     backendToday: sumEvents(backendTodayEvents),
     recentFailures: recentFailureEvents.length,

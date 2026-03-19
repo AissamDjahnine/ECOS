@@ -57,6 +57,8 @@ export type DashboardUsageStats = {
   estimatedCostUsd: number;
 };
 
+export type DashboardWindow = "1h" | "1d" | "7d" | "30d";
+
 export type DashboardRequestSummary = {
   endpoint: string;
   model: string;
@@ -73,8 +75,13 @@ export type DashboardSnapshot = {
   keySource: DashboardKeySource;
   liveModel: string;
   evalModel: string;
+  window: DashboardWindow;
+  windowLabel: string;
+  period: DashboardUsageStats;
   today: DashboardUsageStats;
   lastSession: DashboardUsageStats;
+  livePeriod: DashboardUsageStats;
+  backendPeriod: DashboardUsageStats;
   liveToday: DashboardUsageStats;
   backendToday: DashboardUsageStats;
   recentFailures: number;
