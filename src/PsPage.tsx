@@ -1879,21 +1879,21 @@ export default function App({
 
       {/* Main Content */}
       <main className="max-w-[1600px] mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 xl:grid-cols-[400px_1fr] gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-[470px_1fr] gap-6">
           {/* Left Sidebar */}
           <div className="space-y-6">
             {/* Case Input */}
             <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <FileTextIcon className="w-5 h-5 text-primary-500" />
-                  Configuration du cas
+              <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                <h2 className="flex min-w-0 items-center gap-2 whitespace-nowrap text-base font-semibold md:text-lg">
+                  <FileTextIcon className="h-5 w-5 shrink-0 text-primary-500" />
+                  <span>Configuration du cas</span>
                 </h2>
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
                   <button
                     onClick={() => void handleClearText()}
                     disabled={!canClearText}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors md:px-4 md:text-sm ${
                       canClearText
                         ? darkMode
                           ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
@@ -1905,7 +1905,7 @@ export default function App({
                   </button>
                   <button
                     onClick={handleParse}
-                    className="px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors shadow-sm shadow-primary-500/20"
+                    className="rounded-lg bg-primary-600 px-3 py-2 text-xs font-medium text-white transition-colors shadow-sm shadow-primary-500/20 hover:bg-primary-700 md:px-4 md:text-sm"
                   >
                     Analyser
                   </button>

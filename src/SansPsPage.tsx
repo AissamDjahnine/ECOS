@@ -1259,19 +1259,19 @@ export default function SansPsPage({
       </header>
 
       <main className="mx-auto max-w-[1600px] px-6 py-8">
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[400px_1fr]">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[470px_1fr]">
           <div className="space-y-6">
             <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-lg font-semibold">
-                  <FileTextIcon className="h-5 w-5 text-primary-500" />
-                  Configuration de station
+              <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                <h2 className="flex min-w-0 items-center gap-2 whitespace-nowrap text-base font-semibold md:text-lg">
+                  <FileTextIcon className="h-5 w-5 shrink-0 text-primary-500" />
+                  <span>Configuration de station</span>
                 </h2>
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
                   <button
                     onClick={() => void handleClearText()}
                     disabled={!canClearText}
-                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                    className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors md:px-4 md:text-sm ${
                       canClearText
                         ? darkMode
                           ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
@@ -1283,7 +1283,7 @@ export default function SansPsPage({
                   </button>
                   <button
                     onClick={handleParse}
-                    className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm shadow-primary-500/20 transition-colors hover:bg-primary-700"
+                    className="rounded-lg bg-primary-600 px-3 py-2 text-xs font-medium text-white shadow-sm shadow-primary-500/20 transition-colors hover:bg-primary-700 md:px-4 md:text-sm"
                   >
                     Analyser
                   </button>
