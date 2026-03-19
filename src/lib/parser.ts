@@ -147,6 +147,21 @@ function splitSections(rawInput: string) {
   };
 }
 
+export function extractGradingGridOnly(rawInput: string) {
+  const normalized = normalizeWhitespace(rawInput);
+  const pattern =
+    /(?:^|\n)\s*(?:grille de correction|grille d['’]evaluation|grille d['’]évaluation|correction|evaluation)\s*[:\-]?\s*/i;
+  const index = normalized.search(pattern);
+
+  if (index < 0) {
+    return normalized;
+  }
+
+  const match = normalized.match(pattern);
+  const start = index + (match?.[0].length ?? 0);
+  return normalized.slice(start).trim();
+}
+
 export function parseCaseInput(rawInput: string): ParsedCase {
   const { patientScript, gradingGrid } = splitSections(rawInput);
   const {

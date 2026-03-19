@@ -215,6 +215,58 @@ app.post("/api/evaluate", async (request, response) => {
   }
 });
 
+app.post("/api/transcribe-turn", async (request, response) => {
+  if (!geminiApiKey) {
+    response.status(500).send("Missing GEMINI_API_KEY.");
+    return;
+  }
+
+  const schema = z.object({
+    audioBase64: z.string().min(1),
+    mimeType: z.string().min(1),
+  });
+
+  const parsed = schema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json(parsed.error.flatten());
+    return;
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+
+    const result = await ai.models.generateContent({
+      model: evalModel,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: [
+                "Transcris fidèlement cet audio en français.",
+                "Retourne uniquement le texte prononcé.",
+                "N'ajoute aucun commentaire, aucune explication, aucun formatage.",
+              ].join("\n"),
+            },
+            {
+              inlineData: {
+                data: parsed.data.audioBase64,
+                mimeType: parsed.data.mimeType,
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    response.json({ text: result.text?.trim() ?? "" });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unable to transcribe audio.";
+    response.status(500).send(message);
+  }
+});
+
 app.listen(port, () => {
   console.log(`ECOS server listening on http://localhost:${port}`);
 });
