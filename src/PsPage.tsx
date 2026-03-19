@@ -423,6 +423,50 @@ function buildPdfDocument(
   `;
 }
 
+function formatFeedbackDetailLabel(level: AppSettings["feedbackDetailLevel"]) {
+  switch (level) {
+    case "brief":
+      return "Brief";
+    case "detailed":
+      return "Detailed";
+    default:
+      return "Standard";
+  }
+}
+
+function buildTranscriptCopy(
+  transcript: TranscriptEntry[],
+  showSystemMessages: boolean,
+) {
+  return transcript
+    .filter((entry) => {
+      if (!entry.text.trim()) {
+        return false;
+      }
+
+      if (!showSystemMessages && entry.role === "system") {
+        return false;
+      }
+
+      return true;
+    })
+    .map((entry) => `[${entry.timestamp}] ${entry.role.toUpperCase()}\n${entry.text}`)
+    .join("\n\n");
+}
+
+function buildEvaluationCopy(evaluation: EvaluationResult) {
+  return [
+    `Note finale: ${evaluation.score}`,
+    "",
+    ...evaluation.details.map(
+      (detail, index) =>
+        `${index + 1}. ${detail.criterion}\nRésultat: ${
+          detail.observed ? "Observé" : "Non observé"
+        }\nFeedback: ${detail.feedback}`,
+    ),
+  ].join("\n\n");
+}
+
 // Icon Components
 function MicIcon({ className }: { className?: string }) {
   return (
@@ -611,6 +655,8 @@ export default function App({
     title: string;
     body: string;
   } | null>(null);
+  const [lastEvaluatedFeedbackDetailLevel, setLastEvaluatedFeedbackDetailLevel] =
+    useState<AppSettings["feedbackDetailLevel"] | null>(null);
 
   const transcriptRef = useRef<HTMLDivElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
@@ -655,6 +701,29 @@ export default function App({
       (entry) => entry.role === "student" || entry.role === "patient",
     ) &&
     Boolean(parsedCase.gradingGrid);
+  const canResetSession =
+    !isConnecting &&
+    !isEvaluating &&
+    !isDiscussing &&
+    !isPaused &&
+    (transcript.length > 0 ||
+      evaluation !== null ||
+      recordedAudioUrl !== null ||
+      hasEndedDiscussion ||
+      completionToast !== null ||
+      evaluationWarning !== null);
+  const canClearText =
+    !isConnecting &&
+    !isEvaluating &&
+    !isDiscussing &&
+    !isPaused &&
+    (rawInput.trim().length > 0 ||
+      parsedReady ||
+      parseError.length > 0 ||
+      transcript.length > 0 ||
+      evaluation !== null ||
+      recordedAudioUrl !== null ||
+      hasEndedDiscussion);
 
   const scoreState = parseScore(evaluation?.score);
   const timerDanger = remainingSeconds <= 60;
@@ -679,6 +748,19 @@ export default function App({
     settings.showLiveTranscript || hasEndedDiscussion;
   const showDraftIndicatorForDisplay =
     showStudentDraftIndicator && showLiveTranscriptContent;
+  const transcriptCopyText = useMemo(
+    () => buildTranscriptCopy(transcript, settings.showSystemMessages),
+    [settings.showSystemMessages, transcript],
+  );
+  const canCopyTranscript =
+    (settings.showLiveTranscript || hasEndedDiscussion) &&
+    transcriptCopyText.trim().length > 0;
+  const evaluationCopyText = evaluation ? buildEvaluationCopy(evaluation) : "";
+  const canRerunEvaluation =
+    Boolean(evaluation) &&
+    !isEvaluating &&
+    lastEvaluatedFeedbackDetailLevel !== null &&
+    lastEvaluatedFeedbackDetailLevel !== settings.feedbackDetailLevel;
 
   function startMixedRecorder(
     microphoneStream: MediaStream,
@@ -797,6 +879,7 @@ export default function App({
     const parsed = parseCaseInput(rawInput);
     setParsedCase(parsed);
     setEvaluation(null);
+    setLastEvaluatedFeedbackDetailLevel(null);
     setHasEndedDiscussion(false);
     setCompletionToast(null);
 
@@ -1292,6 +1375,87 @@ export default function App({
     }
   }
 
+  async function copyTextToClipboard(text: string, successMessage: string) {
+    if (!text.trim() || !navigator.clipboard?.writeText) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(text);
+    setCompletionToast({
+      title: "Copie effectuée",
+      body: successMessage,
+    });
+  }
+
+  async function resetSessionState() {
+    try {
+      shouldSendAudioRef.current = false;
+
+      if (completionToastTimerRef.current) {
+        window.clearTimeout(completionToastTimerRef.current);
+        completionToastTimerRef.current = null;
+      }
+
+      setCompletionToast(null);
+      setEvaluationWarning(null);
+      await stopMixedRecorder();
+      await micRef.current?.stop();
+      sessionRef.current?.close();
+      await playerRef.current?.close();
+    } catch {
+      //
+    } finally {
+      micRef.current = null;
+      sessionRef.current = null;
+      playerRef.current = null;
+      mixedRecorderRef.current = null;
+      shouldSendAudioRef.current = true;
+      inputTranscriptRef.current = "";
+      outputTranscriptRef.current = "";
+      currentPatientEntryIdRef.current = null;
+      studentTurnAudioChunksRef.current = [];
+      isFinalizingStudentRef.current = false;
+      autoEvaluateHandledRef.current = false;
+      autoExportedEvaluationRef.current = null;
+      setTranscript([]);
+      setEvaluation(null);
+      setLastEvaluatedFeedbackDetailLevel(null);
+      setHasEndedDiscussion(false);
+      setIsConnecting(false);
+      setIsDiscussing(false);
+      setIsPaused(false);
+      setConversationPhase("idle");
+      setStatus(parsedReady ? "Cas préparé" : "Mode PS/PSS prêt");
+      setRemainingSeconds(settings.defaultTimerSeconds);
+      setShowStudentDraftIndicator(false);
+      setMicLevel(0);
+      setMicPeak(0);
+      setEvaluationProgress(0);
+      setIsEvaluating(false);
+      setIsMicMuted(false);
+      isMicMutedRef.current = false;
+
+      if (recordedAudioUrlRef.current) {
+        URL.revokeObjectURL(recordedAudioUrlRef.current);
+        recordedAudioUrlRef.current = null;
+      }
+
+      setRecordedAudioUrl(null);
+    }
+  }
+
+  async function handleResetSession() {
+    await resetSessionState();
+  }
+
+  async function handleClearText() {
+    await resetSessionState();
+    setRawInput("");
+    setParsedCase(parseCaseInput(""));
+    setParseError("");
+    setStatus("Mode PS/PSS prêt");
+  }
+
   async function evaluateDiscussion() {
     try {
       setIsEvaluating(true);
@@ -1326,6 +1490,7 @@ export default function App({
 
       const result = (await response.json()) as EvaluationResult;
       setEvaluation(result);
+      setLastEvaluatedFeedbackDetailLevel(settings.feedbackDetailLevel);
       setStatus("Évaluation terminée");
 
       requestAnimationFrame(() => {
@@ -1383,6 +1548,14 @@ export default function App({
     popup.document.close();
     popup.focus();
     popup.print();
+  }
+
+  function handleRerunEvaluation() {
+    if (!canRerunEvaluation) {
+      return;
+    }
+
+    void evaluateDiscussion();
   }
 
   useEffect(() => {
@@ -1698,12 +1871,27 @@ export default function App({
                   <FileTextIcon className="w-5 h-5 text-primary-500" />
                   Configuration du cas
                 </h2>
-                <button
-                  onClick={handleParse}
-                  className="px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors shadow-sm shadow-primary-500/20"
-                >
-                  Analyser
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => void handleClearText()}
+                    disabled={!canClearText}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      canClearText
+                        ? darkMode
+                          ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
+                    }`}
+                  >
+                    Clear
+                  </button>
+                  <button
+                    onClick={handleParse}
+                    className="px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors shadow-sm shadow-primary-500/20"
+                  >
+                    Analyser
+                  </button>
+                </div>
               </div>
 
               <textarea
@@ -1826,6 +2014,20 @@ export default function App({
                   >
                     <CheckIcon className="w-4 h-4" />
                     Évaluer
+                  </button>
+
+                  <button
+                    onClick={() => void handleResetSession()}
+                    disabled={!canResetSession}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+                      canResetSession
+                        ? darkMode
+                          ? "border border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700"
+                          : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
+                    }`}
+                  >
+                    Reset
                   </button>
                 </div>
               </div>
@@ -1970,7 +2172,28 @@ export default function App({
 
               {/* Transcript */}
               <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
-                <h3 className="text-lg font-semibold mb-4">Transcription en direct</h3>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h3 className="text-lg font-semibold">Transcription en direct</h3>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void copyTextToClipboard(
+                        transcriptCopyText,
+                        "La transcription a été copiée.",
+                      )
+                    }
+                    disabled={!canCopyTranscript}
+                    className={`rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                      canCopyTranscript
+                        ? darkMode
+                          ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
+                    }`}
+                  >
+                    Copy transcript
+                  </button>
+                </div>
                 <div
                   ref={transcriptRef}
                   className={`h-[500px] overflow-y-auto rounded-xl p-4 ${
@@ -2129,18 +2352,47 @@ export default function App({
           <div ref={resultsRef} className={`xl:col-span-2 rounded-2xl border ${cardBg} p-6 shadow-soft`}>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold">Résultats d'évaluation</h2>
-              <button
-                onClick={exportPdf}
-                disabled={!evaluation}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  evaluation
-                    ? "bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white"
-                    : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
-                }`}
-              >
-                <FileTextIcon className="w-4 h-4" />
-                Export PDF
-              </button>
+              <div className="flex items-center gap-2">
+                {canRerunEvaluation && (
+                  <button
+                    onClick={handleRerunEvaluation}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-primary-600 hover:bg-primary-700 text-white transition-all duration-200"
+                  >
+                    Re-run evaluation
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() =>
+                    void copyTextToClipboard(
+                      evaluationCopyText,
+                      "L'évaluation a été copiée.",
+                    )
+                  }
+                  disabled={!evaluation}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    evaluation
+                      ? darkMode
+                        ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
+                  }`}
+                >
+                  Copy evaluation
+                </button>
+                <button
+                  onClick={exportPdf}
+                  disabled={!evaluation}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    evaluation
+                      ? "bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white"
+                      : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
+                  }`}
+                >
+                  <FileTextIcon className="w-4 h-4" />
+                  Export PDF
+                </button>
+              </div>
             </div>
 
             {!evaluation ? (
@@ -2185,7 +2437,23 @@ export default function App({
                       <tr>
                         <th className="text-left px-6 py-4 font-semibold">Critère</th>
                         <th className="text-left px-6 py-4 font-semibold w-44">Résultat</th>
-                        <th className="text-left px-6 py-4 font-semibold">Feedback</th>
+                        <th className="text-left px-6 py-4 font-semibold">
+                          <div className="flex items-center gap-2">
+                            <span>Feedback</span>
+                            <span
+                              className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${
+                                darkMode
+                                  ? "border-slate-700 bg-slate-800 text-slate-300"
+                                  : "border-slate-200 bg-slate-100 text-slate-600"
+                              }`}
+                            >
+                              {formatFeedbackDetailLabel(
+                                lastEvaluatedFeedbackDetailLevel ??
+                                  settings.feedbackDetailLevel,
+                              )}
+                            </span>
+                          </div>
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-700">

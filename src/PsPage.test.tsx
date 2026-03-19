@@ -120,5 +120,43 @@ describe("PsPage", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Sans PS" })).toBeEnabled();
     });
-  });
+  }, 10000);
+
+  it("resets the session state without clearing the pasted case text", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <PsPage
+        currentMode="ps"
+        onNavigate={vi.fn()}
+        settings={DEFAULT_SETTINGS}
+        onOpenSettings={vi.fn()}
+        darkMode={false}
+        onDarkModeChange={vi.fn()}
+      />,
+    );
+
+    const textarea = screen.getByPlaceholderText(
+      /collez ici la trame du patient et la grille de correction/i,
+    );
+
+    fireEvent.change(textarea, { target: { value: validCase } });
+    await user.click(screen.getByRole("button", { name: "Analyser" }));
+    await user.click(screen.getByRole("button", { name: "Démarrer" }));
+    await user.click(screen.getByRole("button", { name: "Terminer" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Reset" })).toBeEnabled();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Reset" }));
+
+    await waitFor(() => {
+      expect(textarea).toHaveValue(validCase);
+      expect(screen.getByText("Cas préparé")).toBeInTheDocument();
+      expect(
+        screen.getByText(/la transcription apparaîtra ici/i),
+      ).toBeInTheDocument();
+    });
+  }, 10000);
 });

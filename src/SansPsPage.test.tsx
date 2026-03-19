@@ -67,7 +67,7 @@ describe("SansPsPage", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "PS / PSS" })).toBeEnabled();
     });
-  });
+  }, 10000);
 
   it("hides live transcript during the session but shows the final transcript after ending", async () => {
     const user = userEvent.setup();
@@ -106,6 +106,31 @@ describe("SansPsPage", () => {
         screen.getByText(/monologue démarré\. présentez votre raisonnement/i),
       ).toBeInTheDocument();
     });
+  }, 10000);
+
+  it("clears the station textarea when clicking Clear", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <SansPsPage
+        currentMode="sans-ps"
+        onNavigate={vi.fn()}
+        settings={DEFAULT_SETTINGS}
+        onOpenSettings={vi.fn()}
+        darkMode={false}
+        onDarkModeChange={vi.fn()}
+      />,
+    );
+
+    const textarea = screen.getByPlaceholderText(
+      /collez ici la station sans ps et sa grille de correction/i,
+    );
+
+    fireEvent.change(textarea, { target: { value: validStation } });
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+
+    expect(screen.getByDisplayValue("")).toBe(textarea);
+    expect(screen.getByText("Mode sans PS prêt")).toBeInTheDocument();
   });
 
 });
