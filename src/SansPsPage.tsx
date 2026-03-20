@@ -8,11 +8,6 @@ import {
 import { extractGradingGridOnly, transcriptToPlainText } from "./lib/parser";
 import { buildSansPsPdfDocument } from "./lib/pdf";
 import { EvaluationReport } from "./EvaluationReport";
-import {
-  FEMALE_VOICE_OPTIONS,
-  hasVoicePreviewSample,
-  MALE_VOICE_OPTIONS,
-} from "./lib/voices";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { RecordingPlayer } from "./RecordingPlayer";
 import type {
@@ -229,44 +224,12 @@ function MicOffIcon({ className }: { className?: string }) {
   );
 }
 
-function VoiceMaleIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="10" cy="14" r="5" />
-      <path d="M14 10 21 3" />
-      <path d="M15 3h6v6" />
-    </svg>
-  );
-}
-
 function VoiceFemaleIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="8" r="5" />
       <path d="M12 13v8" />
       <path d="M9 18h6" />
-    </svg>
-  );
-}
-
-function HeartIcon({
-  className,
-  filled = false,
-}: {
-  className?: string;
-  filled?: boolean;
-}) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m12 21-1.4-1.27C5.4 15 2 11.86 2 8a5 5 0 0 1 8.2-3.84L12 5.75l1.8-1.59A5 5 0 0 1 22 8c0 3.86-3.4 7-8.6 11.73Z" />
     </svg>
   );
 }
@@ -300,6 +263,16 @@ function ClockIcon({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10" />
       <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+function DownloadIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <path d="M7 10l5 5 5-5" />
+      <path d="M12 15V3" />
     </svg>
   );
 }
@@ -338,6 +311,8 @@ export default function SansPsPage({
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evaluationProgress, setEvaluationProgress] = useState(0);
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
+  const [showEvaluationReport, setShowEvaluationReport] = useState(false);
+  const [showReportAudioPlayer, setShowReportAudioPlayer] = useState(false);
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(
     settings.defaultTimerSeconds,
@@ -361,7 +336,6 @@ export default function SansPsPage({
     useState<AppSettings["feedbackDetailLevel"] | null>(null);
 
   const transcriptRef = useRef<HTMLDivElement | null>(null);
-  const resultsRef = useRef<HTMLDivElement | null>(null);
   const micRef = useRef<AudioStreamer | null>(null);
   const recordedAudioUrlRef = useRef<string | null>(null);
   const autoEvaluateHandledRef = useRef(false);
@@ -458,14 +432,9 @@ export default function SansPsPage({
   const canCopyTranscript =
     (settings.showLiveTranscript || hasEndedDiscussion) &&
     transcriptCopyText.trim().length > 0;
-  const transcriptHeightClass =
-    transcriptForDisplay.length === 0 && !showDraftIndicatorForDisplay
-      ? hasEndedDiscussion
-        ? "h-[320px]"
-        : "h-[340px]"
-      : hasEndedDiscussion
-        ? "h-[400px]"
-        : "h-[500px]";
+  const transcriptPanelMinHeightClass = hasEndedDiscussion
+    ? "min-h-[460px]"
+    : "min-h-[560px]";
   const evaluationCopyText = evaluation ? buildEvaluationCopy(evaluation) : "";
   const canRerunEvaluation =
     Boolean(evaluation) &&
@@ -581,6 +550,8 @@ export default function SansPsPage({
     const nextGrid = extractGradingGridOnly(rawInput);
     setGradingGrid(nextGrid);
     setEvaluation(null);
+    setShowEvaluationReport(false);
+    setShowReportAudioPlayer(false);
     setLastEvaluatedFeedbackDetailLevel(null);
     setHasEndedDiscussion(false);
 
@@ -657,6 +628,8 @@ export default function SansPsPage({
       autoExportedEvaluationRef.current = null;
       setTranscript([]);
       setEvaluation(null);
+      setShowEvaluationReport(false);
+      setShowReportAudioPlayer(false);
       setLastEvaluatedFeedbackDetailLevel(null);
       setHasEndedDiscussion(false);
       setIsConnecting(false);
@@ -690,6 +663,8 @@ export default function SansPsPage({
     setRawInput("");
     setGradingGrid("");
     setParseError("");
+    setShowEvaluationReport(false);
+    setShowReportAudioPlayer(false);
     setStatus("Mode sans PS prêt");
     onShowToast(
       "Zone vidée",
@@ -999,15 +974,11 @@ export default function SansPsPage({
 
       const result = (await response.json()) as EvaluationResult;
       setEvaluation(result);
+      setShowEvaluationReport(true);
+      setShowReportAudioPlayer(false);
       setLastEvaluatedFeedbackDetailLevel(settings.feedbackDetailLevel);
       setStatus("Évaluation terminée");
-
-      requestAnimationFrame(() => {
-        resultsRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      });
+      requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Erreur d'évaluation inconnue";
@@ -1069,6 +1040,19 @@ export default function SansPsPage({
       "L’aperçu d’impression du compte rendu est ouvert.",
       "success",
     );
+  }
+
+  function downloadRecordedAudio() {
+    if (!recordedAudioUrl) {
+      return;
+    }
+
+    const link = document.createElement("a");
+    link.href = recordedAudioUrl;
+    link.download = `ecos-monologue-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.webm`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   }
 
   function handleRerunEvaluation() {
@@ -1303,6 +1287,115 @@ export default function SansPsPage({
         </div>
       </header>
 
+      {showEvaluationReport && evaluation ? (
+        <main className="mx-auto max-w-[1280px] px-6 py-8">
+          <div className="space-y-6">
+            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEvaluationReport(false);
+                      setShowReportAudioPlayer(false);
+                    }}
+                    className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all ${
+                      darkMode
+                        ? "border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    ← Retour à la session
+                  </button>
+                  <h1 className="mt-4 text-3xl font-bold tracking-tight">Résultats de l&apos;évaluation</h1>
+                  <p className={`mt-2 text-sm ${mutedText}`}>
+                    Rapport détaillé du monologue avec synthèse pédagogique et recommandations.
+                  </p>
+                </div>
+                <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[430px]">
+                  <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                    {canRerunEvaluation && (
+                      <button
+                        onClick={handleRerunEvaluation}
+                        className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-primary-700"
+                      >
+                        Re-run evaluation
+                      </button>
+                    )}
+                    {recordedAudioUrl && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setShowReportAudioPlayer((current) => !current)}
+                          className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                            darkMode
+                              ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
+                              : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          <PlayIcon className="h-4 w-4" />
+                          Play discussion audio
+                        </button>
+                        <button
+                          type="button"
+                          onClick={downloadRecordedAudio}
+                          className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                            darkMode
+                              ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
+                              : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          <DownloadIcon className="h-4 w-4" />
+                          Download discussion audio
+                        </button>
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void copyTextToClipboard(
+                          evaluationCopyText,
+                          "L'évaluation a été copiée.",
+                        )
+                      }
+                      className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                        darkMode
+                          ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
+                          : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <CopyIcon className="h-4 w-4" />
+                      Copy evaluation
+                    </button>
+                    <button
+                      onClick={exportPdf}
+                      className="flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600"
+                    >
+                      <FileTextIcon className="h-4 w-4" />
+                      Export PDF
+                    </button>
+                  </div>
+                  {recordedAudioUrl && showReportAudioPlayer && (
+                    <RecordingPlayer
+                      src={recordedAudioUrl}
+                      darkMode={darkMode}
+                      playbackRate={settings.recordedAudioPlaybackRate}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <EvaluationReport
+              evaluation={evaluation}
+              darkMode={darkMode}
+              feedbackDetailLabel={formatFeedbackDetailLabel(
+                lastEvaluatedFeedbackDetailLevel ?? settings.feedbackDetailLevel,
+              )}
+            />
+          </div>
+        </main>
+      ) : (
       <main className="mx-auto max-w-[1600px] px-6 py-8">
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[470px_1fr]">
           <div className="space-y-6">
@@ -1365,129 +1458,6 @@ export default function SansPsPage({
                 <p className={`mt-2 text-sm leading-relaxed ${mutedText}`}>
                   Le mode sans PS écoute uniquement l&apos;étudiant, segmente la parole sur les silences, transcrit le monologue au fil de la station, puis compare le texte final à la grille.
                 </p>
-              </div>
-
-              <div className="mt-5 border-t border-slate-200/70 pt-5 dark:border-slate-700/60">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-sm font-semibold">Voix du patient</h3>
-                    <p className={`mt-1 text-xs ${mutedText}`}>
-                      Sélection de voix disponible uniquement en mode PS / PSS.
-                    </p>
-                  </div>
-                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
-                    darkMode
-                      ? "bg-slate-800 text-slate-300"
-                      : "bg-slate-100 text-slate-500"
-                  }`}>
-                    Disabled
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                  {[
-                    {
-                      title: "Voix féminines",
-                      voices: FEMALE_VOICE_OPTIONS,
-                      gender: "female" as const,
-                    },
-                    {
-                      title: "Voix masculines",
-                      voices: MALE_VOICE_OPTIONS,
-                      gender: "male" as const,
-                    },
-                  ].map((group) => (
-                    <div key={group.gender}>
-                      <div className={`mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] ${mutedText}`}>
-                        {group.title}
-                      </div>
-                      <div
-                        className={`max-h-[10.5rem] space-y-2 overflow-y-auto pr-1 ${
-                          darkMode ? "scrollbar-dark" : "scrollbar-light"
-                        }`}
-                      >
-                        {group.voices.map((voice, index) => {
-                          const isSelected =
-                            group.gender === "female" ? index === 0 : false;
-                          const canPreviewVoice = hasVoicePreviewSample(voice.value);
-
-                          return (
-                            <div
-                              key={voice.value}
-                              className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-2.5 text-left opacity-60 ${
-                                isSelected
-                                  ? darkMode
-                                    ? "border-primary-400 bg-primary-500/10 text-slate-50"
-                                    : "border-primary-300 bg-primary-50 text-slate-900"
-                                  : darkMode
-                                    ? "border-slate-700 bg-slate-900/60 text-slate-200"
-                                    : "border-slate-200 bg-white text-slate-700"
-                              }`}
-                            >
-                              <button
-                                type="button"
-                                disabled
-                                className="flex min-w-0 flex-1 cursor-not-allowed items-center gap-2.5 overflow-hidden text-left"
-                                aria-label={`Voix désactivée ${voice.value}`}
-                              >
-                                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                                  isSelected
-                                    ? darkMode
-                                      ? "bg-primary-500/20 text-primary-300"
-                                      : "bg-primary-100 text-primary-700"
-                                    : darkMode
-                                      ? "bg-slate-800 text-slate-300"
-                                      : "bg-slate-100 text-slate-500"
-                                }`}>
-                                  {voice.gender === "male" ? (
-                                    <VoiceMaleIcon className="h-4.5 w-4.5" />
-                                  ) : (
-                                    <VoiceFemaleIcon className="h-4.5 w-4.5" />
-                                  )}
-                                </span>
-                                <div className="min-w-0 flex-1 overflow-hidden">
-                                  <div className="truncate pr-1 text-sm font-semibold">
-                                    {voice.label}
-                                  </div>
-                                </div>
-                              </button>
-
-                              <button
-                                type="button"
-                                disabled
-                                aria-label={`Favori désactivé ${voice.value}`}
-                                className={`flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-lg border ${
-                                  darkMode
-                                    ? "border-slate-600 bg-slate-800 text-slate-300"
-                                    : "border-slate-300 bg-white text-slate-400"
-                                }`}
-                              >
-                                <HeartIcon className="h-3 w-3" />
-                              </button>
-
-                              <button
-                                type="button"
-                                disabled
-                                aria-label={
-                                  canPreviewVoice
-                                    ? `Aperçu désactivé ${voice.value}`
-                                    : `Aucun aperçu disponible pour ${voice.value}`
-                                }
-                                className={`flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-lg border ${
-                                  darkMode
-                                    ? "border-slate-600 bg-slate-800 text-slate-200"
-                                    : "border-slate-300 bg-white text-slate-500"
-                                }`}
-                              >
-                                <PlayIcon className="h-3 w-3" />
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
           </div>
@@ -1579,15 +1549,20 @@ export default function SansPsPage({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
-              <div className="space-y-6">
-                <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
-                  <div className="mb-4 flex items-center gap-2">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
+              <div className={`h-full rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+                <div className="flex items-center gap-2">
+                  <ClockIcon className={`h-4 w-4 ${mutedText}`} />
+                  <span className="text-sm font-semibold">Outils de session</span>
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-slate-200/70 p-5 dark:border-slate-700/60">
+                  <div className="flex items-center gap-2">
                     <ClockIcon className={`h-4 w-4 ${mutedText}`} />
                     <span className={`text-sm font-medium ${mutedText}`}>Temps restant</span>
                   </div>
 
-                  <div className={`text-center text-5xl font-bold tracking-tight tabular-nums ${timerDanger ? "animate-pulse text-rose-500" : ""}`}>
+                  <div className={`mt-3 text-center text-5xl font-bold tracking-tight tabular-nums ${timerDanger ? "animate-pulse text-rose-500" : ""}`}>
                     {formatCountdown(remainingSeconds)}
                   </div>
 
@@ -1603,59 +1578,57 @@ export default function SansPsPage({
                   </div>
                 </div>
 
-                <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
-                  <div className="mb-5">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-2">
-                        {isMicMuted ? (
-                          <MicOffIcon className={`h-4 w-4 ${mutedText}`} />
-                        ) : (
-                          <MicIcon className={`h-4 w-4 ${mutedText}`} />
-                        )}
-                        <span className={`text-sm font-medium ${mutedText}`}>Microphone</span>
-                      </div>
-                      <span
-                        className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
-                          isMicMuted
-                            ? "text-rose-600 dark:text-rose-300"
-                            : "text-emerald-600 dark:text-emerald-300"
-                        }`}
-                      >
-                        <span
-                          className={`h-2 w-2 rounded-full ${
-                            isMicMuted ? "bg-rose-500" : "bg-emerald-500"
-                          }`}
-                        />
-                        {isMicMuted ? "Coupé" : "Actif"}
-                      </span>
+                <div className="mt-5 border-t border-slate-200/70 pt-5 dark:border-slate-700/60">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      {isMicMuted ? (
+                        <MicOffIcon className={`h-4 w-4 ${mutedText}`} />
+                      ) : (
+                        <MicIcon className={`h-4 w-4 ${mutedText}`} />
+                      )}
+                      <span className={`text-sm font-medium ${mutedText}`}>Microphone</span>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={toggleMicMute}
-                      className={`mt-3 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all duration-200 ${
+                    <span
+                      className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
                         isMicMuted
-                          ? "border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-300"
-                          : "border-slate-200 bg-slate-900 text-white hover:bg-slate-800 dark:border-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+                          ? "text-rose-600 dark:text-rose-300"
+                          : "text-emerald-600 dark:text-emerald-300"
                       }`}
                     >
-                      {isMicMuted ? (
-                        <MicOffIcon className="h-4 w-4" />
-                      ) : (
-                        <MicIcon className="h-4 w-4" />
-                      )}
-                      {isMicMuted ? "Réactiver le microphone" : "Couper le microphone"}
-                    </button>
+                      <span
+                        className={`h-2 w-2 rounded-full ${
+                          isMicMuted ? "bg-rose-500" : "bg-emerald-500"
+                        }`}
+                      />
+                      {isMicMuted ? "Coupé" : "Actif"}
+                    </span>
                   </div>
 
-                  <div className="relative mx-auto h-40 w-40">
+                  <button
+                    type="button"
+                    onClick={toggleMicMute}
+                    className={`mt-3 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all duration-200 ${
+                      isMicMuted
+                        ? "border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-300"
+                        : "border-slate-200 bg-slate-900 text-white hover:bg-slate-800 dark:border-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+                    }`}
+                  >
+                    {isMicMuted ? (
+                      <MicOffIcon className="h-4 w-4" />
+                    ) : (
+                      <MicIcon className="h-4 w-4" />
+                    )}
+                    {isMicMuted ? "Réactiver le microphone" : "Couper le microphone"}
+                  </button>
+
+                  <div className="relative mx-auto mt-5 h-32 w-32">
                     <div className={`absolute inset-0 rounded-full ${darkMode ? "bg-slate-800/30" : "bg-primary-100/50"}`} />
                     {Array.from({ length: 36 }, (_, i) => {
                       const angle = (360 / 36) * i;
                       const displayPeak = isMicMuted ? 0 : micPeak;
                       const active =
                         !isMicMuted && i < Math.max(3, Math.round(displayPeak * 36));
-                      const barHeight = active ? 16 + displayPeak * 24 : 8;
+                      const barHeight = active ? 12 + displayPeak * 18 : 6;
 
                       return (
                         <div
@@ -1664,7 +1637,7 @@ export default function SansPsPage({
                           style={{
                             width: 4,
                             height: barHeight,
-                            transform: `translate(-50%, -100%) rotate(${angle}deg) translateY(-48px)`,
+                            transform: `translate(-50%, -100%) rotate(${angle}deg) translateY(-38px)`,
                             background: active
                               ? "linear-gradient(to top, #0d9488, #14b8a6)"
                               : isMicMuted
@@ -1678,11 +1651,11 @@ export default function SansPsPage({
                         />
                       );
                     })}
-                    <div className={`absolute inset-0 m-auto flex h-20 w-20 items-center justify-center rounded-full ${
+                    <div className={`absolute inset-0 m-auto flex h-16 w-16 items-center justify-center rounded-full ${
                       darkMode ? "border border-slate-700 bg-slate-800" : "border border-slate-200 bg-white"
                     }`}>
                       <span className="text-center">
-                        <span className="block text-2xl font-bold">
+                        <span className="block text-xl font-bold">
                           {isMicMuted ? "OFF" : Math.round(micPeak * 100)}
                         </span>
                         <span className={`block text-[10px] font-semibold uppercase tracking-[0.18em] ${mutedText}`}>
@@ -1692,15 +1665,69 @@ export default function SansPsPage({
                     </div>
                   </div>
 
-                  <div className={`mt-4 text-center text-xs ${mutedText}`}>
-                    {isMicMuted
-                      ? "Le microphone est coupé. Votre voix n'est pas envoyée."
-                      : `RMS: ${formatPercent(micLevel)} | Peak: ${formatPercent(micPeak)}`}
+                  {isMicMuted ? (
+                    <div className={`mt-4 text-center text-xs ${mutedText}`}>
+                      Le microphone est coupé. Votre voix n&apos;est pas envoyée.
+                    </div>
+                  ) : null}
+
+                  <div className="mt-5 border-t border-slate-200/70 pt-5 dark:border-slate-700/60">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-semibold">Voix du patient</h3>
+                        <p className={`mt-1 text-xs ${mutedText}`}>
+                          Disponible uniquement en mode PS / PSS.
+                        </p>
+                      </div>
+                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
+                        darkMode
+                          ? "bg-slate-800 text-slate-300"
+                          : "bg-slate-100 text-slate-500"
+                      }`}>
+                        Disabled
+                      </span>
+                    </div>
+
+                    <div className={`mt-4 rounded-xl border ${subCardBg} p-3 opacity-75`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
+                              darkMode
+                                ? "bg-slate-800 text-slate-300"
+                                : "bg-slate-100 text-slate-500"
+                            }`}>
+                              <VoiceFemaleIcon className="h-3.5 w-3.5" />
+                            </span>
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-semibold leading-tight">
+                                Voix disponible en mode PS / PSS
+                              </div>
+                              <div className={`mt-1 flex flex-wrap items-center gap-1.5 text-[11px] ${mutedText}`}>
+                                <span className={`rounded-full px-2 py-0.5 ${
+                                  darkMode ? "bg-slate-800 text-slate-300" : "bg-slate-100 text-slate-600"
+                                }`}>
+                                  Sélection désactivée
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          disabled
+                          className="shrink-0 cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500"
+                        >
+                          Modifier
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+              <div className={`flex h-full min-h-0 flex-col rounded-2xl border ${cardBg} p-6 shadow-soft`}>
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <h3 className="text-lg font-semibold">Transcription du monologue</h3>
                   <button
@@ -1724,12 +1751,12 @@ export default function SansPsPage({
                 </div>
                 <div
                   ref={transcriptRef}
-                  className={`${transcriptHeightClass} overflow-y-auto rounded-xl p-4 ${
+                  className={`${transcriptPanelMinHeightClass} min-h-0 flex-1 overflow-y-auto rounded-xl ${
                     darkMode ? "bg-slate-950/50" : "bg-slate-50/80"
                   }`}
                 >
                   {transcriptForDisplay.length === 0 && !showDraftIndicatorForDisplay ? (
-                    <div className="flex h-full items-center justify-center">
+                    <div className="flex h-full items-center justify-center rounded-xl p-4">
                       <div className="text-center">
                         <div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl ${subtleBg}`}>
                           <ActivityIcon className={`h-8 w-8 ${mutedText}`} />
@@ -1756,7 +1783,7 @@ export default function SansPsPage({
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-3 p-4">
                       {transcriptForDisplay.map((entry) => (
                         <div
                           key={entry.id}
@@ -1817,89 +1844,10 @@ export default function SansPsPage({
               </div>
             </div>
 
-          <div ref={resultsRef} className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
-            <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-              <div>
-                <h2 className="text-xl font-bold">Résultats d'évaluation</h2>
-                <p className={`mt-1 text-sm ${mutedText}`}>
-                  {evaluation
-                    ? "Synthèse de la correction et utilitaires de session."
-                    : "La correction apparaîtra ici à la fin du monologue."}
-                </p>
-              </div>
-              <div className="flex w-full flex-col gap-3 xl:w-auto xl:min-w-[430px]">
-                {recordedAudioUrl && (
-                  <RecordingPlayer
-                    src={recordedAudioUrl}
-                    darkMode={darkMode}
-                    playbackRate={settings.recordedAudioPlaybackRate}
-                  />
-                )}
-                <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-                {canRerunEvaluation && (
-                  <button
-                    onClick={handleRerunEvaluation}
-                    className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-primary-700"
-                  >
-                    Re-run evaluation
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() =>
-                    void copyTextToClipboard(
-                      evaluationCopyText,
-                      "L'évaluation a été copiée.",
-                    )
-                  }
-                  disabled={!evaluation}
-                  className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                    darkMode
-                      ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
-                      : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
-                  } ${!evaluation ? "cursor-not-allowed opacity-40 saturate-50" : ""}`}
-                >
-                  <CopyIcon className="h-4 w-4" />
-                  Copy evaluation
-                </button>
-                <button
-                  onClick={exportPdf}
-                  disabled={!evaluation}
-                  className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                    evaluation
-                      ? "bg-slate-800 text-white hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600"
-                      : "cursor-not-allowed bg-slate-100 text-slate-400 opacity-60 dark:bg-slate-800"
-                  }`}
-                >
-                  <FileTextIcon className="h-4 w-4" />
-                  Export PDF
-                </button>
-                </div>
-              </div>
-            </div>
-
-            {!evaluation ? (
-              <div className={`rounded-xl px-6 py-6 text-center ${subtleBg}`}>
-                <div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl ${subtleBg}`}>
-                  <CheckIcon className={`h-8 w-8 ${mutedText}`} />
-                </div>
-                <p className={`text-sm ${mutedText}`}>
-                  Les résultats d'évaluation apparaîtront ici après la correction.
-                </p>
-              </div>
-            ) : (
-              <EvaluationReport
-                evaluation={evaluation}
-                darkMode={darkMode}
-                feedbackDetailLabel={formatFeedbackDetailLabel(
-                  lastEvaluatedFeedbackDetailLevel ?? settings.feedbackDetailLevel,
-                )}
-              />
-            )}
-          </div>
           </div>
         </div>
       </main>
+      )}
 
       {isEvaluating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm">

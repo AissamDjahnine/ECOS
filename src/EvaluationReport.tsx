@@ -77,24 +77,106 @@ type EvaluationReportProps = {
   feedbackDetailLabel: string;
 };
 
+type ImprovementTheme = {
+  title: string;
+  description: string;
+};
+
+function buildImprovementThemes(details: EvaluationResult["details"]): ImprovementTheme[] {
+  const missed = details.filter((detail) => !detail.observed);
+  const sourceText = missed
+    .map((detail) => `${detail.criterion} ${detail.feedback}`.toLowerCase())
+    .join(" ");
+
+  const themes: ImprovementTheme[] = [];
+
+  if (
+    /question|interrog|anamn|recherche|explor|demande/.test(sourceText)
+  ) {
+    themes.push({
+      title: "Questionnement clinique",
+      description:
+        "Rendre l’entretien plus exploratoire: poser davantage de questions ouvertes puis fermer pour confirmer les éléments clés utiles à la décision.",
+    });
+  }
+
+  if (
+    /structur|synth|organis|plan|conduite|raisonnement|prioris/.test(sourceText)
+  ) {
+    themes.push({
+      title: "Structuration des idées",
+      description:
+        "Mieux hiérarchiser le raisonnement: annoncer l’hypothèse principale, justifier avec les données utiles, puis conclure par une conduite à tenir claire.",
+    });
+  }
+
+  if (
+    /patient|expli|comprend|rassur|communication|vulgar|annonce/.test(sourceText)
+  ) {
+    themes.push({
+      title: "Langage et vulgarisation",
+      description:
+        "Adapter davantage le niveau de langage au patient: phrases plus simples, informations découpées, et reformulation des points importants.",
+    });
+  }
+
+  if (
+    /diagnostic|critique|urgence|grave|priorit|risque|sévère/.test(sourceText)
+  ) {
+    themes.push({
+      title: "Esprit critique",
+      description:
+        "Renforcer l’analyse critique: expliciter les priorités, les diagnostics à éliminer et les éléments de gravité qui modifient la prise en charge.",
+    });
+  }
+
+  if (themes.length === 0) {
+    themes.push({
+      title: "Consolidation globale",
+      description:
+        "La marge de progression porte surtout sur la précision clinique et la clarté d’exposition. Un déroulé plus structuré et plus explicite améliorera la performance globale.",
+    });
+  }
+
+  return themes.slice(0, 3);
+}
+
+function buildRecommendations(details: EvaluationResult["details"]) {
+  const missedCount = details.filter((detail) => !detail.observed).length;
+
+  const recommendations = [
+    "S’entraîner à verbaliser un plan constant: contexte, hypothèse principale, arguments, conduite à tenir.",
+    "Utiliser une check-list mentale courte pour ne pas oublier les données clés à rechercher pendant l’entretien.",
+    "Reformuler à voix haute les éléments importants avant de conclure pour rendre le raisonnement plus lisible.",
+  ];
+
+  if (missedCount >= 4) {
+    recommendations.unshift(
+      "Rejouer la station en simulation courte de 3 à 5 minutes pour travailler d’abord la structure avant de chercher plus de détail.",
+    );
+  }
+
+  return recommendations.slice(0, 4);
+}
+
 export function EvaluationReport({
   evaluation,
   darkMode,
-  feedbackDetailLabel,
+  feedbackDetailLabel: _feedbackDetailLabel,
 }: EvaluationReportProps) {
   const scoreState = parseScore(evaluation.score);
   const observedDetails = evaluation.details.filter((detail) => detail.observed);
   const missedDetails = evaluation.details.filter((detail) => !detail.observed);
   const strengths = observedDetails.slice(0, 3);
-  const improvements = missedDetails.slice(0, 3);
-  const totalCriteria = evaluation.details.length;
+  const improvements = buildImprovementThemes(evaluation.details);
+  const recommendations = buildRecommendations(evaluation.details);
 
   const cardBase = darkMode ? "border-slate-700 bg-slate-900/30" : "border-slate-200 bg-white";
   const mutedText = darkMode ? "text-slate-400" : "text-slate-500";
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
         <div className={`rounded-2xl border p-6 ${scoreToneClasses(scoreState.ratio, darkMode)}`}>
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
@@ -114,7 +196,7 @@ export function EvaluationReport({
 
             <div className={`rounded-2xl border px-5 py-4 ${cardBase} min-w-[220px]`}>
               <div className={`text-xs font-semibold uppercase tracking-[0.18em] ${mutedText}`}>
-                Vue rapide
+                Note
               </div>
               <div className="mt-3 grid grid-cols-2 gap-4">
                 <div>
@@ -128,8 +210,8 @@ export function EvaluationReport({
               </div>
               <div className="mt-4">
                 <div className={`mb-2 flex items-center justify-between text-xs ${mutedText}`}>
-                  <span>Progression</span>
-                  <span>{Math.round(scoreState.ratio * 100)}%</span>
+                  <span>Résultat global</span>
+                  <span>{scoreState.value} / {scoreState.max}</span>
                 </div>
                 <div className={`h-2 overflow-hidden rounded-full ${darkMode ? "bg-slate-800" : "bg-slate-200"}`}>
                   <div
@@ -147,34 +229,26 @@ export function EvaluationReport({
 
         <div className={`rounded-2xl border p-6 ${cardBase}`}>
           <div className={`text-xs font-semibold uppercase tracking-[0.18em] ${mutedText}`}>
-            Métadonnées du rapport
+            Synthèse
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-4">
+          <div className="mt-4 space-y-4">
             <div className={`rounded-xl border p-4 ${darkMode ? "border-slate-700 bg-slate-950/30" : "border-slate-200 bg-slate-50"}`}>
               <div className={`text-xs font-medium uppercase tracking-[0.14em] ${mutedText}`}>
-                Critères
+                Note obtenue
               </div>
-              <div className="mt-2 text-2xl font-bold">{totalCriteria}</div>
+              <div className="mt-2 text-3xl font-bold">
+                {scoreState.value} <span className={`text-lg ${mutedText}`}>/ {scoreState.max}</span>
+              </div>
             </div>
             <div className={`rounded-xl border p-4 ${darkMode ? "border-slate-700 bg-slate-950/30" : "border-slate-200 bg-slate-50"}`}>
               <div className={`text-xs font-medium uppercase tracking-[0.14em] ${mutedText}`}>
-                Niveau feedback
+                Lecture rapide
               </div>
-              <div className="mt-2 text-lg font-semibold">{feedbackDetailLabel}</div>
-            </div>
-            <div className={`rounded-xl border p-4 ${darkMode ? "border-slate-700 bg-slate-950/30" : "border-slate-200 bg-slate-50"}`}>
-              <div className={`text-xs font-medium uppercase tracking-[0.14em] ${mutedText}`}>
-                Points validés
-              </div>
-              <div className="mt-2 text-lg font-semibold">{observedDetails.length} / {totalCriteria}</div>
-            </div>
-            <div className={`rounded-xl border p-4 ${darkMode ? "border-slate-700 bg-slate-950/30" : "border-slate-200 bg-slate-50"}`}>
-              <div className={`text-xs font-medium uppercase tracking-[0.14em] ${mutedText}`}>
-                Confiance
-              </div>
-              <div className="mt-2 text-lg font-semibold">
-                {feedbackDetailLabel === "Detailed" ? "Élevée" : feedbackDetailLabel === "Brief" ? "Essentielle" : "Standard"}
-              </div>
+              <p className={`mt-2 text-sm leading-relaxed ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                {observedDetails.length > missedDetails.length
+                  ? "Les attendus essentiels sont globalement présents, avec encore quelques points à consolider."
+                  : "La performance reste inégale: la structure, la formulation et la priorisation clinique méritent encore d’être renforcées."}
+              </p>
             </div>
           </div>
         </div>
@@ -204,9 +278,9 @@ export function EvaluationReport({
           {improvements.length > 0 ? (
             <ul className="mt-4 space-y-3">
               {improvements.map((detail, index) => (
-                <li key={`${detail.criterion}-${index}`} className="rounded-xl border border-amber-200/60 bg-white/70 px-4 py-3 text-sm leading-relaxed text-slate-700 dark:border-amber-900/60 dark:bg-slate-950/20 dark:text-slate-200">
-                  <div className="font-semibold">{detail.criterion}</div>
-                  <div className={`mt-1 text-xs ${mutedText}`}>{detail.feedback}</div>
+                <li key={`${detail.title}-${index}`} className="rounded-xl border border-amber-200/60 bg-white/70 px-4 py-3 text-sm leading-relaxed text-slate-700 dark:border-amber-900/60 dark:bg-slate-950/20 dark:text-slate-200">
+                  <div className="font-semibold">{detail.title}</div>
+                  <div className={`mt-1 text-xs ${mutedText}`}>{detail.description}</div>
                 </li>
               ))}
             </ul>
@@ -218,16 +292,23 @@ export function EvaluationReport({
         </div>
       </div>
 
+      <div className={`rounded-2xl border p-6 ${darkMode ? "border-sky-900/70 bg-sky-950/20" : "border-sky-200 bg-sky-50"}`}>
+        <h3 className="text-lg font-semibold">Recommandations</h3>
+        <ul className="mt-4 space-y-3">
+          {recommendations.map((recommendation, index) => (
+            <li
+              key={`${recommendation}-${index}`}
+              className="rounded-xl border border-sky-200/60 bg-white/70 px-4 py-3 text-sm leading-relaxed text-slate-700 dark:border-sky-900/60 dark:bg-slate-950/20 dark:text-slate-200"
+            >
+              {recommendation}
+            </li>
+          ))}
+        </ul>
+      </div>
+
       <div className={`rounded-2xl border p-6 ${cardBase}`}>
         <div className="mb-4 flex items-center justify-between gap-4">
           <h3 className="text-lg font-semibold">Grille de notation détaillée</h3>
-          <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${
-            darkMode
-              ? "border-slate-700 bg-slate-800 text-slate-300"
-              : "border-slate-200 bg-slate-100 text-slate-600"
-          }`}>
-            {feedbackDetailLabel}
-          </span>
         </div>
 
         <div className="space-y-4">

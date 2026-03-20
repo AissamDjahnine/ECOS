@@ -10,7 +10,9 @@ function normalizeWhitespace(value: string) {
 }
 
 function findLabeledField(block: string, labels: string[]) {
-  const escaped = labels.map((label) =>
+  const escaped = [...labels]
+    .sort((left, right) => right.length - left.length)
+    .map((label) =>
     label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
   );
 

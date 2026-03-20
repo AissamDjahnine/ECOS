@@ -65,6 +65,17 @@ type PatientInfoItem = {
   value: string;
 };
 
+const PATIENT_INFO_PLACEHOLDERS: PatientInfoItem[] = [
+  { label: "Nom", value: "John Doe" },
+  { label: "Âge", value: "35 ans" },
+  { label: "Sexe", value: "Masculin" },
+  { label: "Poids", value: "72 kg" },
+  { label: "Taille", value: "1m78" },
+  { label: "Statut marital", value: "Célibataire" },
+  { label: "Enfants", value: "0" },
+  { label: "Profession", value: "Ingénieur" },
+];
+
 type MixedRecorderRefs = {
   context: AudioContext;
   destination: MediaStreamAudioDestinationNode;
@@ -323,9 +334,13 @@ function extractPatientInfo(parsedCase: ParsedCase): PatientInfoItem[] {
   const script = parsedCase.patientScript || "";
   const items: PatientInfoItem[] = [];
 
-  const patientName =
-    parsedCase.patientName ||
-    findField(script, ["nom", "name", "nom du patient", "patiente", "patient"]);
+  const firstName =
+    parsedCase.patientFirstName ||
+    findField(script, ["prénom", "prenom", "prénoms", "prenoms"]);
+  const lastName =
+    parsedCase.patientLastName ||
+    findField(script, ["nom", "name", "nom du patient", "nom de famille"]);
+  const patientName = parsedCase.patientName;
   const age = parsedCase.patientAge || findField(script, ["âge", "age"]);
   const sex = parsedCase.patientSex || findField(script, ["sexe", "genre"]);
   const weight = findField(script, ["poids"]);
@@ -341,8 +356,12 @@ function extractPatientInfo(parsedCase: ParsedCase): PatientInfoItem[] {
     "profession",
     "métier",
   ]);
+  const displayName =
+    [firstName, lastName].filter(Boolean).join(" ").trim() || patientName;
 
-  if (patientName) items.push({ label: "Nom", value: patientName });
+  if (displayName) {
+    items.push({ label: "Nom complet", value: displayName });
+  }
   if (age) items.push({ label: "Âge", value: age });
   if (sex) items.push({ label: "Sexe", value: sex });
   if (weight) items.push({ label: "Poids", value: weight });
@@ -372,6 +391,16 @@ function VoiceFemaleIcon({ className }: { className?: string }) {
       <circle cx="12" cy="8" r="5" />
       <path d="M12 13v8" />
       <path d="M9 18h6" />
+    </svg>
+  );
+}
+
+function InfoIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 16v-4" />
+      <path d="M12 8h.01" />
     </svg>
   );
 }
@@ -538,6 +567,16 @@ function ResetIcon({ className }: { className?: string }) {
   );
 }
 
+function DownloadIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <path d="M7 10l5 5 5-5" />
+      <path d="M12 15V3" />
+    </svg>
+  );
+}
+
 function SunIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -630,6 +669,8 @@ export default function App({
   const [hasEndedDiscussion, setHasEndedDiscussion] = useState(false);
   const [status, setStatus] = useState("Mode PS/PSS prêt");
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
+  const [showEvaluationReport, setShowEvaluationReport] = useState(false);
+  const [showReportAudioPlayer, setShowReportAudioPlayer] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evaluationProgress, setEvaluationProgress] = useState(0);
   const [conversationPhase, setConversationPhase] =
@@ -667,9 +708,9 @@ export default function App({
   const [isVoicePreviewPaused, setIsVoicePreviewPaused] = useState(false);
   const [voicePreviewProgress, setVoicePreviewProgress] = useState(0);
   const [favoriteVoiceNames, setFavoriteVoiceNames] = useState<string[]>([]);
+  const [isVoiceDrawerOpen, setIsVoiceDrawerOpen] = useState(false);
 
   const transcriptRef = useRef<HTMLDivElement | null>(null);
-  const resultsRef = useRef<HTMLDivElement | null>(null);
   const voicePreviewAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const sessionRef = useRef<LiveSession | null>(null);
@@ -698,6 +739,11 @@ export default function App({
   });
 
   const patientInfo = useMemo(() => extractPatientInfo(parsedCase), [parsedCase]);
+  const displayedPatientInfo = patientInfo.length > 0 ? patientInfo : PATIENT_INFO_PLACEHOLDERS;
+  const selectedVoiceOption = useMemo(
+    () => VOICE_OPTIONS.find((voice) => voice.value === selectedVoiceName),
+    [selectedVoiceName],
+  );
   const parsedReady = Boolean(parsedCase.patientScript && parsedCase.gradingGrid);
   const sessionDurationSeconds = settings.defaultTimerSeconds;
   const canEditVoice =
@@ -771,14 +817,9 @@ export default function App({
   const canCopyTranscript =
     (settings.showLiveTranscript || hasEndedDiscussion) &&
     transcriptCopyText.trim().length > 0;
-  const transcriptHeightClass =
-    transcriptForDisplay.length === 0 && !showDraftIndicatorForDisplay
-      ? hasEndedDiscussion
-        ? "h-[320px]"
-        : "h-[340px]"
-      : hasEndedDiscussion
-        ? "h-[400px]"
-        : "h-[500px]";
+  const transcriptPanelMinHeightClass = hasEndedDiscussion
+    ? "min-h-[460px]"
+    : "min-h-[560px]";
   const evaluationCopyText = evaluation ? buildEvaluationCopy(evaluation) : "";
   const canRerunEvaluation =
     Boolean(evaluation) &&
@@ -921,7 +962,10 @@ export default function App({
     setParsedCase(parsed);
     setVoiceSelectionMode("auto");
     setSelectedVoiceName(inferVoiceFromPatientSex(parsed.patientSex));
+    setIsVoiceDrawerOpen(false);
     setEvaluation(null);
+    setShowEvaluationReport(false);
+    setShowReportAudioPlayer(false);
     setLastEvaluatedFeedbackDetailLevel(null);
     setHasEndedDiscussion(false);
 
@@ -1140,6 +1184,9 @@ export default function App({
       setHasEndedDiscussion(false);
       setStatus("Demande de jeton temporaire");
       setEvaluation(null);
+      setShowEvaluationReport(false);
+      setShowReportAudioPlayer(false);
+      setIsVoiceDrawerOpen(false);
       setRemainingSeconds(sessionDurationSeconds);
       setTranscript([]);
       setMicLevel(0);
@@ -1693,9 +1740,12 @@ export default function App({
     setRawInput("");
     setParsedCase(parseCaseInput(""));
     setParseError("");
+    setShowEvaluationReport(false);
+    setShowReportAudioPlayer(false);
     setStatus("Mode PS/PSS prêt");
     setVoiceSelectionMode("auto");
     setSelectedVoiceName(inferVoiceFromPatientSex(""));
+    setIsVoiceDrawerOpen(false);
     onShowToast(
       "Zone vidée",
       "Le texte collé et les résultats associés ont été supprimés.",
@@ -1779,15 +1829,11 @@ export default function App({
 
       const result = (await response.json()) as EvaluationResult;
       setEvaluation(result);
+      setShowEvaluationReport(true);
+      setShowReportAudioPlayer(false);
       setLastEvaluatedFeedbackDetailLevel(settings.feedbackDetailLevel);
       setStatus("Évaluation terminée");
-
-      requestAnimationFrame(() => {
-        resultsRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      });
+      requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Erreur d'évaluation inconnue";
@@ -1835,6 +1881,19 @@ export default function App({
       "L’aperçu d’impression du compte rendu est ouvert.",
       "success",
     );
+  }
+
+  function downloadRecordedAudio() {
+    if (!recordedAudioUrl) {
+      return;
+    }
+
+    const link = document.createElement("a");
+    link.href = recordedAudioUrl;
+    link.download = `ecos-discussion-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.webm`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   }
 
   function handleRerunEvaluation() {
@@ -2144,6 +2203,115 @@ export default function App({
       </header>
 
       {/* Main Content */}
+      {showEvaluationReport && evaluation ? (
+        <main className="mx-auto max-w-[1280px] px-6 py-8">
+          <div className="space-y-6">
+            <div className={`min-h-[470px] rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEvaluationReport(false);
+                      setShowReportAudioPlayer(false);
+                    }}
+                    className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all ${
+                      darkMode
+                        ? "border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    ← Retour à la session
+                  </button>
+                  <h1 className="mt-4 text-3xl font-bold tracking-tight">Résultats de l&apos;évaluation</h1>
+                  <p className={`mt-2 text-sm ${mutedText}`}>
+                    Rapport détaillé de la station avec synthèse pédagogique et recommandations.
+                  </p>
+                </div>
+                <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[430px]">
+                  <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                    {canRerunEvaluation && (
+                      <button
+                        onClick={handleRerunEvaluation}
+                        className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-primary-700"
+                      >
+                        Re-run evaluation
+                      </button>
+                    )}
+                    {recordedAudioUrl && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setShowReportAudioPlayer((current) => !current)}
+                          className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                            darkMode
+                              ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
+                              : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          <PlayIcon className="w-4 h-4" />
+                          Play discussion audio
+                        </button>
+                        <button
+                          type="button"
+                          onClick={downloadRecordedAudio}
+                          className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                            darkMode
+                              ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
+                              : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          <DownloadIcon className="w-4 h-4" />
+                          Download discussion audio
+                        </button>
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void copyTextToClipboard(
+                          evaluationCopyText,
+                          "L'évaluation a été copiée.",
+                        )
+                      }
+                      className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                        darkMode
+                          ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
+                          : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <CopyIcon className="w-4 h-4" />
+                      Copy evaluation
+                    </button>
+                    <button
+                      onClick={exportPdf}
+                      className="flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600"
+                    >
+                      <FileTextIcon className="w-4 h-4" />
+                      Export PDF
+                    </button>
+                  </div>
+                  {recordedAudioUrl && showReportAudioPlayer && (
+                    <RecordingPlayer
+                      src={recordedAudioUrl}
+                      darkMode={darkMode}
+                      playbackRate={settings.recordedAudioPlaybackRate}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <EvaluationReport
+              evaluation={evaluation}
+              darkMode={darkMode}
+              feedbackDetailLabel={formatFeedbackDetailLabel(
+                lastEvaluatedFeedbackDetailLevel ?? settings.feedbackDetailLevel,
+              )}
+            />
+          </div>
+        </main>
+      ) : (
       <main className="max-w-[1600px] mx-auto px-6 py-8">
         <div className="grid grid-cols-1 xl:grid-cols-[470px_1fr] gap-6">
           {/* Left Sidebar */}
@@ -2203,235 +2371,24 @@ export default function App({
                 Informations patient
               </h2>
 
-              {patientInfo.length === 0 ? (
-                <div className={`p-6 rounded-xl ${subtleBg} text-center`}>
-                  <p className={`text-sm ${mutedText}`}>
-                    Les informations patient apparaîtront ici après le parsing.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  {patientInfo.map((item) => (
-                    <div
-                      key={`${item.label}-${item.value}`}
-                      className={`p-3 rounded-xl ${subCardBg} border`}
-                    >
-                      <div className={`text-xs font-medium uppercase tracking-wider ${mutedText} mb-1`}>
-                        {item.label}
-                      </div>
-                      <div className="text-sm font-medium">{item.value}</div>
+              <div className="grid grid-cols-2 gap-3">
+                {displayedPatientInfo.map((item) => (
+                  <div
+                    key={`${item.label}-${item.value}`}
+                    className={`p-3 rounded-xl ${subCardBg} border transition-opacity ${
+                      patientInfo.length === 0 ? "opacity-60" : ""
+                    }`}
+                  >
+                    <div className={`text-xs font-medium uppercase tracking-wider ${mutedText} mb-1`}>
+                      {item.label}
                     </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="mt-5 border-t border-slate-200/70 pt-5 dark:border-slate-700/60">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-sm font-semibold">Voix du patient</h3>
-                    <p className={`mt-1 text-xs ${mutedText}`}>
-                      Pré-sélection guidée par le sexe détecté, modifiable avant le démarrage.
-                    </p>
+                    <div className={`text-sm font-medium ${patientInfo.length === 0 ? mutedText : ""}`}>
+                      {item.value}
+                    </div>
                   </div>
-                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
-                    voiceSelectionMode === "auto"
-                      ? darkMode
-                        ? "bg-slate-800 text-slate-200"
-                        : "bg-slate-100 text-slate-600"
-                      : darkMode
-                        ? "bg-primary-500/15 text-primary-300"
-                        : "bg-primary-100 text-primary-700"
-                  }`}>
-                    {voiceSelectionMode === "auto" ? "Auto" : "Custom"}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                  {[
-                    {
-                      title: "Voix féminines",
-                      voices: FEMALE_VOICE_OPTIONS,
-                      gender: "female" as const,
-                    },
-                    {
-                      title: "Voix masculines",
-                      voices: MALE_VOICE_OPTIONS,
-                      gender: "male" as const,
-                    },
-                  ].map((group) => (
-                    <div key={group.gender}>
-                      <div className={`mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] ${mutedText}`}>
-                        {group.title}
-                      </div>
-                      <div
-                        className={`max-h-[10.5rem] space-y-2 overflow-y-auto pr-1 ${
-                          darkMode ? "scrollbar-dark" : "scrollbar-light"
-                        }`}
-                      >
-                        {group.voices.map((voice) => {
-                          const isSelected = selectedVoiceName === voice.value;
-                          const disabled = !canEditVoice;
-                          const favoriteDisabled = !canToggleFavoriteVoice;
-                          const canPreviewVoice = hasVoicePreviewSample(voice.value);
-                          const isPreviewPlaying =
-                            playingVoicePreviewName === voice.value;
-                          const isFavorite = favoriteVoiceNames.includes(voice.value);
-                          const progressRadius = 16;
-                          const progressCircumference =
-                            2 * Math.PI * progressRadius;
-                          const progressOffset =
-                            progressCircumference * (1 - voicePreviewProgress);
-
-                          return (
-                            <div
-                              key={voice.value}
-                              className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-2.5 transition-all ${
-                                isSelected
-                                  ? darkMode
-                                    ? "border-primary-400 bg-primary-500/10 text-slate-50"
-                                    : "border-primary-300 bg-primary-50 text-slate-900"
-                                  : darkMode
-                                    ? "border-slate-700 bg-slate-900/60 text-slate-200"
-                                    : "border-slate-200 bg-white text-slate-700"
-                              } ${disabled ? "opacity-60" : ""}`}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (disabled) {
-                                    return;
-                                  }
-                                  setSelectedVoiceName(voice.value);
-                                  setVoiceSelectionMode("manual");
-                                }}
-                                disabled={disabled}
-                                className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden text-left"
-                                aria-label={`Choisir la voix ${voice.value}`}
-                              >
-                                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                                  isSelected
-                                    ? darkMode
-                                      ? "bg-primary-500/20 text-primary-300"
-                                      : "bg-primary-100 text-primary-700"
-                                    : darkMode
-                                      ? "bg-slate-800 text-slate-300"
-                                      : "bg-slate-100 text-slate-500"
-                                }`}>
-                                  {voice.gender === "male" ? (
-                                    <VoiceMaleIcon className="h-4.5 w-4.5" />
-                                  ) : (
-                                    <VoiceFemaleIcon className="h-4.5 w-4.5" />
-                                  )}
-                                </span>
-                                <div className="min-w-0 flex-1 overflow-hidden">
-                                  <div className="truncate pr-1 text-sm font-semibold">
-                                    {voice.label}
-                                  </div>
-                                </div>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (favoriteDisabled) {
-                                    return;
-                                  }
-                                  toggleFavoriteVoice(voice.value);
-                                }}
-                                disabled={favoriteDisabled}
-                                aria-label={
-                                  isFavorite
-                                    ? `Retirer ${voice.value} des favoris`
-                                    : `Ajouter ${voice.value} aux favoris`
-                                }
-                                aria-pressed={isFavorite}
-                                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors ${
-                                  isFavorite
-                                    ? darkMode
-                                      ? "border-rose-400 bg-rose-500 text-white shadow-sm shadow-rose-500/30"
-                                      : "border-rose-500 bg-rose-500 text-white shadow-sm shadow-rose-200"
-                                    : darkMode
-                                      ? "border-slate-600 bg-slate-800 text-slate-300 hover:border-slate-500 hover:bg-slate-700 hover:text-slate-100"
-                                      : "border-slate-300 bg-white text-slate-500 hover:border-slate-400 hover:bg-slate-50 hover:text-slate-700"
-                                } ${favoriteDisabled ? "cursor-not-allowed" : ""}`}
-                              >
-                                <HeartIcon
-                                  className="h-3.5 w-3.5"
-                                  filled={isFavorite}
-                                />
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  void toggleVoicePreview(voice.value);
-                                }}
-                                disabled={!canPreviewVoice}
-                                aria-label={
-                                  canPreviewVoice
-                                    ? isPreviewPlaying
-                                      ? isVoicePreviewPaused
-                                        ? `Reprendre l'aperçu ${voice.value}`
-                                        : `Mettre en pause l'aperçu ${voice.value}`
-                                      : `Écouter l'aperçu ${voice.value}`
-                                    : `Aucun aperçu disponible pour ${voice.value}`
-                                }
-                                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors ${
-                                  canPreviewVoice
-                                    ? darkMode
-                                      ? "border-slate-600 bg-slate-800 text-slate-200 hover:border-slate-500 hover:bg-slate-700"
-                                      : "border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:bg-slate-50"
-                                    : darkMode
-                                      ? "border-slate-800 bg-slate-900 text-slate-600"
-                                      : "border-slate-200 bg-slate-50 text-slate-300"
-                                } ${!canPreviewVoice ? "cursor-not-allowed" : ""}`}
-                              >
-                                {canPreviewVoice && isPreviewPlaying ? (
-                                  <span className="relative flex h-6 w-6 items-center justify-center">
-                                    <svg
-                                      className="absolute inset-0 h-6 w-6 -rotate-90"
-                                      viewBox="0 0 40 40"
-                                      fill="none"
-                                      aria-hidden="true"
-                                    >
-                                      <circle
-                                        cx="20"
-                                        cy="20"
-                                        r={progressRadius}
-                                        stroke="currentColor"
-                                        strokeOpacity="0.18"
-                                        strokeWidth="2"
-                                      />
-                                      <circle
-                                        cx="20"
-                                        cy="20"
-                                        r={progressRadius}
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeDasharray={progressCircumference}
-                                        strokeDashoffset={progressOffset}
-                                        className={
-                                          isVoicePreviewPaused
-                                            ? ""
-                                            : "transition-[stroke-dashoffset] duration-150"
-                                        }
-                                      />
-                                    </svg>
-                                    <PauseIcon className="relative z-10 h-3 w-3" />
-                                  </span>
-                                ) : (
-                                  <PlayIcon className="h-3 w-3" />
-                                )}
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                ))}
               </div>
+
             </div>
           </div>
 
@@ -2525,17 +2482,20 @@ export default function App({
             </div>
 
             {/* Discussion Area */}
-            <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
-              {/* Sidebar: Timer & Audio */}
-              <div className="space-y-6">
-                {/* Timer */}
-                <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
-                  <div className="flex items-center gap-2 mb-4">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
+              <div className={`h-full rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+                <div className="flex items-center gap-2">
+                  <ClockIcon className={`h-4 w-4 ${mutedText}`} />
+                  <span className="text-sm font-semibold">Outils de session</span>
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-slate-200/70 p-5 dark:border-slate-700/60">
+                  <div className="flex items-center gap-2">
                     <ClockIcon className={`w-4 h-4 ${mutedText}`} />
                     <span className={`text-sm font-medium ${mutedText}`}>Temps restant</span>
                   </div>
 
-                  <div className={`text-center text-5xl font-bold tabular-nums tracking-tight ${
+                  <div className={`mt-3 text-center text-5xl font-bold tabular-nums tracking-tight ${
                     timerDanger ? "text-rose-500 animate-pulse" : ""
                   }`}>
                     {formatCountdown(remainingSeconds)}
@@ -2555,68 +2515,64 @@ export default function App({
                   </div>
                 </div>
 
-                {/* Audio Level */}
-                <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
-                  <div className="mb-5">
-                      <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-2">
-                        {isMicMuted ? (
-                          <MicOffIcon className={`w-4 h-4 ${mutedText}`} />
-                        ) : (
-                          <MicIcon className={`w-4 h-4 ${mutedText}`} />
-                        )}
-                        <span className={`text-sm font-medium ${mutedText}`}>Microphone</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
-                            isMicMuted
-                              ? "text-rose-600 dark:text-rose-300"
-                              : "text-emerald-600 dark:text-emerald-300"
-                          }`}
-                        >
-                          <span
-                            className={`h-2 w-2 rounded-full ${
-                              isMicMuted ? "bg-rose-500" : "bg-emerald-500"
-                            }`}
-                          />
-                          {isMicMuted ? "Coupé" : "Actif"}
-                        </span>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={toggleMicMute}
-                      className={`mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold border transition-all duration-200 ${
-                        isMicMuted
-                          ? "border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-300"
-                          : "border-slate-200 bg-slate-900 text-white hover:bg-slate-800 dark:border-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
-                      }`}
-                      aria-pressed={isMicMuted}
-                      aria-label={
-                        isMicMuted
-                          ? "Réactiver le microphone"
-                          : "Couper le microphone"
-                      }
-                    >
+                <div className="mt-5 border-t border-slate-200/70 pt-5 dark:border-slate-700/60">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
                       {isMicMuted ? (
-                        <MicOffIcon className="w-4 h-4" />
+                        <MicOffIcon className={`w-4 h-4 ${mutedText}`} />
                       ) : (
-                        <MicIcon className="w-4 h-4" />
+                        <MicIcon className={`w-4 h-4 ${mutedText}`} />
                       )}
-                      {isMicMuted ? "Réactiver le microphone" : "Couper le microphone"}
-                    </button>
+                      <span className={`text-sm font-medium ${mutedText}`}>Microphone</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
+                          isMicMuted
+                            ? "text-rose-600 dark:text-rose-300"
+                            : "text-emerald-600 dark:text-emerald-300"
+                        }`}
+                      >
+                        <span
+                          className={`h-2 w-2 rounded-full ${
+                            isMicMuted ? "bg-rose-500" : "bg-emerald-500"
+                          }`}
+                        />
+                        {isMicMuted ? "Coupé" : "Actif"}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Circular Audio Visualizer */}
-                  <div className="relative w-40 h-40 mx-auto">
+                  <button
+                    type="button"
+                    onClick={toggleMicMute}
+                    className={`mt-3 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all duration-200 ${
+                      isMicMuted
+                        ? "border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-300"
+                        : "border-slate-200 bg-slate-900 text-white hover:bg-slate-800 dark:border-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+                    }`}
+                    aria-pressed={isMicMuted}
+                    aria-label={
+                      isMicMuted
+                        ? "Réactiver le microphone"
+                        : "Couper le microphone"
+                    }
+                  >
+                    {isMicMuted ? (
+                      <MicOffIcon className="w-4 h-4" />
+                    ) : (
+                      <MicIcon className="w-4 h-4" />
+                    )}
+                    {isMicMuted ? "Réactiver le microphone" : "Couper le microphone"}
+                  </button>
+
+                  <div className="relative mx-auto mt-5 h-32 w-32">
                     <div className={`absolute inset-0 rounded-full ${darkMode ? "bg-slate-800/30" : "bg-primary-100/50"}`} />
                     {Array.from({ length: 36 }, (_, i) => {
                       const angle = (360 / 36) * i;
                       const displayPeak = isMicMuted ? 0 : micPeak;
                       const active = !isMicMuted && i < Math.max(3, Math.round(displayPeak * 36));
-                      const barHeight = active ? 16 + displayPeak * 24 : 8;
+                      const barHeight = active ? 12 + displayPeak * 18 : 6;
 
                       return (
                         <div
@@ -2625,25 +2581,25 @@ export default function App({
                           style={{
                             width: 4,
                             height: barHeight,
-                            transform: `translate(-50%, -100%) rotate(${angle}deg) translateY(-48px)`,
+                            transform: `translate(-50%, -100%) rotate(${angle}deg) translateY(-38px)`,
                             background: active
                               ? "linear-gradient(to top, #0d9488, #14b8a6)"
                               : isMicMuted
                                 ? darkMode
                                   ? "rgba(244, 63, 94, 0.16)"
                                   : "rgba(244, 63, 94, 0.18)"
-                              : darkMode
-                                ? "rgba(148, 163, 184, 0.2)"
-                                : "rgba(148, 163, 184, 0.3)",
+                                : darkMode
+                                  ? "rgba(148, 163, 184, 0.2)"
+                                  : "rgba(148, 163, 184, 0.3)",
                           }}
                         />
                       );
                     })}
-                    <div className={`absolute inset-0 m-auto w-20 h-20 rounded-full flex items-center justify-center ${
+                    <div className={`absolute inset-0 m-auto flex h-16 w-16 items-center justify-center rounded-full ${
                       darkMode ? "bg-slate-800 border border-slate-700" : "bg-white border border-slate-200"
                     }`}>
                       <span className="text-center">
-                        <span className="block text-2xl font-bold">
+                        <span className="block text-xl font-bold">
                           {isMicMuted ? "OFF" : Math.round(micPeak * 100)}
                         </span>
                         <span className={`block text-[10px] font-semibold uppercase tracking-[0.18em] ${mutedText}`}>
@@ -2653,16 +2609,103 @@ export default function App({
                     </div>
                   </div>
 
-                  <div className={`mt-4 text-center text-xs ${mutedText}`}>
-                    {isMicMuted
-                      ? "Le microphone est coupé. Votre voix n'est pas envoyée."
-                      : `RMS: ${formatPercent(micLevel)} | Peak: ${formatPercent(micPeak)}`}
+                  {isMicMuted ? (
+                    <div className={`mt-4 text-center text-xs ${mutedText}`}>
+                      Le microphone est coupé. Votre voix n&apos;est pas envoyée.
+                    </div>
+                  ) : null}
+
+                  <div className="mt-5 border-t border-slate-200/70 pt-5 dark:border-slate-700/60">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="text-sm font-semibold">Voix du patient</h3>
+                          <span
+                            className={`inline-flex h-4 w-4 items-center justify-center ${mutedText}`}
+                            title="Pré-sélection guidée par le sexe détecté, modifiable avant le démarrage."
+                            aria-label="Information sur la pré-sélection de la voix"
+                          >
+                            <InfoIcon className="h-3.5 w-3.5" />
+                          </span>
+                        </div>
+                      </div>
+                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
+                        voiceSelectionMode === "auto"
+                          ? darkMode
+                            ? "bg-slate-800 text-slate-200"
+                            : "bg-slate-100 text-slate-600"
+                          : darkMode
+                            ? "bg-primary-500/15 text-primary-300"
+                            : "bg-primary-100 text-primary-700"
+                      }`}>
+                        {voiceSelectionMode === "auto" ? "Auto" : "Custom"}
+                      </span>
+                    </div>
+
+                    <div className={`mt-4 rounded-xl border ${subCardBg} p-3`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
+                              darkMode
+                                ? "bg-slate-800 text-slate-300"
+                                : "bg-slate-100 text-slate-500"
+                            }`}>
+                              {selectedVoiceOption?.gender === "male" ? (
+                                <VoiceMaleIcon className="h-3.5 w-3.5" />
+                              ) : (
+                                <VoiceFemaleIcon className="h-3.5 w-3.5" />
+                              )}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-semibold leading-tight">
+                                {selectedVoiceOption?.label ?? selectedVoiceName}
+                              </div>
+                              <div className={`mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] ${mutedText}`}>
+                                <span className={`rounded-full px-2 py-0.5 ${
+                                  darkMode ? "bg-slate-800 text-slate-300" : "bg-slate-100 text-slate-600"
+                                }`}>
+                                  {selectedVoiceOption?.gender === "male"
+                                    ? "Voix masculine"
+                                    : "Voix féminine"}
+                                </span>
+                                {favoriteVoiceNames.includes(selectedVoiceName) ? (
+                                  <span className={`rounded-full px-2 py-0.5 ${
+                                    darkMode
+                                      ? "bg-rose-500/15 text-rose-300"
+                                      : "bg-rose-50 text-rose-600"
+                                  }`}>
+                                    Favori
+                                  </span>
+                                ) : null}
+                                <span className="opacity-70">Voix active</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setIsVoiceDrawerOpen(true)}
+                          disabled={!parsedReady}
+                          className={`shrink-0 rounded-xl border px-3 py-1.5 text-sm font-medium transition-all ${
+                            parsedReady
+                              ? darkMode
+                                ? "border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700"
+                                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                              : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-700 dark:bg-slate-800"
+                          }`}
+                        >
+                          Modifier
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Transcript */}
-              <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+              <div className={`flex h-full min-h-0 flex-col rounded-2xl border ${cardBg} p-6 shadow-soft`}>
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <h3 className="text-lg font-semibold">Transcription en direct</h3>
                   <button
@@ -2686,12 +2729,12 @@ export default function App({
                 </div>
                 <div
                   ref={transcriptRef}
-                  className={`${transcriptHeightClass} overflow-y-auto rounded-xl p-4 ${
+                  className={`${transcriptPanelMinHeightClass} min-h-0 flex-1 overflow-y-auto rounded-xl ${
                     darkMode ? "bg-slate-950/50" : "bg-slate-50/80"
                   }`}
                 >
                   {transcriptForDisplay.length === 0 && !showDraftIndicatorForDisplay ? (
-                    <div className="h-full flex items-center justify-center">
+                    <div className="flex h-full items-center justify-center rounded-xl p-4">
                       <div className="text-center">
                         <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl ${subtleBg} flex items-center justify-center`}>
                           <ActivityIcon className={`w-8 h-8 ${mutedText}`} />
@@ -2718,7 +2761,7 @@ export default function App({
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-3 p-4">
                       {transcriptForDisplay.map((entry) => (
                         <div
                           key={entry.id}
@@ -2825,90 +2868,10 @@ export default function App({
               </div>
             </div>
 
-          {/* Results */}
-          <div ref={resultsRef} className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
-            <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-              <div>
-                <h2 className="text-xl font-bold">Résultats d'évaluation</h2>
-                <p className={`mt-1 text-sm ${mutedText}`}>
-                  {evaluation
-                    ? "Synthèse de la correction et utilitaires de session."
-                    : "La correction apparaîtra ici à la fin de la session."}
-                </p>
-              </div>
-              <div className="flex w-full flex-col gap-3 xl:w-auto xl:min-w-[430px]">
-                {recordedAudioUrl && (
-                  <RecordingPlayer
-                    src={recordedAudioUrl}
-                    darkMode={darkMode}
-                    playbackRate={settings.recordedAudioPlaybackRate}
-                  />
-                )}
-                <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-                {canRerunEvaluation && (
-                  <button
-                    onClick={handleRerunEvaluation}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-primary-600 hover:bg-primary-700 text-white transition-all duration-200"
-                  >
-                    Re-run evaluation
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() =>
-                    void copyTextToClipboard(
-                      evaluationCopyText,
-                      "L'évaluation a été copiée.",
-                    )
-                  }
-                  disabled={!evaluation}
-                  className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                    darkMode
-                      ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
-                      : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
-                  } ${!evaluation ? "cursor-not-allowed opacity-40 saturate-50" : ""}`}
-                >
-                  <CopyIcon className="w-4 h-4" />
-                  Copy evaluation
-                </button>
-                <button
-                  onClick={exportPdf}
-                  disabled={!evaluation}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    evaluation
-                      ? "bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white"
-                      : "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed opacity-60"
-                  }`}
-                >
-                  <FileTextIcon className="w-4 h-4" />
-                  Export PDF
-                </button>
-                </div>
-              </div>
-            </div>
-
-            {!evaluation ? (
-              <div className={`rounded-xl ${subtleBg} px-6 py-6 text-center`}>
-                <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl ${subtleBg} flex items-center justify-center`}>
-                  <CheckIcon className={`w-8 h-8 ${mutedText}`} />
-                </div>
-                <p className={`text-sm ${mutedText}`}>
-                  Les résultats d'évaluation apparaîtront ici après la correction.
-                </p>
-              </div>
-            ) : (
-              <EvaluationReport
-                evaluation={evaluation}
-                darkMode={darkMode}
-                feedbackDetailLabel={formatFeedbackDetailLabel(
-                  lastEvaluatedFeedbackDetailLevel ?? settings.feedbackDetailLevel,
-                )}
-              />
-            )}
-          </div>
           </div>
         </div>
       </main>
+      )}
 
       {/* Evaluation Modal */}
       {isEvaluating && (
@@ -2949,6 +2912,196 @@ export default function App({
         onCancel={() => setSessionGuardDialog(null)}
         onConfirm={confirmSessionGuardAction}
       />
+
+      {isVoiceDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/35 backdrop-blur-sm">
+          <div
+            className="absolute inset-0"
+            onClick={() => setIsVoiceDrawerOpen(false)}
+            aria-hidden="true"
+          />
+          <aside
+            className={`relative h-full w-full max-w-[520px] overflow-y-auto border-l ${
+              darkMode
+                ? "border-slate-800 bg-slate-950 text-slate-100"
+                : "border-slate-200 bg-white text-slate-900"
+            } shadow-2xl`}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Choisir la voix du patient"
+          >
+            <div className={`sticky top-0 z-10 border-b px-6 py-5 backdrop-blur ${
+              darkMode
+                ? "border-slate-800 bg-slate-950/90"
+                : "border-slate-200 bg-white/92"
+            }`}>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold">Choisir la voix du patient</h2>
+                  <p className={`mt-1 text-sm ${mutedText}`}>
+                    Sélectionnez une voix avant le démarrage de la discussion.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsVoiceDrawerOpen(false)}
+                  className={`flex h-10 w-10 items-center justify-center rounded-xl border transition-colors ${
+                    darkMode
+                      ? "border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"
+                      : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                  }`}
+                  aria-label="Fermer le panneau des voix"
+                >
+                  <XIcon className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-6 px-6 py-6">
+              {[
+                { title: "Voix féminines", voices: FEMALE_VOICE_OPTIONS },
+                { title: "Voix masculines", voices: MALE_VOICE_OPTIONS },
+              ].map((group) => (
+                <section key={group.title}>
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${mutedText}`}>
+                      {group.title}
+                    </div>
+                    <span className={`text-xs ${mutedText}`}>{group.voices.length} voix</span>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {group.voices.map((voice) => {
+                      const isSelected = selectedVoiceName === voice.value;
+                      const isFavorite = favoriteVoiceNames.includes(voice.value);
+                      const canPreviewVoice = hasVoicePreviewSample(voice.value);
+                      const isPlayingPreview = playingVoicePreviewName === voice.value;
+                      const previewProgressDegrees = Math.round(voicePreviewProgress * 360);
+
+                      return (
+                        <div
+                          key={voice.value}
+                          className={`flex items-center gap-2 rounded-xl border px-3 py-3 transition-all ${
+                            isSelected
+                              ? darkMode
+                                ? "border-primary-400 bg-primary-500/10 text-slate-50"
+                                : "border-primary-300 bg-primary-50 text-slate-900"
+                              : darkMode
+                                ? "border-slate-700 bg-slate-900/60 text-slate-200"
+                                : "border-slate-200 bg-white text-slate-700"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedVoiceName(voice.value);
+                              setVoiceSelectionMode("manual");
+                            }}
+                            disabled={!canEditVoice}
+                            className={`flex min-w-0 flex-1 items-center gap-3 overflow-hidden text-left ${
+                              !canEditVoice ? "cursor-not-allowed opacity-60" : ""
+                            }`}
+                            aria-pressed={isSelected}
+                            aria-label={`Sélectionner la voix ${voice.label}`}
+                          >
+                            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                              isSelected
+                                ? darkMode
+                                  ? "bg-primary-500/20 text-primary-300"
+                                  : "bg-primary-100 text-primary-700"
+                                : darkMode
+                                  ? "bg-slate-800 text-slate-300"
+                                  : "bg-slate-100 text-slate-500"
+                            }`}>
+                              {voice.gender === "male" ? (
+                                <VoiceMaleIcon className="h-5 w-5" />
+                              ) : (
+                                <VoiceFemaleIcon className="h-5 w-5" />
+                              )}
+                            </span>
+                            <div className="min-w-0 flex-1 overflow-hidden">
+                              <div className="truncate pr-1 text-sm font-semibold">{voice.label}</div>
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => toggleFavoriteVoice(voice.value)}
+                            disabled={!canToggleFavoriteVoice}
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-all ${
+                              isFavorite
+                                ? "border-rose-300 bg-rose-500 text-white shadow-sm shadow-rose-500/20 dark:border-rose-500 dark:bg-rose-500"
+                                : darkMode
+                                  ? "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600 hover:bg-slate-800"
+                                  : "border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300 hover:bg-white"
+                            } ${!canToggleFavoriteVoice ? "cursor-not-allowed opacity-50" : ""}`}
+                            aria-pressed={isFavorite}
+                            aria-label={
+                              isFavorite
+                                ? `Retirer ${voice.label} des favoris`
+                                : `Ajouter ${voice.label} aux favoris`
+                            }
+                          >
+                            <HeartIcon className="h-3.5 w-3.5" filled={isFavorite} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void toggleVoicePreview(voice.value);
+                            }}
+                            disabled={!canPreviewVoice}
+                            className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-all ${
+                              canPreviewVoice
+                                ? darkMode
+                                  ? "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600 hover:bg-slate-800"
+                                  : "border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300 hover:bg-white"
+                                : "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-300 opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-600"
+                            }`}
+                            aria-label={
+                              !canPreviewVoice
+                                ? `Aucun aperçu disponible pour ${voice.label}`
+                                : isPlayingPreview && !isVoicePreviewPaused
+                                  ? `Mettre en pause l'aperçu de ${voice.label}`
+                                  : isPlayingPreview && isVoicePreviewPaused
+                                    ? `Reprendre l'aperçu de ${voice.label}`
+                                    : `Écouter l'aperçu de ${voice.label}`
+                            }
+                          >
+                            {isPlayingPreview ? (
+                              <span
+                                className="absolute inset-0 rounded-lg"
+                                style={{
+                                  background: `conic-gradient(from 0deg, ${
+                                    darkMode ? "#5eead4" : "#14b8a6"
+                                  } 0deg, ${
+                                    darkMode ? "#5eead4" : "#14b8a6"
+                                  } ${previewProgressDegrees}deg, transparent ${previewProgressDegrees}deg 360deg)`,
+                                  mask: "radial-gradient(farthest-side, transparent calc(100% - 2px), black calc(100% - 2px))",
+                                  WebkitMask: "radial-gradient(farthest-side, transparent calc(100% - 2px), black calc(100% - 2px))",
+                                }}
+                              />
+                            ) : null}
+                            <span className={`relative z-10 flex h-6 w-6 items-center justify-center rounded-md ${
+                              darkMode ? "bg-slate-900" : "bg-white"
+                            }`}>
+                              {isPlayingPreview && !isVoicePreviewPaused ? (
+                                <PauseIcon className="h-3.5 w-3.5" />
+                              ) : (
+                                <PlayIcon className="h-3.5 w-3.5" />
+                              )}
+                            </span>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </aside>
+        </div>
+      )}
 
       {readinessDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
