@@ -2149,16 +2149,6 @@ export default function App({
             </div>
 
             <div className="flex items-center gap-3">
-              {patientInfo.length > 0 && (
-                <div className={`flex items-center gap-3 px-4 py-2 rounded-xl ${subCardBg} border`}>
-                  <UserIcon className={`w-4 h-4 ${mutedText}`} />
-                  <div className="text-sm">
-                    <span className="font-semibold">{parsedCase.patientName || "Patient"}</span>
-                    <span className={`${mutedText} ml-2`}>{parsedCase.patientAge}</span>
-                  </div>
-                </div>
-              )}
-
               <div className={`flex items-center rounded-xl border p-1 ${
                 darkMode
                   ? "border-slate-700 bg-slate-800"
