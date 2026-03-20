@@ -253,6 +253,28 @@ export function EvaluationReport({
   const validationSummary = buildValidationSummary(observedCount, totalCount);
   const ringAngle = Math.max(0, Math.min(360, scoreState.ratio * 360));
   const isValidated = observedCount >= totalCount / 2;
+  const verdictTintClass = darkMode
+    ? scoreState.ratio >= 0.75
+      ? "bg-emerald-500/14"
+      : scoreState.ratio >= 0.45
+        ? "bg-amber-500/14"
+        : "bg-rose-500/14"
+    : scoreState.ratio >= 0.75
+      ? "bg-emerald-100/70"
+      : scoreState.ratio >= 0.45
+        ? "bg-amber-100/75"
+        : "bg-rose-100/70";
+  const verdictGlowClass = darkMode
+    ? scoreState.ratio >= 0.75
+      ? "bg-emerald-500/10"
+      : scoreState.ratio >= 0.45
+        ? "bg-amber-500/10"
+        : "bg-rose-500/10"
+    : scoreState.ratio >= 0.75
+      ? "bg-emerald-100/70"
+      : scoreState.ratio >= 0.45
+        ? "bg-amber-100/80"
+        : "bg-rose-100/70";
   const pageSectionClass = darkMode
     ? "rounded-[32px] bg-slate-900/72 p-6 shadow-[0_18px_54px_rgba(2,6,23,0.36)] ring-1 ring-inset ring-white/5 backdrop-blur-xl"
     : "rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm";
@@ -350,27 +372,9 @@ export function EvaluationReport({
                 <div
                   className={`relative flex h-[132px] w-[132px] flex-col items-center justify-center rounded-full ring-1 ring-inset ${
                     darkMode ? "ring-white/0" : "ring-white/50"
-                  } ${
-                    isValidated
-                      ? darkMode
-                        ? "bg-emerald-950/30"
-                        : "bg-emerald-50/70"
-                      : darkMode
-                        ? "bg-rose-950/40"
-                        : "bg-rose-50/70"
-                  }`}
+                  } ${verdictTintClass}`}
                 >
-                  <div
-                    className={`absolute inset-5 rounded-full blur-2xl ${
-                      isValidated
-                        ? darkMode
-                          ? "bg-emerald-500/10"
-                          : "bg-emerald-100/70"
-                        : darkMode
-                          ? "bg-rose-500/10"
-                          : "bg-rose-100/70"
-                    }`}
-                  />
+                  <div className={`absolute inset-5 rounded-full blur-2xl ${verdictGlowClass}`} />
                   <div className="flex items-end gap-1">
                     <span
                       className="relative text-5xl font-black tracking-tighter"

@@ -696,6 +696,7 @@ export default function App({
   const [remainingSeconds, setRemainingSeconds] = useState(
     settings.defaultTimerSeconds,
   );
+  const [lastSessionElapsedSeconds, setLastSessionElapsedSeconds] = useState(0);
   const [sessionGuardDialog, setSessionGuardDialog] = useState<{
     action: "reset" | "clear";
     title: string;
@@ -1626,9 +1627,11 @@ export default function App({
     let elapsedSummary = "";
 
     try {
+      const elapsedSeconds = sessionDurationSeconds - remainingSeconds;
       elapsedSummary = formatElapsedDiscussion(
-        sessionDurationSeconds - remainingSeconds,
+        elapsedSeconds,
       );
+      setLastSessionElapsedSeconds(elapsedSeconds);
       shouldSendAudioRef.current = false;
       await finalizeStudentDraft();
       sessionRef.current?.sendRealtimeInput?.({ audioStreamEnd: true });
@@ -1745,6 +1748,7 @@ export default function App({
       }
 
       setRecordedAudioUrl(null);
+      setLastSessionElapsedSeconds(0);
     }
   }
 
@@ -2344,7 +2348,7 @@ export default function App({
               feedbackDetailLabel={formatFeedbackDetailLabel(
                 lastEvaluatedFeedbackDetailLevel ?? settings.feedbackDetailLevel,
               )}
-              elapsedSeconds={sessionDurationSeconds - remainingSeconds}
+              elapsedSeconds={lastSessionElapsedSeconds}
             />
           </div>
         </main>
