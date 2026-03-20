@@ -2082,16 +2082,16 @@ export default function App({
     : "bg-gradient-to-br from-slate-50 via-white to-slate-100";
   const textClass = darkMode ? "text-slate-100" : "text-slate-900";
   const cardBg = darkMode
-    ? "bg-slate-900/72 border-white/10 ring-1 ring-inset ring-white/5 shadow-[0_12px_40px_rgba(2,6,23,0.38)] backdrop-blur-xl"
+    ? "bg-slate-900/72 shadow-[0_12px_40px_rgba(2,6,23,0.38)] backdrop-blur-xl"
     : "bg-white/90 border-slate-200/60";
   const subCardBg = darkMode
-    ? "bg-slate-800/55 border-white/8 ring-1 ring-inset ring-white/5"
+    ? "bg-slate-800/55"
     : "bg-slate-50/80 border-slate-200/50";
   const inputBg = darkMode
-    ? "bg-slate-950/80 border-white/10 text-slate-100 placeholder-slate-500 ring-1 ring-inset ring-white/5"
+    ? "bg-slate-950/80 border-transparent text-slate-100 placeholder-slate-500"
     : "bg-white border-slate-200 text-slate-900 placeholder-slate-400";
   const mutedText = darkMode ? "text-slate-300/90" : "text-slate-500";
-  const subtleBg = darkMode ? "bg-slate-800/45 ring-1 ring-inset ring-white/5" : "bg-slate-100/60";
+  const subtleBg = darkMode ? "bg-slate-800/45" : "bg-slate-100/60";
 
   // Status indicator
   const getStatusColor = () => {
@@ -2151,7 +2151,7 @@ export default function App({
             <div className="flex items-center gap-3">
               <div className={`flex items-center rounded-xl border p-1 ${
                 darkMode
-                  ? "border-slate-700 bg-slate-800"
+                  ? "border-transparent bg-slate-800"
                   : "border-slate-200 bg-white"
               }`}>
                 <button
@@ -2197,7 +2197,7 @@ export default function App({
                 onClick={onOpenDashboard}
                 className={`p-2.5 rounded-xl border transition-all duration-200 ${
                   darkMode
-                    ? "border-white/10 bg-slate-800/70 ring-1 ring-inset ring-white/5 hover:bg-slate-700/80"
+                    ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
                     : "border-slate-200 bg-white hover:bg-slate-50"
                 }`}
                 aria-label="Open dashboard"
@@ -2209,7 +2209,7 @@ export default function App({
                 onClick={() => onDarkModeChange(!darkMode)}
                 className={`p-2.5 rounded-xl border transition-all duration-200 ${
                   darkMode
-                    ? "border-white/10 bg-slate-800/70 ring-1 ring-inset ring-white/5 hover:bg-slate-700/80"
+                    ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
                     : "border-slate-200 bg-white hover:bg-slate-50"
                 }`}
                 aria-label="Basculer le mode sombre"
@@ -2226,7 +2226,7 @@ export default function App({
                 onClick={onOpenSettings}
                 className={`p-2.5 rounded-xl border transition-all duration-200 ${
                   darkMode
-                    ? "border-white/10 bg-slate-800/70 ring-1 ring-inset ring-white/5 hover:bg-slate-700/80"
+                    ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
                     : "border-slate-200 bg-white hover:bg-slate-50"
                 }`}
                 aria-label="Open settings"
@@ -2242,7 +2242,7 @@ export default function App({
       {showEvaluationReport && evaluation ? (
         <main className="mx-auto max-w-[1280px] px-6 py-8">
           <div className="space-y-6">
-            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
                 <div className="min-w-0">
                   <button
@@ -2253,7 +2253,7 @@ export default function App({
                     }}
                     className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all ${
                       darkMode
-                        ? "border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700"
+                        ? "border-transparent bg-slate-800 text-slate-100 hover:bg-slate-700"
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
@@ -2281,7 +2281,7 @@ export default function App({
                           onClick={() => setShowReportAudioPlayer((current) => !current)}
                           className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
                             darkMode
-                              ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
+                              ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
                               : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
                           }`}
                         >
@@ -2293,7 +2293,7 @@ export default function App({
                           onClick={downloadRecordedAudio}
                           className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
                             darkMode
-                              ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
+                              ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
                               : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
                           }`}
                         >
@@ -2312,7 +2312,7 @@ export default function App({
                       }
                       className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
                         darkMode
-                          ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
+                          ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
                           : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
                       }`}
                     >
@@ -2354,7 +2354,7 @@ export default function App({
           {/* Left Sidebar */}
           <div className="space-y-6">
             {/* Case Input */}
-            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
               <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
                 <h2 className="flex min-w-0 items-center gap-2 whitespace-nowrap text-base font-semibold md:text-lg">
                   <FileTextIcon className="h-5 w-5 shrink-0 text-primary-500" />
@@ -2402,7 +2402,7 @@ export default function App({
             </div>
 
             {/* Patient Info */}
-            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
               <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <UserIcon className="w-5 h-5 text-primary-500" />
                 Informations patient
@@ -2412,7 +2412,7 @@ export default function App({
                 {displayedPatientInfo.map((item) => (
                   <div
                     key={`${item.label}-${item.value}`}
-                    className={`p-3 rounded-xl ${subCardBg} border transition-opacity ${
+                    className={`p-3 rounded-xl ${subCardBg} ${darkMode ? "" : "border"} transition-opacity ${
                       patientInfo.length === 0 ? "opacity-60" : ""
                     }`}
                   >
@@ -2432,7 +2432,7 @@ export default function App({
           {/* Main Panel */}
           <div className="space-y-6">
             {/* Session Controls */}
-            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
               <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                 <div className="flex min-w-0 items-center gap-4">
                   <div className={`w-3 h-3 rounded-full ${getStatusColor()} ${conversationPhase !== "idle" ? "animate-pulse" : ""}`} />
@@ -2452,10 +2452,10 @@ export default function App({
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
                       canStart
                         ? darkMode
-                          ? "bg-primary-500 text-white shadow-lg shadow-primary-500/20 ring-1 ring-inset ring-white/10 hover:bg-primary-400"
+                          ? "bg-primary-500 text-white shadow-lg shadow-primary-500/20 hover:bg-primary-400"
                           : "bg-primary-600 text-white shadow-lg shadow-primary-500/20 hover:bg-primary-700"
                         : darkMode
-                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500 ring-1 ring-inset ring-white/5"
+                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
                           : "bg-slate-200 text-slate-400 cursor-not-allowed"
                     }`}
                   >
@@ -2469,10 +2469,10 @@ export default function App({
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
                       canPause || isPaused
                         ? darkMode
-                          ? "bg-slate-800/85 text-slate-100 ring-1 ring-inset ring-white/5 hover:bg-slate-700/90"
+                          ? "bg-slate-800/85 text-slate-100 hover:bg-slate-700/90"
                           : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
                         : darkMode
-                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500 ring-1 ring-inset ring-white/5"
+                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
                           : "bg-slate-200 text-slate-400 cursor-not-allowed"
                     }`}
                   >
@@ -2490,10 +2490,10 @@ export default function App({
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
                       canEnd
                         ? darkMode
-                          ? "bg-slate-800/85 text-slate-100 ring-1 ring-inset ring-white/5 hover:bg-slate-700/90"
+                          ? "bg-slate-800/85 text-slate-100 hover:bg-slate-700/90"
                           : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
                         : darkMode
-                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500 ring-1 ring-inset ring-white/5"
+                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
                           : "bg-slate-200 text-slate-400 cursor-not-allowed"
                     }`}
                   >
@@ -2507,10 +2507,10 @@ export default function App({
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
                       canJudge
                         ? darkMode
-                          ? "bg-slate-800/85 text-slate-100 ring-1 ring-inset ring-white/5 hover:bg-slate-700/90"
+                          ? "bg-slate-800/85 text-slate-100 hover:bg-slate-700/90"
                           : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
                         : darkMode
-                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500 ring-1 ring-inset ring-white/5"
+                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
                           : "bg-slate-200 text-slate-400 cursor-not-allowed"
                     }`}
                   >
@@ -2524,10 +2524,10 @@ export default function App({
                     className={`flex min-w-[112px] items-center justify-center gap-2 rounded-xl px-5 py-2.5 font-medium text-sm transition-all duration-200 ${
                       canResetSession
                         ? darkMode
-                          ? "bg-slate-800/85 text-slate-100 ring-1 ring-inset ring-white/5 hover:bg-slate-700/90"
+                          ? "bg-slate-800/85 text-slate-100 hover:bg-slate-700/90"
                           : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
                         : darkMode
-                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500 ring-1 ring-inset ring-white/5"
+                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
                           : "bg-slate-200 text-slate-400 cursor-not-allowed"
                     }`}
                   >
@@ -2540,13 +2540,13 @@ export default function App({
 
             {/* Discussion Area */}
             <div className={`grid min-h-0 items-start grid-cols-1 gap-6 lg:grid-cols-[320px_1fr] ${discussionPanelHeightClass}`}>
-              <div className={`self-start rounded-2xl border ${cardBg} p-6 shadow-soft lg:h-full`}>
+              <div className={`self-start rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft lg:h-full`}>
                 <div className="flex items-center gap-2">
                   <ClockIcon className={`h-4 w-4 ${mutedText}`} />
                   <span className="text-sm font-semibold">Outils de session</span>
                 </div>
 
-                <div className="mt-5 rounded-2xl border border-slate-200/70 p-5 dark:border-slate-700/60">
+                <div className={`mt-5 rounded-2xl p-5 ${darkMode ? "bg-slate-950/36" : "border border-slate-200/70"}`}>
                   <div className="flex items-center gap-2">
                     <ClockIcon className={`w-4 h-4 ${mutedText}`} />
                     <span className={`text-sm font-medium ${mutedText}`}>Temps restant</span>
@@ -2651,10 +2651,10 @@ export default function App({
                       className={`absolute inset-0 z-10 m-auto flex h-16 w-16 items-center justify-center rounded-full transition-all ${
                         isMicMuted
                           ? darkMode
-                            ? "border border-rose-800 bg-slate-900"
+                            ? "border-transparent bg-slate-900"
                             : "border border-rose-200 bg-white"
                           : darkMode
-                            ? "border border-slate-700 bg-slate-800 hover:bg-slate-700"
+                            ? "border-transparent bg-slate-800 hover:bg-slate-700"
                             : "border border-slate-200 bg-white hover:bg-slate-50"
                       }`}
                     >
@@ -2693,7 +2693,7 @@ export default function App({
                       </span>
                     </div>
 
-                    <div className={`mt-4 rounded-xl border ${subCardBg} p-3`}>
+                    <div className={`mt-4 rounded-xl ${darkMode ? "" : "border"} ${subCardBg} p-3`}>
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
@@ -2739,12 +2739,12 @@ export default function App({
                           type="button"
                           onClick={() => setIsVoiceDrawerOpen(true)}
                           disabled={!parsedReady}
-                          className={`shrink-0 rounded-xl border px-3 py-1.5 text-sm font-medium transition-all ${
+                          className={`shrink-0 rounded-xl ${darkMode ? "" : "border"} px-3 py-1.5 text-sm font-medium transition-all ${
                             parsedReady
                               ? darkMode
-                                ? "border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700"
+                                ? "border-transparent bg-slate-800 text-slate-100 hover:bg-slate-700"
                                 : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                              : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-700 dark:bg-slate-800"
+                              : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 dark:border-transparent dark:bg-slate-800"
                           }`}
                         >
                           Modifier
@@ -2756,7 +2756,7 @@ export default function App({
               </div>
 
               {/* Transcript */}
-              <div className={`flex ${transcriptPanelHeightClass} min-h-0 flex-col overflow-hidden rounded-2xl border ${cardBg} p-6 shadow-soft lg:h-full`}>
+              <div className={`flex ${transcriptPanelHeightClass} min-h-0 flex-col overflow-hidden rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft lg:h-full`}>
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <h3 className="text-lg font-semibold">Transcription en direct</h3>
                   <button
@@ -2770,7 +2770,7 @@ export default function App({
                     disabled={!canCopyTranscript}
                     className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
                       darkMode
-                        ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
+                        ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
                         : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
                     } ${!canCopyTranscript ? "cursor-not-allowed opacity-60" : ""}`}
                   >
