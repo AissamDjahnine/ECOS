@@ -2137,7 +2137,7 @@ export default function App({
   };
 
   return (
-    <div className={`min-h-screen ${theme} ${bgClass} ${textClass} transition-colors duration-300`}>
+    <div className={`flex min-h-screen flex-col ${theme} ${bgClass} ${textClass} transition-colors duration-300`}>
       {/* Header */}
       <header className="sticky top-0 z-40 backdrop-blur-xl border-b border-slate-200/20 dark:border-slate-700/20">
         <div className="max-w-[1600px] mx-auto px-6 py-4">
@@ -2244,7 +2244,7 @@ export default function App({
 
       {/* Main Content */}
       {showEvaluationReport && evaluation ? (
-        <main className="mx-auto max-w-[1280px] px-6 py-8">
+        <main className="mx-auto w-full max-w-[1280px] flex-1 px-6 py-8">
           <div className="space-y-6">
             <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
@@ -2353,7 +2353,7 @@ export default function App({
           </div>
         </main>
       ) : (
-      <main className="max-w-[1600px] mx-auto px-6 py-8">
+      <main className="max-w-[1600px] mx-auto w-full flex-1 px-6 py-8">
         <div className="grid grid-cols-1 xl:grid-cols-[470px_1fr] gap-6">
           {/* Left Sidebar */}
           <div className="space-y-6">
@@ -2971,6 +2971,17 @@ export default function App({
         </div>
       </main>
       )}
+
+      <div className={`mt-auto w-full px-8 pb-8 pt-6 text-center text-xs leading-relaxed ${mutedText}`}>
+        <div className="mx-auto max-w-4xl">
+          <span className="block">
+            Echo-IA utilise une technologie d&apos;intelligence artificielle de pointe pour la transcription.
+          </span>
+          <span className="block">
+            Bien que performant, des erreurs peuvent subsister. Nous vous recommandons de vérifier les points critiques à l&apos;aide de l&apos;audio original intégré.
+          </span>
+        </div>
+      </div>
 
       {/* Evaluation Modal */}
       {isEvaluating && (
