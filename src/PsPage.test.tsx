@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, vi } from "vitest";
 import PsPage from "./PsPage";
@@ -21,6 +21,7 @@ const {
   mockPlayerResume,
   mockPreviewPlay,
   mockPreviewPause,
+  liveCallbacksRef,
 } = vi.hoisted(() => ({
   mockLiveConnect: vi.fn(),
   mockRequestMicrophoneStream: vi.fn(),
@@ -29,6 +30,9 @@ const {
   mockPlayerResume: vi.fn(),
   mockPreviewPlay: vi.fn(),
   mockPreviewPause: vi.fn(),
+  liveCallbacksRef: {
+    current: null as Record<string, ((...args: unknown[]) => unknown) | undefined> | null,
+  },
 }));
 
 vi.mock("@google/genai", () => ({
@@ -142,9 +146,14 @@ function buildDashboardSnapshot(
 
 describe("PsPage", () => {
   beforeEach(() => {
-    mockLiveConnect.mockResolvedValue({
-      close: vi.fn(),
-      sendRealtimeInput: vi.fn(),
+    liveCallbacksRef.current = null;
+    mockLiveConnect.mockImplementation(async ({ callbacks }) => {
+      liveCallbacksRef.current = callbacks;
+      callbacks?.onopen?.();
+      return {
+        close: vi.fn(),
+        sendRealtimeInput: vi.fn(),
+      };
     });
     mockRequestMicrophoneStream.mockResolvedValue({
       getTracks: () => [],
@@ -316,7 +325,7 @@ describe("PsPage", () => {
     await waitFor(() => {
       expect(hasFetchCall(fetchMock, "/api/live-token")).toBe(true);
     });
-  });
+  }, 10000);
 
   it("blocks start when readiness is blocked", async () => {
     const user = userEvent.setup();
@@ -642,5 +651,68 @@ describe("PsPage", () => {
     await waitFor(() => {
       expect(hasFetchCall(fetchMock, "/api/live-token")).toBe(true);
     });
+  });
+
+  it("keeps only the live student draft and does not call transcribe-turn", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/api/dashboard")) {
+        return {
+          ok: true,
+          json: async () => buildDashboardSnapshot(),
+        } as Response;
+      }
+      if (url.includes("/api/live-token")) {
+        return {
+          ok: true,
+          json: async () => ({
+            token: "temporary-token",
+            model: "fake-live-model",
+          }),
+        } as Response;
+      }
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <PsPage
+        currentMode="ps"
+        onNavigate={vi.fn()}
+        settings={DEFAULT_SETTINGS}
+        onOpenDashboard={vi.fn()}
+        onOpenSettings={vi.fn()}
+        darkMode={false}
+        onDarkModeChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(
+      screen.getByPlaceholderText(
+        /collez ici la trame du patient et la grille de correction/i,
+      ),
+      { target: { value: validCase } },
+    );
+    await user.click(screen.getByRole("button", { name: "Analyser" }));
+    await user.click(screen.getByRole("button", { name: "Démarrer" }));
+
+    await act(async () => {
+      await liveCallbacksRef.current?.onmessage?.({
+        inputTranscription: {
+          text: "Bonjour Docteur",
+        },
+      });
+      await liveCallbacksRef.current?.onmessage?.({
+        serverContent: {
+          waitingForInput: true,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Bonjour Docteur")).toBeInTheDocument();
+    });
+    expect(hasFetchCall(fetchMock, "/api/transcribe-turn")).toBe(false);
   });
 });

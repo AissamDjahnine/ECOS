@@ -1092,54 +1092,17 @@ export default function App({
 
     const entryId = crypto.randomUUID();
 
+    setTranscript((current) => [
+      ...current,
+      {
+        id: entryId,
+        role: "student",
+        text: fallbackText || "…",
+        timestamp: createTimestamp(),
+      },
+    ]);
+
     try {
-      if (audioChunks.length > 0) {
-        const audioBlob = new Blob(audioChunks, {
-          type: "audio/pcm;rate=16000",
-        });
-        const arrayBuffer = await audioBlob.arrayBuffer();
-        const base64Audio = uint8ToBase64(new Uint8Array(arrayBuffer));
-
-        const response = await fetch("/api/transcribe-turn", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            audioBase64: base64Audio,
-            mimeType: "audio/pcm;rate=16000",
-            googleApiKey: settings.googleApiKey || undefined,
-            sessionId: currentSessionIdRef.current || undefined,
-          }),
-        });
-
-        if (response.ok) {
-          const result = (await response.json()) as { text?: string };
-          const improvedText = result.text?.trim();
-
-          if (improvedText) {
-            setTranscript((current) =>
-              [
-                ...current,
-                {
-                  id: entryId,
-                  role: "student",
-                  text: improvedText,
-                  timestamp: createTimestamp(),
-                },
-              ],
-            );
-            return;
-          }
-        }
-      }
-
-      if (fallbackText) {
-        setTranscript((current) =>
-          upsertTranscriptEntryById(current, entryId, "student", fallbackText),
-        );
-      }
-    } catch {
       if (fallbackText) {
         setTranscript((current) =>
           upsertTranscriptEntryById(current, entryId, "student", fallbackText),

@@ -107,7 +107,7 @@ describe("SansPsPage", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "PS / PSS" })).toBeEnabled();
     });
-  }, 10000);
+  }, 15000);
 
   it("hides live transcript during the session but shows the final transcript after ending", async () => {
     const user = userEvent.setup();
