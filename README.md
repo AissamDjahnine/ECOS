@@ -1,6 +1,6 @@
 # ECOS-AI
 
-Voice-first ECOS practice with a live AI patient, transcript review, audio replay, usage monitoring, and automatic grading against a case-specific correction grid.
+Voice-first ECOS practice with a live AI patient, transcript review, audio replay, usage monitoring, AI-assisted transcript enhancement, and automatic grading against a case-specific correction grid.
 
 ![ECOS-AI interface](assets/screenshots/ecos-ai-ui.png)
 
@@ -17,13 +17,18 @@ The project follows a bring-your-own-key workflow: you run the app locally and u
   - `Sans PS`: monologue mode with silence-based student transcription
 - Parses copied ECOS material into patient context and grading criteria.
 - Displays the discussion transcript in real time, with configurable transcript and system-message visibility.
+- Lets `Sans PS` optionally enhance the transcript with AI after the session ends, then use either the raw or corrected transcript as the evaluation source.
 - Records the station audio for replay after the discussion ends.
 - Evaluates student performance against the provided correction grid.
+- Normalizes the final score from the observed criteria count so report totals stay consistent.
 - Adds guardrails around very short discussions before evaluation starts.
 - Exports formatted PDF reports with transcript, score, mode, and evaluation detail level.
+- Includes both corrected and raw transcript variants in `Sans PS` PDF export when AI transcript correction is enabled.
 - Tracks local API usage, token estimates, readiness state, and estimated spend in a dashboard drawer.
 - Lets you configure timer defaults, auto-evaluation, playback speed, PDF export behavior, and feedback detail level.
 - Lets you choose the patient voice in `PS / PSS`, with sex-guided auto-selection, favorites, and local preview samples.
+- Uses consistent live audio capture settings across both modes, with smaller PCM chunks and aligned speech padding for more stable transcription.
+- Ships a refined evaluation report with score-aware palette logic in light and dark mode.
 
 ## Current Focus
 
@@ -127,12 +132,16 @@ Typical local URLs:
 - Parses patient metadata and correction grid.
 - Starts a live AI patient conversation.
 - Uses the selected patient voice for the live session.
+- Pause now behaves like a true microphone mute and resume explicitly unmutes again.
 - Preserves transcript, audio replay, PDF export, and evaluation workflow.
 
 ### Sans PS
 
 - Extracts the grading grid only.
 - Records a student monologue with silence-based transcription.
+- Keeps the student monologue in a single merged transcript bubble instead of splitting it across multiple temporary bubbles.
+- Preserves the last in-flight spoken segment on pause or mute before freezing the transcript.
+- Can run an optional end-of-session AI transcript correction pass and evaluate from that corrected transcript.
 - Reuses the same timer, transcript, replay, evaluation, PDF export, dashboard, and settings patterns.
 
 ## Settings
@@ -147,6 +156,7 @@ The settings drawer lets you configure:
 - feedback detail level
 - recorded audio playback speed
 - local Google API key override
+- transcript visibility and system-message visibility for both modes
 
 These settings are persisted in `localStorage`.
 
@@ -182,9 +192,10 @@ In `Sans PS` mode, the same selector layout remains visible but disabled to pres
 4. In `PS / PSS`, optionally adjust the patient voice before starting.
 5. Start the session and conduct the station orally.
 6. Pause or end the station when appropriate.
-7. Review the transcript and replay the recorded audio.
-8. Launch the evaluation and inspect the criterion-by-criterion feedback.
-9. Export the PDF report if needed.
+7. In `Sans PS`, optionally run `Correct transcript with AI` after the monologue ends.
+8. Review the transcript and replay the recorded audio.
+9. Launch the evaluation and inspect the criterion-by-criterion feedback.
+10. Export the PDF report if needed.
 
 ## Testing
 
@@ -207,6 +218,8 @@ The project includes:
 - Browser microphone permission is required.
 - A stable internet connection is required for Gemini Live.
 - Evaluation quality depends on transcript quality, grading prompt quality, and station structure.
+- AI transcript correction is optional, useful for readability and evaluation support, and can still make mistakes.
+- The original recorded audio remains the source to verify critical points when needed.
 - This is a training tool, not a certified medical assessment platform.
 
 ## Limitations
