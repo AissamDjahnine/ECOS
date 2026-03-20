@@ -26,5 +26,11 @@ pnpm-debug.log*
 
 # coverage
 coverage/
+test-results/
 
 backup
+CLAUDE.md
+ecos-professional-design.png
+
+# local dashboard persistence
+server/data/

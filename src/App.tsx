@@ -1,17 +1,28 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import PsPage from "./PsPage";
 import SansPsPage from "./SansPsPage";
-
-type RouteMode = "ps" | "sans-ps";
+import { DashboardDrawer } from "./DashboardDrawer";
+import { SettingsDrawer } from "./SettingsDrawer";
+import { ToastViewport } from "./ToastViewport";
+import { loadSettings, persistSettings } from "./lib/settings";
+import type { AppSettings, AppToast, AppToastTone, RouteMode } from "./types";
 
 function resolveMode(pathname: string): RouteMode {
-  return pathname === "/sans-ps" ? "sans-ps" : "ps";
+  if (pathname === "/sans-ps") {
+    return "sans-ps";
+  }
+
+  return "ps";
 }
 
 export default function App() {
-  const [mode, setMode] = useState<RouteMode>(() =>
-    resolveMode(window.location.pathname),
-  );
+  const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
+  const [mode, setMode] = useState<RouteMode>(() => resolveMode(window.location.pathname));
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [toast, setToast] = useState<AppToast | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const onPopState = () => {
@@ -24,6 +35,52 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    persistSettings(settings);
+  }, [settings]);
+
+  useEffect(() => {
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+
+    if (!toast) {
+      return;
+    }
+
+    toastTimerRef.current = window.setTimeout(() => {
+      setToast(null);
+      toastTimerRef.current = null;
+    }, 3200);
+
+    return () => {
+      if (toastTimerRef.current) {
+        window.clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = null;
+      }
+    };
+  }, [toast]);
+
+  const showToast = useCallback(
+    (title: string, body?: string, tone: AppToastTone = "info") => {
+      setToast({
+        id: crypto.randomUUID(),
+        title,
+        body,
+        tone,
+      });
+    },
+    [],
+  );
+
+  function handleSettingsChange(patch: Partial<AppSettings>) {
+    setSettings((current) => ({
+      ...current,
+      ...patch,
+    }));
+  }
+
   function navigate(nextMode: RouteMode) {
     const nextPath = nextMode === "sans-ps" ? "/sans-ps" : "/ps";
     if (window.location.pathname !== nextPath) {
@@ -33,10 +90,50 @@ export default function App() {
   }
 
   return (
-    mode === "sans-ps" ? (
-      <SansPsPage currentMode={mode} onNavigate={navigate} />
-    ) : (
-      <PsPage currentMode={mode} onNavigate={navigate} />
-    )
+    <>
+      {mode === "sans-ps" ? (
+        <SansPsPage
+          currentMode={mode}
+          onNavigate={navigate}
+          settings={settings}
+          onOpenDashboard={() => setIsDashboardOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          darkMode={darkMode}
+          onDarkModeChange={setDarkMode}
+          onShowToast={showToast}
+        />
+      ) : (
+        <PsPage
+          currentMode={mode}
+          onNavigate={navigate}
+          settings={settings}
+          onOpenDashboard={() => setIsDashboardOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          darkMode={darkMode}
+          onDarkModeChange={setDarkMode}
+          onShowToast={showToast}
+        />
+      )}
+      <SettingsDrawer
+        isOpen={isSettingsOpen}
+        darkMode={darkMode}
+        settings={settings}
+        onClose={() => setIsSettingsOpen(false)}
+        onChange={handleSettingsChange}
+        onShowToast={showToast}
+      />
+      <DashboardDrawer
+        isOpen={isDashboardOpen}
+        darkMode={darkMode}
+        settings={settings}
+        onClose={() => setIsDashboardOpen(false)}
+        onShowToast={showToast}
+      />
+      <ToastViewport
+        toast={toast}
+        darkMode={darkMode}
+        onDismiss={() => setToast(null)}
+      />
+    </>
   );
 }

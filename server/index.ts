@@ -10,6 +10,17 @@ import {
   TurnCoverage,
 } from "@google/genai";
 import { z } from "zod";
+import {
+  buildDashboardSnapshot,
+  classifyErrorType,
+  DEFAULT_USAGE_LEDGER_PATH,
+  estimateCostUsd,
+  loadUsageLedger,
+  persistUsageLedger,
+  type UsageEvent,
+} from "./dashboard";
+import { getFeedbackInstruction } from "./evaluation";
+import { isSupportedVoiceName } from "../src/lib/voices";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3001);
@@ -19,6 +30,60 @@ const evalModel = process.env.GEMINI_EVAL_MODEL ?? "gemini-2.5-flash";
 const liveModel =
   process.env.GEMINI_LIVE_MODEL ??
   "gemini-2.5-flash-native-audio-preview-12-2025";
+const usageEvents: UsageEvent[] = [];
+let usageLedgerWrite = Promise.resolve();
+
+function resolveApiKey(override?: string) {
+  const trimmedOverride = override?.trim();
+  if (trimmedOverride) {
+    return trimmedOverride;
+  }
+
+  return geminiApiKey;
+}
+
+function resolveKeySource(override?: string) {
+  if (override?.trim()) {
+    return "custom" as const;
+  }
+
+  return geminiApiKey ? ("server" as const) : ("missing" as const);
+}
+
+function resolveTrackableKeySource(override?: string) {
+  const keySource = resolveKeySource(override);
+  return keySource === "missing" ? ("server" as const) : keySource;
+}
+
+function recordUsageEvent(event: UsageEvent) {
+  usageEvents.push(event);
+
+  if (usageEvents.length > 5000) {
+    usageEvents.splice(0, usageEvents.length - 5000);
+  }
+
+  usageLedgerWrite = usageLedgerWrite
+    .catch(() => undefined)
+    .then(() => persistUsageLedger(usageEvents, DEFAULT_USAGE_LEDGER_PATH))
+    .catch((error) => {
+      console.error("Failed to persist usage ledger:", error);
+    });
+}
+
+function usageMetadataToCounts(usageMetadata?: {
+  promptTokenCount?: number;
+  candidatesTokenCount?: number;
+  totalTokenCount?: number;
+}) {
+  return {
+    inputTokens: usageMetadata?.promptTokenCount ?? 0,
+    outputTokens: usageMetadata?.candidatesTokenCount ?? 0,
+    totalTokens:
+      usageMetadata?.totalTokenCount ??
+      (usageMetadata?.promptTokenCount ?? 0) +
+        (usageMetadata?.candidatesTokenCount ?? 0),
+  };
+}
 
 function stripParentheticalStageDirections(text: string) {
   return text.replace(/\s*\(([^)]*)\)\s*/g, " ").replace(/\s{2,}/g, " ").trim();
@@ -36,14 +101,86 @@ app.get("/api/health", (_request, response) => {
   });
 });
 
-app.post("/api/live-token", async (request, response) => {
-  if (!geminiApiKey) {
-    response.status(500).send("Missing GEMINI_API_KEY.");
+app.post("/api/dashboard", (request, response) => {
+  const schema = z.object({
+    googleApiKey: z.string().optional(),
+    window: z.enum(["1h", "1d", "7d", "30d"]).optional().default("1d"),
+  });
+
+  const parsed = schema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json(parsed.error.flatten());
     return;
   }
 
+  response.json(
+    buildDashboardSnapshot({
+      events: usageEvents,
+      keySource: resolveKeySource(parsed.data.googleApiKey),
+      liveModel,
+      evalModel,
+      window: parsed.data.window,
+    }),
+  );
+});
+
+app.post("/api/usage/live", (request, response) => {
+  const schema = z.object({
+    sessionId: z.string().min(1),
+    googleApiKey: z.string().optional(),
+    inputTextTokens: z.number().nonnegative().default(0),
+    inputAudioTokens: z.number().nonnegative().default(0),
+    outputTextTokens: z.number().nonnegative().default(0),
+    outputAudioTokens: z.number().nonnegative().default(0),
+    totalTokens: z.number().nonnegative().default(0),
+  });
+
+  const parsed = schema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json(parsed.error.flatten());
+    return;
+  }
+
+  const keySource = resolveKeySource(parsed.data.googleApiKey);
+  if (keySource === "missing") {
+    response.status(200).json({ ok: true });
+    return;
+  }
+
+  recordUsageEvent({
+    endpoint: "live-usage",
+    model: liveModel,
+    keySource,
+    sessionId: parsed.data.sessionId,
+    occurredAt: new Date().toISOString(),
+    statusCode: 200,
+    outcome: "success",
+    inputTokens: parsed.data.inputTextTokens + parsed.data.inputAudioTokens,
+    outputTokens: parsed.data.outputTextTokens + parsed.data.outputAudioTokens,
+    totalTokens:
+      parsed.data.totalTokens ||
+      parsed.data.inputTextTokens +
+        parsed.data.inputAudioTokens +
+        parsed.data.outputTextTokens +
+        parsed.data.outputAudioTokens,
+    estimatedCostUsd: estimateCostUsd({
+      model: liveModel,
+      inputTextTokens: parsed.data.inputTextTokens,
+      inputAudioTokens: parsed.data.inputAudioTokens,
+      outputTextTokens: parsed.data.outputTextTokens,
+      outputAudioTokens: parsed.data.outputAudioTokens,
+    }),
+  });
+
+  response.json({ ok: true });
+});
+
+app.post("/api/live-token", async (request, response) => {
   const schema = z.object({
     patientScript: z.string().min(1),
+    googleApiKey: z.string().optional(),
+    sessionId: z.string().optional(),
+    voiceName: z.string().optional(),
   });
 
   const parsed = schema.safeParse(request.body);
@@ -53,8 +190,30 @@ app.post("/api/live-token", async (request, response) => {
   }
 
   try {
+    const apiKey = resolveApiKey(parsed.data.googleApiKey);
+    const keySource = resolveTrackableKeySource(parsed.data.googleApiKey);
+    if (!apiKey) {
+      recordUsageEvent({
+        endpoint: "live-token",
+        model: liveModel,
+        keySource: "server",
+        sessionId: parsed.data.sessionId,
+        occurredAt: new Date().toISOString(),
+        statusCode: 500,
+        outcome: "error",
+        errorType: "auth",
+        message: "Missing GEMINI_API_KEY.",
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        estimatedCostUsd: 0,
+      });
+      response.status(500).send("Missing GEMINI_API_KEY.");
+      return;
+    }
+
     const ai = new GoogleGenAI({
-      apiKey: geminiApiKey,
+      apiKey,
       httpOptions: {
         apiVersion: "v1alpha",
       },
@@ -63,6 +222,9 @@ app.post("/api/live-token", async (request, response) => {
     const cleanedPatientScript = stripParentheticalStageDirections(
       parsed.data.patientScript,
     );
+    const voiceName = isSupportedVoiceName(parsed.data.voiceName ?? "")
+      ? parsed.data.voiceName
+      : undefined;
 
     const systemInstruction = [
       "Tu es le patient décrit ci-dessous.",
@@ -84,6 +246,11 @@ app.post("/api/live-token", async (request, response) => {
       cleanedPatientScript,
     ].join("\n");
 
+    const promptTokenEstimate = await ai.models.countTokens({
+      model: liveModel,
+      contents: systemInstruction,
+    });
+
     const token = await ai.authTokens.create({
       config: {
         uses: 1,
@@ -93,6 +260,17 @@ app.post("/api/live-token", async (request, response) => {
           model: liveModel,
           config: {
             responseModalities: [Modality.AUDIO],
+            ...(voiceName
+              ? {
+                  speechConfig: {
+                    voiceConfig: {
+                      prebuiltVoiceConfig: {
+                        voiceName,
+                      },
+                    },
+                  },
+                }
+              : {}),
             inputAudioTranscription: {},
             outputAudioTranscription: {},
             realtimeInputConfig: {
@@ -117,25 +295,57 @@ app.post("/api/live-token", async (request, response) => {
       token: token.name,
       model: liveModel,
     });
+
+    recordUsageEvent({
+      endpoint: "live-token",
+      model: liveModel,
+      keySource,
+      sessionId: parsed.data.sessionId,
+      occurredAt: new Date().toISOString(),
+      statusCode: 200,
+      outcome: "success",
+      inputTokens: promptTokenEstimate.totalTokens ?? 0,
+      outputTokens: 0,
+      totalTokens: promptTokenEstimate.totalTokens ?? 0,
+      estimatedCostUsd: estimateCostUsd({
+        model: liveModel,
+        inputTextTokens: promptTokenEstimate.totalTokens ?? 0,
+      }),
+    });
   } catch (error) {
     const message =
       error instanceof Error
         ? error.message
         : "Unable to create live token.";
+    recordUsageEvent({
+      endpoint: "live-token",
+      model: liveModel,
+      keySource: resolveTrackableKeySource(parsed.data.googleApiKey),
+      sessionId: parsed.data.sessionId,
+      occurredAt: new Date().toISOString(),
+      statusCode: 500,
+      outcome: "error",
+      errorType: classifyErrorType(500, message),
+      message,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      estimatedCostUsd: 0,
+    });
     response.status(500).send(message);
   }
 });
 
 app.post("/api/evaluate", async (request, response) => {
-  if (!geminiApiKey) {
-    response.status(500).send("Missing GEMINI_API_KEY.");
-    return;
-  }
-
-
   const schema = z.object({
     transcript: z.string().min(1),
     gradingGrid: z.string().min(1),
+    feedbackDetailLevel: z
+      .enum(["brief", "standard", "detailed"])
+      .optional()
+      .default("standard"),
+    googleApiKey: z.string().optional(),
+    sessionId: z.string().optional(),
   });
 
   const parsed = schema.safeParse(request.body);
@@ -145,7 +355,18 @@ app.post("/api/evaluate", async (request, response) => {
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+    const apiKey = resolveApiKey(parsed.data.googleApiKey);
+    const keySource = resolveTrackableKeySource(parsed.data.googleApiKey);
+    if (!apiKey) {
+      response.status(500).send("Missing GEMINI_API_KEY.");
+      return;
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+
+    const feedbackInstruction = getFeedbackInstruction(
+      parsed.data.feedbackDetailLevel,
+    );
 
     const result = await ai.models.generateContent({
       model: evalModel,
@@ -161,7 +382,11 @@ app.post("/api/evaluate", async (request, response) => {
                 "Une information donnée spontanément par le patient ne suffit jamais à valider un critère.",
                 "Si seul le patient mentionne un élément sans question, vérification ou exploration claire par l'étudiant, le critère doit être non observé.",
                 "Ne crédite pas l'étudiant pour une information simplement entendue, acceptée passivement ou suivie d'un acquiescement vague.",
-                "Le feedback doit expliquer brièvement ce que l'étudiant a réellement fait ou n'a pas fait pour chaque critère.",
+                feedbackInstruction,
+                "Ajoute un champ `commentary` de 2 à 4 phrases maximum, rédigé en français, avec une synthèse professionnelle et personnalisée de la performance réelle de l'étudiant.",
+                "Le commentaire doit s'appuyer sur ce qui est effectivement observé dans le transcript et les critères validés ou manqués.",
+                "Le commentaire doit analyser en priorité la qualité du langage, le niveau d'explication, la technique d'entretien et la méthodologie clinique de l'étudiant.",
+                "Évite les généralités vagues et n'utilise jamais l'expression 'smart analysis'.",
                 "Retourne uniquement un JSON conforme au schema.",
                 "",
                 "Transcript:",
@@ -183,6 +408,11 @@ app.post("/api/evaluate", async (request, response) => {
               type: "string",
               description: "Score global sous la forme X/15",
             },
+            commentary: {
+              type: "string",
+              description:
+                "Synthèse personnalisée et concise de la performance de l'étudiant.",
+            },
             details: {
               type: "array",
               items: {
@@ -196,7 +426,7 @@ app.post("/api/evaluate", async (request, response) => {
               },
             },
           },
-          required: ["score", "details"],
+          required: ["score", "commentary", "details"],
         },
       },
     });
@@ -207,23 +437,54 @@ app.post("/api/evaluate", async (request, response) => {
       return;
     }
 
+    const usage = usageMetadataToCounts(result.usageMetadata);
+    recordUsageEvent({
+      endpoint: "evaluate",
+      model: evalModel,
+      keySource,
+      sessionId: parsed.data.sessionId,
+      occurredAt: new Date().toISOString(),
+      statusCode: 200,
+      outcome: "success",
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      totalTokens: usage.totalTokens,
+      estimatedCostUsd: estimateCostUsd({
+        model: evalModel,
+        inputTextTokens: usage.inputTokens,
+        outputTextTokens: usage.outputTokens,
+      }),
+    });
+
     response.type("application/json").send(text);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unable to evaluate transcript.";
+    recordUsageEvent({
+      endpoint: "evaluate",
+      model: evalModel,
+      keySource: resolveTrackableKeySource(parsed.data.googleApiKey),
+      sessionId: parsed.data.sessionId,
+      occurredAt: new Date().toISOString(),
+      statusCode: 500,
+      outcome: "error",
+      errorType: classifyErrorType(500, message),
+      message,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      estimatedCostUsd: 0,
+    });
     response.status(500).send(message);
   }
 });
 
 app.post("/api/transcribe-turn", async (request, response) => {
-  if (!geminiApiKey) {
-    response.status(500).send("Missing GEMINI_API_KEY.");
-    return;
-  }
-
   const schema = z.object({
     audioBase64: z.string().min(1),
     mimeType: z.string().min(1),
+    googleApiKey: z.string().optional(),
+    sessionId: z.string().optional(),
   });
 
   const parsed = schema.safeParse(request.body);
@@ -233,7 +494,14 @@ app.post("/api/transcribe-turn", async (request, response) => {
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+    const apiKey = resolveApiKey(parsed.data.googleApiKey);
+    const keySource = resolveTrackableKeySource(parsed.data.googleApiKey);
+    if (!apiKey) {
+      response.status(500).send("Missing GEMINI_API_KEY.");
+      return;
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
 
     const result = await ai.models.generateContent({
       model: evalModel,
@@ -260,13 +528,54 @@ app.post("/api/transcribe-turn", async (request, response) => {
     });
 
     response.json({ text: result.text?.trim() ?? "" });
+
+    const usage = usageMetadataToCounts(result.usageMetadata);
+    recordUsageEvent({
+      endpoint: "transcribe-turn",
+      model: evalModel,
+      keySource,
+      sessionId: parsed.data.sessionId,
+      occurredAt: new Date().toISOString(),
+      statusCode: 200,
+      outcome: "success",
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      totalTokens: usage.totalTokens,
+      estimatedCostUsd: estimateCostUsd({
+        model: evalModel,
+        inputAudioTokens: usage.inputTokens,
+        outputTextTokens: usage.outputTokens,
+      }),
+    });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unable to transcribe audio.";
+    recordUsageEvent({
+      endpoint: "transcribe-turn",
+      model: evalModel,
+      keySource: resolveTrackableKeySource(parsed.data.googleApiKey),
+      sessionId: parsed.data.sessionId,
+      occurredAt: new Date().toISOString(),
+      statusCode: 500,
+      outcome: "error",
+      errorType: classifyErrorType(500, message),
+      message,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      estimatedCostUsd: 0,
+    });
     response.status(500).send(message);
   }
 });
 
-app.listen(port, () => {
-  console.log(`ECOS server listening on http://localhost:${port}`);
-});
+async function bootstrap() {
+  const persistedEvents = await loadUsageLedger(DEFAULT_USAGE_LEDGER_PATH);
+  usageEvents.splice(0, usageEvents.length, ...persistedEvents);
+
+  app.listen(port, () => {
+    console.log(`ECOS server listening on http://localhost:${port}`);
+  });
+}
+
+void bootstrap();
