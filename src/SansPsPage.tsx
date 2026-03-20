@@ -1604,25 +1604,18 @@ export default function SansPsPage({
                     </span>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={toggleMicMute}
-                    className={`mt-3 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all duration-200 ${
-                      isMicMuted
-                        ? "border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-300"
-                        : "border-slate-200 bg-slate-900 text-white hover:bg-slate-800 dark:border-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
-                    }`}
-                  >
-                    {isMicMuted ? (
-                      <MicOffIcon className="h-4 w-4" />
-                    ) : (
-                      <MicIcon className="h-4 w-4" />
-                    )}
-                    {isMicMuted ? "Réactiver le microphone" : "Couper le microphone"}
-                  </button>
-
                   <div className="relative mx-auto mt-5 h-32 w-32">
-                    <div className={`absolute inset-0 rounded-full ${darkMode ? "bg-slate-800/30" : "bg-primary-100/50"}`} />
+                    <div
+                      className={`pointer-events-none absolute inset-0 rounded-full ${
+                        isMicMuted
+                          ? darkMode
+                            ? "bg-rose-950/25"
+                            : "bg-rose-50/80"
+                          : darkMode
+                            ? "bg-slate-800/30"
+                            : "bg-primary-100/50"
+                      }`}
+                    />
                     {Array.from({ length: 36 }, (_, i) => {
                       const angle = (360 / 36) * i;
                       const displayPeak = isMicMuted ? 0 : micPeak;
@@ -1633,7 +1626,7 @@ export default function SansPsPage({
                       return (
                         <div
                           key={i}
-                          className="absolute left-1/2 top-1/2 origin-bottom rounded-full"
+                          className="pointer-events-none absolute left-1/2 top-1/2 origin-bottom rounded-full"
                           style={{
                             width: 4,
                             height: barHeight,
@@ -1651,25 +1644,37 @@ export default function SansPsPage({
                         />
                       );
                     })}
-                    <div className={`absolute inset-0 m-auto flex h-16 w-16 items-center justify-center rounded-full ${
-                      darkMode ? "border border-slate-700 bg-slate-800" : "border border-slate-200 bg-white"
-                    }`}>
-                      <span className="text-center">
-                        <span className="block text-xl font-bold">
-                          {isMicMuted ? "OFF" : Math.round(micPeak * 100)}
-                        </span>
-                        <span className={`block text-[10px] font-semibold uppercase tracking-[0.18em] ${mutedText}`}>
-                          {isMicMuted ? "Muted" : "Peak"}
-                        </span>
-                      </span>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={toggleMicMute}
+                      aria-pressed={isMicMuted}
+                      aria-label={
+                        isMicMuted
+                          ? "Réactiver le microphone"
+                          : "Couper le microphone"
+                      }
+                      title={
+                        isMicMuted
+                          ? "Réactiver le microphone"
+                          : "Couper le microphone"
+                      }
+                      className={`absolute inset-0 z-10 m-auto flex h-16 w-16 items-center justify-center rounded-full transition-all ${
+                        isMicMuted
+                          ? darkMode
+                            ? "border border-rose-800 bg-slate-900"
+                            : "border border-rose-200 bg-white"
+                          : darkMode
+                            ? "border border-slate-700 bg-slate-800 hover:bg-slate-700"
+                            : "border border-slate-200 bg-white hover:bg-slate-50"
+                      }`}
+                    >
+                      {isMicMuted ? (
+                        <MicOffIcon className="h-7 w-7 text-rose-500" />
+                      ) : (
+                        <MicIcon className="h-7 w-7 text-slate-700 dark:text-slate-200" />
+                      )}
+                    </button>
                   </div>
-
-                  {isMicMuted ? (
-                    <div className={`mt-4 text-center text-xs ${mutedText}`}>
-                      Le microphone est coupé. Votre voix n&apos;est pas envoyée.
-                    </div>
-                  ) : null}
 
                   <div className="mt-5 border-t border-slate-200/70 pt-5 dark:border-slate-700/60">
                     <div className="flex items-start justify-between gap-4">
