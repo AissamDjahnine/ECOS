@@ -118,7 +118,9 @@ export function RecordingPlayer({
   return (
     <div
       className={`rounded-xl border px-3 py-3 ${
-        darkMode ? "border-slate-700 bg-slate-900/70" : "border-slate-200 bg-slate-50"
+        darkMode
+          ? "border-white/10 bg-slate-800/55 ring-1 ring-inset ring-white/5 shadow-[0_10px_30px_rgba(2,6,23,0.35)] backdrop-blur-xl"
+          : "border-slate-200 bg-slate-50"
       }`}
     >
       <audio id={audioId} ref={audioRef} src={src} preload="metadata" className="hidden" />
@@ -130,7 +132,7 @@ export function RecordingPlayer({
           aria-label={isPlaying ? "Mettre en pause l'enregistrement" : "Lire l'enregistrement"}
           className={`inline-flex h-10 w-10 items-center justify-center rounded-xl transition-colors ${
             darkMode
-              ? "bg-slate-100 text-slate-900 hover:bg-white"
+              ? "bg-slate-700/90 text-slate-100 ring-1 ring-inset ring-white/5 hover:bg-slate-600"
               : "bg-slate-800 text-white hover:bg-slate-900"
           }`}
         >
@@ -160,7 +162,9 @@ export function RecordingPlayer({
 
         <div
           className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
-            darkMode ? "bg-slate-800 text-slate-300" : "bg-white text-slate-500 border border-slate-200"
+            darkMode
+              ? "bg-slate-800/80 text-slate-300 ring-1 ring-inset ring-white/5"
+              : "bg-white text-slate-500 border border-slate-200"
           }`}
         >
           {playbackRate}x

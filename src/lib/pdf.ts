@@ -24,30 +24,24 @@ function formatFeedbackDetailLabel(level: AppSettings["feedbackDetailLevel"]) {
 }
 
 function buildInputBlock(rawInput: string) {
-  const sections = rawInput
-    .split(/\n{2,}/)
-    .map((block) => block.trim())
-    .filter(Boolean);
+  const normalized = rawInput
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .join("\n")
+    .trim();
 
-  if (sections.length === 0) {
+  if (!normalized) {
     return '<p class="empty-copy">Aucun contenu source.</p>';
   }
 
-  return sections
-    .map(
-      (section) => `
-        <div class="source-section">
-          ${section
-            .split("\n")
-            .map(
-              (line) =>
-                `<div class="source-line">${escapeHtml(line.trim()) || "&nbsp;"}</div>`,
-            )
-            .join("")}
-        </div>
-      `,
-    )
-    .join("");
+  return `
+    <div class="source-section source-section--single">
+      ${normalized
+        .split("\n")
+        .map((line) => `<div class="source-line">${escapeHtml(line) || "&nbsp;"}</div>`)
+        .join("")}
+    </div>
+  `;
 }
 
 function buildTranscriptBlock(transcript: TranscriptEntry[]) {
@@ -99,13 +93,41 @@ function buildEvaluationBlock(evaluation: EvaluationResult | null) {
     return '<p class="empty-copy">Aucune évaluation disponible.</p>';
   }
 
+  const missed = evaluation.details.filter((detail) => !detail.observed);
+  const recommendations = [
+    missed.some((detail) =>
+      /question|interrog|anamn|recherche|explor|demande/i.test(
+        `${detail.criterion} ${detail.feedback}`,
+      ),
+    )
+      ? "Renforcer la structure des questions pour faire émerger activement les informations clés."
+      : "Rendre le raisonnement plus explicite à voix haute pour guider l’évaluation.",
+    missed.some((detail) =>
+      /communication|vulgar|expli|comprend|annonce/i.test(
+        `${detail.criterion} ${detail.feedback}`,
+      ),
+    )
+      ? "Adapter davantage le niveau d’explication au patient avec des formulations plus simples et progressives."
+      : "Conclure chaque étape importante par une reformulation courte et orientée décision.",
+  ];
+
   return `
+    <div class="results-summary">
+      <div class="results-score-label">Note finale</div>
+      <div class="results-score">${escapeHtml(evaluation.score)}</div>
+    </div>
+    <div class="commentary-card">
+      <div class="commentary-label">Commentaire pédagogique</div>
+      <div class="commentary-text">${escapeHtml(
+        evaluation.commentary || "Commentaire indisponible.",
+      )}</div>
+    </div>
     <table class="evaluation-table">
       <thead>
         <tr>
           <th>Critère</th>
-          <th>Résultat</th>
-          <th>Justification</th>
+          <th>Statut</th>
+          <th>Observation étudiant</th>
         </tr>
       </thead>
       <tbody>
@@ -126,6 +148,15 @@ function buildEvaluationBlock(evaluation: EvaluationResult | null) {
           .join("")}
       </tbody>
     </table>
+    <div class="recommendations-card">
+      <div class="recommendations-label">Recommandations</div>
+      <ul class="recommendations-list">
+        ${recommendations
+          .slice(0, 2)
+          .map((recommendation) => `<li>${escapeHtml(recommendation)}</li>`)
+          .join("")}
+      </ul>
+    </div>
   `;
 }
 
@@ -303,6 +334,7 @@ function buildPdfDocumentBase({
             white-space: pre-wrap;
           }
           .evaluation-table {
+            margin-top: 18px;
             width: 100%;
             border-collapse: separate;
             border-spacing: 0;
@@ -333,6 +365,59 @@ function buildPdfDocumentBase({
           .criterion-cell {
             width: 34%;
             font-weight: 600;
+          }
+          .commentary-card {
+            margin-bottom: 16px;
+            border: 1px solid #99f6e4;
+            background: linear-gradient(135deg, #f0fdfa 0%, #f8fafc 100%);
+            border-radius: 18px;
+            padding: 16px 18px;
+          }
+          .commentary-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #0f766e;
+          }
+          .commentary-text {
+            margin-top: 10px;
+            font-size: 14px;
+            line-height: 1.7;
+            color: #0f172a;
+          }
+          .results-summary {
+            margin-bottom: 16px;
+          }
+          .results-score-label,
+          .recommendations-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #64748b;
+          }
+          .results-score {
+            margin-top: 10px;
+            font-size: 42px;
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            color: #0f172a;
+          }
+          .recommendations-card {
+            margin-top: 18px;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            border-radius: 18px;
+            padding: 16px 18px;
+          }
+          .recommendations-list {
+            margin: 10px 0 0 18px;
+            padding: 0;
+            color: #0f172a;
+          }
+          .recommendations-list li + li {
+            margin-top: 8px;
           }
           .result-cell {
             width: 17%;

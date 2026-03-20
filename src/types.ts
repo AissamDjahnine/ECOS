@@ -27,6 +27,7 @@ export type EvaluationCriterion = {
 
 export type EvaluationResult = {
   score: string;
+  commentary: string;
   details: EvaluationCriterion[];
 };
 

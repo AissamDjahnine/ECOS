@@ -383,6 +383,10 @@ app.post("/api/evaluate", async (request, response) => {
                 "Si seul le patient mentionne un élément sans question, vérification ou exploration claire par l'étudiant, le critère doit être non observé.",
                 "Ne crédite pas l'étudiant pour une information simplement entendue, acceptée passivement ou suivie d'un acquiescement vague.",
                 feedbackInstruction,
+                "Ajoute un champ `commentary` de 2 à 4 phrases maximum, rédigé en français, avec une synthèse professionnelle et personnalisée de la performance réelle de l'étudiant.",
+                "Le commentaire doit s'appuyer sur ce qui est effectivement observé dans le transcript et les critères validés ou manqués.",
+                "Le commentaire doit analyser en priorité la qualité du langage, le niveau d'explication, la technique d'entretien et la méthodologie clinique de l'étudiant.",
+                "Évite les généralités vagues et n'utilise jamais l'expression 'smart analysis'.",
                 "Retourne uniquement un JSON conforme au schema.",
                 "",
                 "Transcript:",
@@ -404,6 +408,11 @@ app.post("/api/evaluate", async (request, response) => {
               type: "string",
               description: "Score global sous la forme X/15",
             },
+            commentary: {
+              type: "string",
+              description:
+                "Synthèse personnalisée et concise de la performance de l'étudiant.",
+            },
             details: {
               type: "array",
               items: {
@@ -417,7 +426,7 @@ app.post("/api/evaluate", async (request, response) => {
               },
             },
           },
-          required: ["score", "details"],
+          required: ["score", "commentary", "details"],
         },
       },
     });

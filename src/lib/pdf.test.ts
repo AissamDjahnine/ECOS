@@ -19,6 +19,8 @@ const sampleTranscript: TranscriptEntry[] = [
 
 const sampleEvaluation: EvaluationResult = {
   score: "12/15",
+  commentary:
+    "L'étudiant identifie correctement le temps passé au sol, mais doit encore structurer plus tôt son raisonnement clinique.",
   details: [
     {
       criterion: "Recherche le temps passé au sol",
@@ -52,7 +54,9 @@ describe("pdf export builders", () => {
     expect(html).toContain("ECOS-AI - PS-PSS - Compte rendu");
     expect(html).toContain("PS / PSS");
     expect(html).toContain("result-pill observed");
-    expect(html).toContain("Justification");
+    expect(html).toContain("Observation étudiant");
+    expect(html).toContain("Commentaire pédagogique");
+    expect(html).toContain("Recommandations");
     expect(html).toContain("source-section");
   });
 

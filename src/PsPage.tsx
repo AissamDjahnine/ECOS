@@ -461,6 +461,7 @@ function buildTranscriptCopy(
 function buildEvaluationCopy(evaluation: EvaluationResult) {
   return [
     `Note finale: ${evaluation.score}`,
+    `Commentaire: ${evaluation.commentary || "Commentaire indisponible."}`,
     "",
     ...evaluation.details.map(
       (detail, index) =>
@@ -824,9 +825,12 @@ export default function App({
   const canCopyTranscript =
     (settings.showLiveTranscript || hasEndedDiscussion) &&
     transcriptCopyText.trim().length > 0;
-  const transcriptPanelMinHeightClass = hasEndedDiscussion
-    ? "min-h-[460px]"
-    : "min-h-[560px]";
+  const transcriptPanelHeightClass = hasEndedDiscussion
+    ? "h-[460px]"
+    : "h-[560px]";
+  const discussionPanelHeightClass = hasEndedDiscussion
+    ? "lg:h-[460px]"
+    : "lg:h-[560px]";
   const evaluationCopyText = evaluation ? buildEvaluationCopy(evaluation) : "";
   const canRerunEvaluation =
     Boolean(evaluation) &&
@@ -1901,6 +1905,11 @@ export default function App({
     document.body.appendChild(link);
     link.click();
     link.remove();
+    onShowToast(
+      "Téléchargement lancé",
+      "L’enregistrement audio est en cours de téléchargement.",
+      "success",
+    );
   }
 
   function handleRerunEvaluation() {
@@ -2039,20 +2048,20 @@ export default function App({
   // Theme classes
   const theme = darkMode ? "dark" : "light";
   const bgClass = darkMode
-    ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950"
+    ? "bg-[radial-gradient(circle_at_top,_rgba(45,212,191,0.10),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.08),_transparent_24%),linear-gradient(135deg,_#020617_0%,_#0b1120_48%,_#111827_100%)]"
     : "bg-gradient-to-br from-slate-50 via-white to-slate-100";
   const textClass = darkMode ? "text-slate-100" : "text-slate-900";
   const cardBg = darkMode
-    ? "bg-slate-900/80 border-slate-700/50"
+    ? "bg-slate-900/72 border-white/10 ring-1 ring-inset ring-white/5 shadow-[0_12px_40px_rgba(2,6,23,0.38)] backdrop-blur-xl"
     : "bg-white/90 border-slate-200/60";
   const subCardBg = darkMode
-    ? "bg-slate-800/60 border-slate-700/40"
+    ? "bg-slate-800/55 border-white/8 ring-1 ring-inset ring-white/5"
     : "bg-slate-50/80 border-slate-200/50";
   const inputBg = darkMode
-    ? "bg-slate-950 border-slate-700 text-slate-100 placeholder-slate-500"
+    ? "bg-slate-950/80 border-white/10 text-slate-100 placeholder-slate-500 ring-1 ring-inset ring-white/5"
     : "bg-white border-slate-200 text-slate-900 placeholder-slate-400";
-  const mutedText = darkMode ? "text-slate-400" : "text-slate-500";
-  const subtleBg = darkMode ? "bg-slate-800/40" : "bg-slate-100/60";
+  const mutedText = darkMode ? "text-slate-300/90" : "text-slate-500";
+  const subtleBg = darkMode ? "bg-slate-800/45 ring-1 ring-inset ring-white/5" : "bg-slate-100/60";
 
   // Status indicator
   const getStatusColor = () => {
@@ -2168,7 +2177,7 @@ export default function App({
                 onClick={onOpenDashboard}
                 className={`p-2.5 rounded-xl border transition-all duration-200 ${
                   darkMode
-                    ? "border-slate-700 bg-slate-800 hover:bg-slate-700"
+                    ? "border-white/10 bg-slate-800/70 ring-1 ring-inset ring-white/5 hover:bg-slate-700/80"
                     : "border-slate-200 bg-white hover:bg-slate-50"
                 }`}
                 aria-label="Open dashboard"
@@ -2180,7 +2189,7 @@ export default function App({
                 onClick={() => onDarkModeChange(!darkMode)}
                 className={`p-2.5 rounded-xl border transition-all duration-200 ${
                   darkMode
-                    ? "border-slate-700 bg-slate-800 hover:bg-slate-700"
+                    ? "border-white/10 bg-slate-800/70 ring-1 ring-inset ring-white/5 hover:bg-slate-700/80"
                     : "border-slate-200 bg-white hover:bg-slate-50"
                 }`}
                 aria-label="Basculer le mode sombre"
@@ -2197,7 +2206,7 @@ export default function App({
                 onClick={onOpenSettings}
                 className={`p-2.5 rounded-xl border transition-all duration-200 ${
                   darkMode
-                    ? "border-slate-700 bg-slate-800 hover:bg-slate-700"
+                    ? "border-white/10 bg-slate-800/70 ring-1 ring-inset ring-white/5 hover:bg-slate-700/80"
                     : "border-slate-200 bg-white hover:bg-slate-50"
                 }`}
                 aria-label="Open settings"
@@ -2213,9 +2222,9 @@ export default function App({
       {showEvaluationReport && evaluation ? (
         <main className="mx-auto max-w-[1280px] px-6 py-8">
           <div className="space-y-6">
-            <div className={`min-h-[470px] rounded-2xl border ${cardBg} p-6 shadow-soft`}>
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
+            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+              <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
+                <div className="min-w-0">
                   <button
                     type="button"
                     onClick={() => {
@@ -2235,12 +2244,12 @@ export default function App({
                     Rapport détaillé de la station avec synthèse pédagogique et recommandations.
                   </p>
                 </div>
-                <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[430px]">
-                  <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                <div className="flex w-full flex-col gap-3 xl:w-auto xl:min-w-[440px] xl:max-w-[860px] xl:items-end">
+                  <div className="flex flex-nowrap items-center gap-2">
                     {canRerunEvaluation && (
                       <button
                         onClick={handleRerunEvaluation}
-                        className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-primary-700"
+                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-primary-700"
                       >
                         Re-run evaluation
                       </button>
@@ -2250,7 +2259,7 @@ export default function App({
                         <button
                           type="button"
                           onClick={() => setShowReportAudioPlayer((current) => !current)}
-                          className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                          className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
                             darkMode
                               ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
                               : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
@@ -2262,7 +2271,7 @@ export default function App({
                         <button
                           type="button"
                           onClick={downloadRecordedAudio}
-                          className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                          className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
                             darkMode
                               ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
                               : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
@@ -2281,7 +2290,7 @@ export default function App({
                           "L'évaluation a été copiée.",
                         )
                       }
-                      className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                      className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
                         darkMode
                           ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
                           : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
@@ -2292,7 +2301,7 @@ export default function App({
                     </button>
                     <button
                       onClick={exportPdf}
-                      className="flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600"
+                      className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-800 px-3.5 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600"
                     >
                       <FileTextIcon className="w-4 h-4" />
                       Export PDF
@@ -2315,6 +2324,7 @@ export default function App({
               feedbackDetailLabel={formatFeedbackDetailLabel(
                 lastEvaluatedFeedbackDetailLevel ?? settings.feedbackDetailLevel,
               )}
+              elapsedSeconds={sessionDurationSeconds - remainingSeconds}
             />
           </div>
         </main>
@@ -2421,8 +2431,12 @@ export default function App({
                     disabled={!canStart}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
                       canStart
-                        ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20"
-                        : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
+                        ? darkMode
+                          ? "bg-primary-500 text-white shadow-lg shadow-primary-500/20 ring-1 ring-inset ring-white/10 hover:bg-primary-400"
+                          : "bg-primary-600 text-white shadow-lg shadow-primary-500/20 hover:bg-primary-700"
+                        : darkMode
+                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500 ring-1 ring-inset ring-white/5"
+                          : "bg-slate-200 text-slate-400 cursor-not-allowed"
                     }`}
                   >
                     <PlayIcon className="w-4 h-4" />
@@ -2434,8 +2448,12 @@ export default function App({
                     disabled={!canPause && !isPaused}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
                       canPause || isPaused
-                        ? "bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20"
-                        : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
+                        ? darkMode
+                          ? "bg-slate-800/85 text-slate-100 ring-1 ring-inset ring-white/5 hover:bg-slate-700/90"
+                          : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
+                        : darkMode
+                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500 ring-1 ring-inset ring-white/5"
+                          : "bg-slate-200 text-slate-400 cursor-not-allowed"
                     }`}
                   >
                     {isPaused ? (
@@ -2451,8 +2469,12 @@ export default function App({
                     disabled={!canEnd}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
                       canEnd
-                        ? "bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white shadow-lg shadow-slate-500/20"
-                        : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
+                        ? darkMode
+                          ? "bg-slate-800/85 text-slate-100 ring-1 ring-inset ring-white/5 hover:bg-slate-700/90"
+                          : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
+                        : darkMode
+                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500 ring-1 ring-inset ring-white/5"
+                          : "bg-slate-200 text-slate-400 cursor-not-allowed"
                     }`}
                   >
                     <StopIcon className="w-4 h-4" />
@@ -2464,8 +2486,12 @@ export default function App({
                     disabled={!canJudge}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
                       canJudge
-                        ? "bg-primary-600 hover:bg-primary-700 text-white shadow-lg shadow-primary-500/20"
-                        : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
+                        ? darkMode
+                          ? "bg-slate-800/85 text-slate-100 ring-1 ring-inset ring-white/5 hover:bg-slate-700/90"
+                          : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
+                        : darkMode
+                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500 ring-1 ring-inset ring-white/5"
+                          : "bg-slate-200 text-slate-400 cursor-not-allowed"
                     }`}
                   >
                     <CheckIcon className="w-4 h-4" />
@@ -2477,8 +2503,12 @@ export default function App({
                     disabled={!canResetSession}
                     className={`flex min-w-[112px] items-center justify-center gap-2 rounded-xl px-5 py-2.5 font-medium text-sm transition-all duration-200 ${
                       canResetSession
-                        ? "bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white shadow-lg shadow-slate-500/20"
-                        : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
+                        ? darkMode
+                          ? "bg-slate-800/85 text-slate-100 ring-1 ring-inset ring-white/5 hover:bg-slate-700/90"
+                          : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
+                        : darkMode
+                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500 ring-1 ring-inset ring-white/5"
+                          : "bg-slate-200 text-slate-400 cursor-not-allowed"
                     }`}
                   >
                     <ResetIcon className="w-4 h-4" />
@@ -2489,8 +2519,8 @@ export default function App({
             </div>
 
             {/* Discussion Area */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
-              <div className={`h-full rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+            <div className={`grid min-h-0 items-start grid-cols-1 gap-6 lg:grid-cols-[320px_1fr] ${discussionPanelHeightClass}`}>
+              <div className={`self-start rounded-2xl border ${cardBg} p-6 shadow-soft lg:h-full`}>
                 <div className="flex items-center gap-2">
                   <ClockIcon className={`h-4 w-4 ${mutedText}`} />
                   <span className="text-sm font-semibold">Outils de session</span>
@@ -2706,7 +2736,7 @@ export default function App({
               </div>
 
               {/* Transcript */}
-              <div className={`flex h-full min-h-0 flex-col rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+              <div className={`flex ${transcriptPanelHeightClass} min-h-0 flex-col overflow-hidden rounded-2xl border ${cardBg} p-6 shadow-soft lg:h-full`}>
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <h3 className="text-lg font-semibold">Transcription en direct</h3>
                   <button
@@ -2730,7 +2760,7 @@ export default function App({
                 </div>
                 <div
                   ref={transcriptRef}
-                  className={`${transcriptPanelMinHeightClass} min-h-0 flex-1 overflow-y-auto rounded-xl ${
+                  className={`min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-smooth rounded-xl ${
                     darkMode ? "bg-slate-950/50" : "bg-slate-50/80"
                   }`}
                 >
@@ -2762,7 +2792,7 @@ export default function App({
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-4 p-4">
+                    <div className="flex min-h-full flex-col justify-end space-y-4 p-4">
                       {transcriptForDisplay.map((entry) => (
                         <div
                           key={entry.id}
@@ -2820,8 +2850,8 @@ export default function App({
                           ) : (
                             <div className={`flex w-full ${entry.role === "patient" ? "justify-end" : "justify-start"}`}>
                               <div
-                                className={`flex max-w-[78%] items-start gap-3 ${
-                                  entry.role === "patient" ? "flex-row-reverse text-right" : ""
+                                className={`inline-flex w-fit max-w-[78%] items-start gap-3 ${
+                                  entry.role === "patient" ? "flex-row-reverse" : ""
                                 }`}
                               >
                                 <div
@@ -2835,27 +2865,27 @@ export default function App({
                                 >
                                   <UserIcon className="h-4 w-4" />
                                 </div>
-                                <div>
+                                <div className={`flex min-w-0 flex-col ${entry.role === "patient" ? "items-end" : "items-start"}`}>
                                   <div
                                     className={`mb-1.5 flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
                                       entry.role === "patient"
-                                        ? "justify-end text-primary-700"
+                                        ? "text-primary-700"
                                         : darkMode
                                           ? "text-slate-400"
                                           : "text-slate-500"
-                                    }`}
+                                    } ${entry.role === "patient" ? "justify-end" : ""}`}
                                   >
                                     <span>
                                       {entry.role === "patient"
                                         ? patientTranscriptLabel
-                                        : "CLINICIAN"}
+                                        : "STUDENT"}
                                     </span>
                                     <span className={darkMode ? "text-slate-500" : "text-slate-400"}>
                                       {entry.timestamp}
                                     </span>
                                   </div>
                                   <div
-                                    className={`rounded-[22px] px-4 py-3 text-sm leading-relaxed shadow-sm ${
+                                    className={`inline-block w-fit max-w-full rounded-[22px] px-4 py-3 text-left text-sm leading-relaxed shadow-sm ${
                                       entry.role === "patient"
                                         ? "bg-primary-600 text-white"
                                         : darkMode
@@ -2875,20 +2905,20 @@ export default function App({
                       {showDraftIndicatorForDisplay && (
                         <div className="animate-fade-in">
                           <div className="flex w-full justify-start">
-                            <div className="flex max-w-[78%] items-start gap-3">
+                            <div className="inline-flex w-fit max-w-[78%] items-start gap-3">
                               <div className={`${darkMode ? "bg-slate-800 text-slate-300" : "bg-indigo-100 text-slate-500"} mt-5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full`}>
                                 <UserIcon className="h-4 w-4" />
                               </div>
-                              <div>
+                              <div className="flex min-w-0 flex-col items-start">
                                 <div className={`mb-1.5 flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
                                   darkMode ? "text-slate-400" : "text-slate-500"
                                 }`}>
-                                  <span>CLINICIAN</span>
+                                  <span>STUDENT</span>
                                   <span className={darkMode ? "text-slate-500" : "text-slate-400"}>
                                     {createTimestamp()}
                                   </span>
                                 </div>
-                                <div className={`rounded-[22px] px-4 py-3 shadow-sm ${
+                                <div className={`inline-block w-fit max-w-full rounded-[22px] px-4 py-3 shadow-sm ${
                                   darkMode
                                     ? "border border-slate-700 bg-slate-900 text-slate-100"
                                     : "border border-slate-200 bg-white text-slate-700"
