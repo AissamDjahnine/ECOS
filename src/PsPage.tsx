@@ -1092,15 +1092,17 @@ export default function App({
 
     const entryId = crypto.randomUUID();
 
-    setTranscript((current) => [
-      ...current,
-      {
-        id: entryId,
-        role: "student",
-        text: fallbackText || "…",
-        timestamp: createTimestamp(),
-      },
-    ]);
+    if (fallbackText) {
+      setTranscript((current) => [
+        ...current,
+        {
+          id: entryId,
+          role: "student",
+          text: fallbackText,
+          timestamp: createTimestamp(),
+        },
+      ]);
+    }
 
     try {
       if (fallbackText) {
