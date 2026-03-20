@@ -1149,7 +1149,12 @@ export default function App({
     }
 
     if (!isPaused) {
+      sessionRef.current?.sendRealtimeInput?.({ audioStreamEnd: true });
       shouldSendAudioRef.current = false;
+      isMicMutedRef.current = true;
+      setIsMicMuted(true);
+      setMicLevel(0);
+      setMicPeak(0);
       setIsDiscussing(false);
       setIsPaused(true);
       setConversationPhase("paused");
@@ -1166,6 +1171,8 @@ export default function App({
     }
 
     shouldSendAudioRef.current = true;
+    isMicMutedRef.current = false;
+    setIsMicMuted(false);
     setIsDiscussing(true);
     setIsPaused(false);
     setConversationPhase("listening");
