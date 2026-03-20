@@ -29,7 +29,6 @@ coverage/
 test-results/
 
 backup
-CLAUDE.md
 ecos-professional-design.png
 
 # local dashboard persistence
