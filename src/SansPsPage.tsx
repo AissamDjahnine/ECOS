@@ -19,6 +19,16 @@ import type {
 
 type SessionPhase = "idle" | "student-speaking" | "paused";
 
+const EVALUATION_PROGRESS_MESSAGES = [
+  "Transcription du monologue...",
+  "Analyse du contenu...",
+  "Lecture de la grille de correction...",
+  "Vérification des critères observés...",
+  "Calcul de la note...",
+  "Génération du commentaire...",
+  "Finalisation des résultats...",
+];
+
 function createTimestamp() {
   return new Date().toLocaleTimeString("fr-FR", {
     hour: "2-digit",
@@ -320,6 +330,7 @@ export default function SansPsPage({
   const [hasEndedDiscussion, setHasEndedDiscussion] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evaluationProgress, setEvaluationProgress] = useState(0);
+  const [evaluationMessageIndex, setEvaluationMessageIndex] = useState(0);
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
   const [showEvaluationReport, setShowEvaluationReport] = useState(false);
   const [showReportAudioPlayer, setShowReportAudioPlayer] = useState(false);
@@ -1173,6 +1184,7 @@ export default function SansPsPage({
   useEffect(() => {
     if (!isEvaluating) {
       setEvaluationProgress(0);
+      setEvaluationMessageIndex(0);
       return;
     }
 
@@ -1185,6 +1197,24 @@ export default function SansPsPage({
         return current + Math.max(1, Math.round((100 - current) / 10));
       });
     }, 250);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [isEvaluating]);
+
+  useEffect(() => {
+    if (!isEvaluating) {
+      setEvaluationMessageIndex(0);
+      return;
+    }
+
+    setEvaluationMessageIndex(0);
+    const interval = window.setInterval(() => {
+      setEvaluationMessageIndex((current) =>
+        Math.min(current + 1, EVALUATION_PROGRESS_MESSAGES.length - 1),
+      );
+    }, 1200);
 
     return () => {
       window.clearInterval(interval);
@@ -1934,7 +1964,7 @@ export default function SansPsPage({
               </div>
               <h3 className="mb-2 text-xl font-bold">Évaluation en cours</h3>
               <p className={`mb-6 text-sm ${mutedText}`}>
-                Analyse du monologue face à la grille de correction...
+                {EVALUATION_PROGRESS_MESSAGES[evaluationMessageIndex]}
               </p>
             </div>
 
@@ -1946,6 +1976,11 @@ export default function SansPsPage({
             </div>
 
             <div className="mt-4 text-center">
+              <div className={`mb-2 inline-flex items-center gap-2 text-xs font-medium ${mutedText}`}>
+                <span className="h-2 w-2 rounded-full bg-primary-500 animate-pulse" />
+                <span>{EVALUATION_PROGRESS_MESSAGES[evaluationMessageIndex]}</span>
+              </div>
+              <br />
               <span className="text-2xl font-bold">{evaluationProgress}%</span>
             </div>
           </div>

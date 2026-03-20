@@ -76,6 +76,16 @@ const PATIENT_INFO_PLACEHOLDERS: PatientInfoItem[] = [
   { label: "Profession", value: "Ingénieur" },
 ];
 
+const EVALUATION_PROGRESS_MESSAGES = [
+  "Transcription des échanges...",
+  "Analyse de la discussion...",
+  "Lecture de la grille de correction...",
+  "Vérification des critères observés...",
+  "Calcul de la note...",
+  "Génération du commentaire...",
+  "Finalisation des résultats...",
+];
+
 type MixedRecorderRefs = {
   context: AudioContext;
   destination: MediaStreamAudioDestinationNode;
@@ -674,6 +684,7 @@ export default function App({
   const [showReportAudioPlayer, setShowReportAudioPlayer] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evaluationProgress, setEvaluationProgress] = useState(0);
+  const [evaluationMessageIndex, setEvaluationMessageIndex] = useState(0);
   const [conversationPhase, setConversationPhase] =
     useState<ConversationPhase>("idle");
   const [showStudentDraftIndicator, setShowStudentDraftIndicator] =
@@ -1996,6 +2007,7 @@ export default function App({
   useEffect(() => {
     if (!isEvaluating) {
       setEvaluationProgress(0);
+      setEvaluationMessageIndex(0);
       return;
     }
 
@@ -2008,6 +2020,24 @@ export default function App({
         return current + Math.max(1, Math.round((100 - current) / 10));
       });
     }, 250);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [isEvaluating]);
+
+  useEffect(() => {
+    if (!isEvaluating) {
+      setEvaluationMessageIndex(0);
+      return;
+    }
+
+    setEvaluationMessageIndex(0);
+    const interval = window.setInterval(() => {
+      setEvaluationMessageIndex((current) =>
+        Math.min(current + 1, EVALUATION_PROGRESS_MESSAGES.length - 1),
+      );
+    }, 1200);
 
     return () => {
       window.clearInterval(interval);
@@ -2958,7 +2988,7 @@ export default function App({
               </div>
               <h3 className="text-xl font-bold mb-2">Évaluation en cours</h3>
               <p className={`text-sm ${mutedText} mb-6`}>
-                Analyse du transcript face à la grille de correction...
+                {EVALUATION_PROGRESS_MESSAGES[evaluationMessageIndex]}
               </p>
             </div>
 
@@ -2970,6 +3000,11 @@ export default function App({
             </div>
 
             <div className="mt-4 text-center">
+              <div className={`mb-2 inline-flex items-center gap-2 text-xs font-medium ${mutedText}`}>
+                <span className="h-2 w-2 rounded-full bg-primary-500 animate-pulse" />
+                <span>{EVALUATION_PROGRESS_MESSAGES[evaluationMessageIndex]}</span>
+              </div>
+              <br />
               <span className="text-2xl font-bold">{evaluationProgress}%</span>
             </div>
           </div>
