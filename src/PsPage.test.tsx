@@ -367,37 +367,7 @@ describe("PsPage", () => {
     expect(hasFetchCall(fetchMock, "/api/live-token")).toBe(false);
   });
 
-  it("renders the full scrollable voice catalog", () => {
-    render(
-      <PsPage
-        currentMode="ps"
-        onNavigate={vi.fn()}
-        settings={DEFAULT_SETTINGS}
-        onOpenDashboard={vi.fn()}
-        onOpenSettings={vi.fn()}
-        darkMode={false}
-        onDarkModeChange={vi.fn()}
-      />,
-    );
-
-    expect(
-      screen.getByRole("button", { name: "Choisir la voix Zephyr" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Choisir la voix Kore" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Choisir la voix Puck" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Choisir la voix Sulafat" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Choisir la voix Pulcherrima" }),
-    ).toBeInTheDocument();
-  });
-
-  it("allows favoriting a voice before analyzing the case", async () => {
+  it("renders the full scrollable voice catalog", async () => {
     const user = userEvent.setup();
 
     render(
@@ -411,6 +381,56 @@ describe("PsPage", () => {
         onDarkModeChange={vi.fn()}
       />,
     );
+
+    fireEvent.change(
+      screen.getByPlaceholderText(
+        /collez ici la trame du patient et la grille de correction/i,
+      ),
+      { target: { value: validCase } },
+    );
+    await user.click(screen.getByRole("button", { name: "Analyser" }));
+    await user.click(screen.getByRole("button", { name: "Modifier" }));
+
+    expect(
+      screen.getByRole("button", { name: "Sélectionner la voix Zephyr" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sélectionner la voix Kore" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sélectionner la voix Puck" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sélectionner la voix Sulafat" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sélectionner la voix Pulcherrima" }),
+    ).toBeInTheDocument();
+  });
+
+  it("allows favoriting a voice from the drawer", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <PsPage
+        currentMode="ps"
+        onNavigate={vi.fn()}
+        settings={DEFAULT_SETTINGS}
+        onOpenDashboard={vi.fn()}
+        onOpenSettings={vi.fn()}
+        darkMode={false}
+        onDarkModeChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(
+      screen.getByPlaceholderText(
+        /collez ici la trame du patient et la grille de correction/i,
+      ),
+      { target: { value: validCase } },
+    );
+    await user.click(screen.getByRole("button", { name: "Analyser" }));
+    await user.click(screen.getByRole("button", { name: "Modifier" }));
 
     const favoriteButton = screen.getByRole("button", {
       name: "Ajouter Zephyr aux favoris",
@@ -442,24 +462,33 @@ describe("PsPage", () => {
       />,
     );
 
+    fireEvent.change(
+      screen.getByPlaceholderText(
+        /collez ici la trame du patient et la grille de correction/i,
+      ),
+      { target: { value: validCase } },
+    );
+    await user.click(screen.getByRole("button", { name: "Analyser" }));
+    await user.click(screen.getByRole("button", { name: "Modifier" }));
+
     const previewButton = screen.getByRole("button", {
-      name: "Écouter l'aperçu Kore",
+      name: "Écouter l'aperçu de Kore",
     });
 
     await user.click(previewButton);
 
     expect(mockPreviewPlay).toHaveBeenCalledTimes(1);
     expect(
-      screen.getByRole("button", { name: "Mettre en pause l'aperçu Kore" }),
+      screen.getByRole("button", { name: "Mettre en pause l'aperçu de Kore" }),
     ).toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("button", { name: "Mettre en pause l'aperçu Kore" }),
+      screen.getByRole("button", { name: "Mettre en pause l'aperçu de Kore" }),
     );
 
     expect(mockPreviewPause).toHaveBeenCalledTimes(1);
     expect(
-      screen.getByRole("button", { name: "Reprendre l'aperçu Kore" }),
+      screen.getByRole("button", { name: "Reprendre l'aperçu de Kore" }),
     ).toBeInTheDocument();
   });
 
@@ -572,7 +601,8 @@ describe("PsPage", () => {
       { target: { value: validCase } },
     );
     await user.click(screen.getByRole("button", { name: "Analyser" }));
-    await user.click(screen.getByRole("button", { name: /Choisir la voix Charon/i }));
+    await user.click(screen.getByRole("button", { name: "Modifier" }));
+    await user.click(screen.getByRole("button", { name: /Sélectionner la voix Charon/i }));
     await user.click(screen.getByRole("button", { name: "Démarrer" }));
 
     await waitFor(() => {
@@ -617,9 +647,7 @@ describe("PsPage", () => {
       />,
     );
 
-    expect(
-      screen.getByRole("button", { name: /Choisir la voix Charon/i }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Modifier" })).toBeDisabled();
 
     fireEvent.change(
       screen.getByPlaceholderText(
@@ -642,10 +670,11 @@ describe("PsPage", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Analyser" }));
+    await user.click(screen.getByRole("button", { name: "Modifier" }));
     expect(
-      screen.getByRole("button", { name: /Choisir la voix Charon/i }),
+      screen.getByRole("button", { name: /Sélectionner la voix Charon/i }),
     ).toBeEnabled();
-    await user.click(screen.getByRole("button", { name: /Choisir la voix Charon/i }));
+    await user.click(screen.getByRole("button", { name: /Sélectionner la voix Charon/i }));
     await user.click(screen.getByRole("button", { name: "Démarrer" }));
 
     await waitFor(() => {
