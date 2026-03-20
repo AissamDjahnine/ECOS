@@ -68,6 +68,18 @@ function scorePalette(ratio: number) {
   };
 }
 
+function scoreTone(ratio: number) {
+  if (ratio >= 0.75) {
+    return "emerald" as const;
+  }
+
+  if (ratio >= 0.45) {
+    return "amber" as const;
+  }
+
+  return "rose" as const;
+}
+
 function reportSummaryMessage(ratio: number) {
   if (ratio >= 0.75) {
     return "La station est globalement bien maîtrisée, avec une démonstration solide de la majorité des critères attendus.";
@@ -248,31 +260,32 @@ export function EvaluationReport({
   const commentary =
     evaluation.commentary?.trim() || reportSummaryMessage(scoreState.ratio);
   const palette = scorePalette(scoreState.ratio);
+  const tone = scoreTone(scoreState.ratio);
   const improvements = buildImprovementThemes(evaluation.details);
   const recommendations = buildRecommendations(evaluation);
   const validationSummary = buildValidationSummary(observedCount, totalCount);
   const ringAngle = Math.max(0, Math.min(360, scoreState.ratio * 360));
   const isValidated = observedCount >= totalCount / 2;
   const verdictTintClass = darkMode
-    ? scoreState.ratio >= 0.75
+    ? tone === "emerald"
       ? "bg-emerald-500/14"
-      : scoreState.ratio >= 0.45
+      : tone === "amber"
         ? "bg-amber-500/14"
         : "bg-rose-500/14"
-    : scoreState.ratio >= 0.75
+    : tone === "emerald"
       ? "bg-emerald-100/70"
-      : scoreState.ratio >= 0.45
+      : tone === "amber"
         ? "bg-amber-100/75"
         : "bg-rose-100/70";
   const verdictGlowClass = darkMode
-    ? scoreState.ratio >= 0.75
+    ? tone === "emerald"
       ? "bg-emerald-500/10"
-      : scoreState.ratio >= 0.45
+      : tone === "amber"
         ? "bg-amber-500/10"
         : "bg-rose-500/10"
-    : scoreState.ratio >= 0.75
+    : tone === "emerald"
       ? "bg-emerald-100/70"
-      : scoreState.ratio >= 0.45
+      : tone === "amber"
         ? "bg-amber-100/80"
         : "bg-rose-100/70";
   const pageSectionClass = darkMode
@@ -318,21 +331,29 @@ export function EvaluationReport({
         <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
           <div
             className={`relative flex items-center justify-center rounded-[28px] border px-6 py-8 ${
-              isValidated
+              tone === "emerald"
                 ? darkMode
                   ? "border-transparent"
                   : "border-emerald-100"
-                : darkMode
-                  ? "border-transparent"
-                  : "border-rose-100"
+                : tone === "amber"
+                  ? darkMode
+                    ? "border-transparent"
+                    : "border-amber-100"
+                  : darkMode
+                    ? "border-transparent"
+                    : "border-rose-100"
             } ${verdictAsideClass}`}
           >
             <div
               className={`absolute left-10 top-10 h-28 w-28 rounded-full blur-3xl ${
-                isValidated
+                tone === "emerald"
                   ? darkMode
                     ? "bg-emerald-500/15"
-                    : "bg-primary-200/40"
+                    : "bg-emerald-200/40"
+                  : tone === "amber"
+                    ? darkMode
+                      ? "bg-amber-500/15"
+                      : "bg-amber-200/40"
                   : darkMode
                     ? "bg-rose-500/15"
                     : "bg-rose-200/40"
@@ -340,13 +361,17 @@ export function EvaluationReport({
             />
             <div
               className={`absolute bottom-10 right-8 h-24 w-24 rounded-full blur-3xl ${
-                isValidated
+                tone === "emerald"
                   ? darkMode
                     ? "bg-sky-500/12"
                     : "bg-sky-200/25"
-                  : darkMode
-                    ? "bg-amber-400/12"
-                    : "bg-amber-200/20"
+                  : tone === "amber"
+                    ? darkMode
+                      ? "bg-rose-400/12"
+                      : "bg-rose-200/20"
+                    : darkMode
+                      ? "bg-amber-400/12"
+                      : "bg-amber-200/20"
               }`}
             />
             <div
@@ -364,9 +389,9 @@ export function EvaluationReport({
                 style={{
                   background: `conic-gradient(from 180deg, transparent 0deg, transparent ${
                     360 - ringAngle
-                  }deg, ${scoreState.ratio >= 0.75 ? "#22c55e" : scoreState.ratio >= 0.5 ? "#f59e0b" : "#ef4444"} ${
+                  }deg, ${tone === "emerald" ? "#22c55e" : tone === "amber" ? "#f59e0b" : "#ef4444"} ${
                     360 - ringAngle
-                  }deg, ${scoreState.ratio >= 0.75 ? "#059669" : scoreState.ratio >= 0.5 ? "#d97706" : "#dc2626"} 360deg)`,
+                  }deg, ${tone === "emerald" ? "#059669" : tone === "amber" ? "#d97706" : "#dc2626"} 360deg)`,
                 }}
               >
                 <div
