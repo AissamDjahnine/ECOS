@@ -8,7 +8,7 @@ import type {
 } from "../src/types";
 
 export type UsageEvent = {
-  endpoint: "live-token" | "live-usage" | "evaluate" | "transcribe-turn";
+  endpoint: "live-token" | "live-usage" | "evaluate" | "transcribe-turn" | "transcript-debug";
   model: string;
   keySource: Exclude<DashboardKeySource, "missing">;
   sessionId?: string;
