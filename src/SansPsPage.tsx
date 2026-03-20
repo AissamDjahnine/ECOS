@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityHandling,
+  EndSensitivity,
+  GoogleGenAI,
+  Modality,
+  StartSensitivity,
+  TurnCoverage,
+  type LiveServerMessage,
+} from "@google/genai";
+import {
   requestMicrophoneStream,
   startMicrophoneStream,
   type AudioStreamer,
@@ -18,6 +27,52 @@ import type {
 } from "./types";
 
 type SessionPhase = "idle" | "student-speaking" | "paused";
+
+const liveModel =
+  import.meta.env.VITE_GEMINI_LIVE_MODEL ??
+  "gemini-2.5-flash-native-audio-preview-12-2025";
+
+type RealtimeAudioInput = {
+  data: string;
+  mimeType: string;
+};
+
+type LiveSession = {
+  close: () => void;
+  sendRealtimeInput?: (payload: {
+    audio?: RealtimeAudioInput;
+    audioStreamEnd?: boolean;
+  }) => void;
+  sendClientContent?: (params?: { turnComplete?: boolean }) => void;
+};
+
+type SansPsLiveMessage = LiveServerMessage & {
+  usageMetadata?: {
+    totalInputTokens?: number;
+    totalOutputTokens?: number;
+    totalTokens?: number;
+    total_input_tokens?: number;
+    total_output_tokens?: number;
+    total_tokens?: number;
+    inputTokensByModality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+    outputTokensByModality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+    input_tokens_by_modality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+    output_tokens_by_modality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+  };
+  inputTranscription?: { text?: string };
+  serverContent?: {
+    inputTranscription?: { text?: string };
+    modelTurn?: {
+      parts?: Array<{
+        inlineData?: { data?: string; mimeType?: string };
+      }>;
+    };
+    interrupted?: boolean;
+    generationComplete?: boolean;
+    turnComplete?: boolean;
+    waitingForInput?: boolean;
+  };
+};
 
 const EVALUATION_PROGRESS_MESSAGES = [
   "Transcription du monologue...",
@@ -83,6 +138,210 @@ function uint8ToBase64(uint8: Uint8Array) {
   }
 
   return btoa(binary);
+}
+
+function sumModalityTokens(
+  entries:
+    | Array<{ modality?: string; tokens?: number; tokenCount?: number }>
+    | undefined,
+  target: "text" | "audio",
+) {
+  return (entries ?? []).reduce((total, entry) => {
+    const modality = entry.modality?.toLowerCase() ?? "";
+    if (!modality.includes(target)) {
+      return total;
+    }
+
+    return total + (entry.tokens ?? entry.tokenCount ?? 0);
+  }, 0);
+}
+
+function extractLiveUsageCounts(usageMetadata?: {
+  totalInputTokens?: number;
+  totalOutputTokens?: number;
+  totalTokens?: number;
+  total_input_tokens?: number;
+  total_output_tokens?: number;
+  total_tokens?: number;
+  inputTokensByModality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+  outputTokensByModality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+  input_tokens_by_modality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+  output_tokens_by_modality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+}) {
+  const inputEntries =
+    usageMetadata?.inputTokensByModality ?? usageMetadata?.input_tokens_by_modality;
+  const outputEntries =
+    usageMetadata?.outputTokensByModality ?? usageMetadata?.output_tokens_by_modality;
+  const inputTextTokens = sumModalityTokens(inputEntries, "text");
+  const inputAudioTokens = sumModalityTokens(inputEntries, "audio");
+  const outputTextTokens = sumModalityTokens(outputEntries, "text");
+  const outputAudioTokens = sumModalityTokens(outputEntries, "audio");
+  const totalInputTokens =
+    usageMetadata?.totalInputTokens ?? usageMetadata?.total_input_tokens ?? inputTextTokens + inputAudioTokens;
+  const totalOutputTokens =
+    usageMetadata?.totalOutputTokens ?? usageMetadata?.total_output_tokens ?? outputTextTokens + outputAudioTokens;
+
+  return {
+    inputTextTokens,
+    inputAudioTokens,
+    outputTextTokens,
+    outputAudioTokens,
+    totalInputTokens,
+    totalOutputTokens,
+    totalTokens:
+      usageMetadata?.totalTokens ??
+      usageMetadata?.total_tokens ??
+      totalInputTokens + totalOutputTokens,
+  };
+}
+
+function upsertTranscriptEntryById(
+  current: TranscriptEntry[],
+  entryId: string,
+  role: TranscriptEntry["role"],
+  text: string,
+) {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return current;
+  }
+
+  const canonicalize = (value: string) =>
+    value
+      .trim()
+      .replace(/\s+/g, " ")
+      .replace(/[.,;:!?،؛۔]+$/g, "")
+      .toLowerCase();
+
+  const incomingCanonical = canonicalize(trimmed);
+
+  const index = current.findIndex((entry) => entry.id === entryId);
+
+  if (index === -1) {
+    const lastEntry = current.at(-1);
+    if (lastEntry?.role === role) {
+      const lastCanonical = canonicalize(lastEntry.text);
+      if (
+        lastCanonical === incomingCanonical ||
+        incomingCanonical.startsWith(lastCanonical) ||
+        lastCanonical.startsWith(incomingCanonical)
+      ) {
+        const updated = [...current];
+        updated[updated.length - 1] = {
+          ...lastEntry,
+          text: trimmed.length >= lastEntry.text.trim().length ? trimmed : lastEntry.text,
+          timestamp: createTimestamp(),
+        };
+        return updated;
+      }
+    }
+
+    return [
+      ...current,
+      {
+        id: entryId,
+        role,
+        text: trimmed,
+        timestamp: createTimestamp(),
+      },
+    ];
+  }
+
+  const existing = current[index];
+  if (canonicalize(existing.text) === incomingCanonical) {
+    return current;
+  }
+
+  const updated = [...current];
+  updated[index] = {
+    ...existing,
+    text: trimmed,
+    timestamp: createTimestamp(),
+  };
+
+  return updated;
+}
+
+function upsertTranscriptEntryAtEndById(
+  current: TranscriptEntry[],
+  entryId: string,
+  role: TranscriptEntry["role"],
+  text: string,
+) {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return current;
+  }
+
+  const existing = current.find((entry) => entry.id === entryId);
+  const nextText =
+    existing && existing.role === role
+      ? appendTranscriptChunk(existing.text, trimmed)
+      : trimmed;
+  const withoutEntry = current.filter((entry) => entry.id !== entryId);
+  return [
+    ...withoutEntry,
+    {
+      id: entryId,
+      role,
+      text: nextText,
+      timestamp: createTimestamp(),
+    },
+  ];
+}
+
+function appendTranscriptChunk(currentText: string, incomingChunk: string) {
+  const chunk = incomingChunk.trim();
+  if (!chunk) {
+    return currentText;
+  }
+
+  const current = currentText.trim();
+  if (!current) {
+    return chunk;
+  }
+
+  if (current === chunk || current.endsWith(chunk)) {
+    return current;
+  }
+
+  if (chunk.startsWith(current)) {
+    return chunk;
+  }
+
+  const maxOverlap = Math.min(current.length, chunk.length);
+  for (let overlap = maxOverlap; overlap > 0; overlap -= 1) {
+    const currentSuffix = current.slice(-overlap).toLowerCase();
+    const chunkPrefix = chunk.slice(0, overlap).toLowerCase();
+
+    if (currentSuffix === chunkPrefix) {
+      return current + chunk.slice(overlap);
+    }
+  }
+
+  const noLeadingSpaceBefore = new Set([
+    ".",
+    ",",
+    ";",
+    ":",
+    "!",
+    "?",
+    ")",
+    "]",
+    "}",
+    "'",
+    "'",
+  ]);
+
+  if (noLeadingSpaceBefore.has(chunk)) {
+    return `${current}${chunk}`;
+  }
+
+  if (current.endsWith("'") || current.endsWith("'")) {
+    return `${current}${chunk}`;
+  }
+
+  return `${current} ${chunk}`;
 }
 
 function formatFeedbackDetailLabel(level: AppSettings["feedbackDetailLevel"]) {
@@ -322,7 +581,7 @@ export default function SansPsPage({
   const [gradingGrid, setGradingGrid] = useState("");
   const [parseError, setParseError] = useState("");
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
-  const [status, setStatus] = useState("Mode sans PS prêt");
+  const [status, setStatus] = useState("Session sans PS prête");
   const [sessionPhase, setSessionPhase] = useState<SessionPhase>("idle");
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDiscussing, setIsDiscussing] = useState(false);
@@ -340,6 +599,8 @@ export default function SansPsPage({
   );
   const [showStudentDraftIndicator, setShowStudentDraftIndicator] =
     useState(false);
+  const [studentDraftText, setStudentDraftText] = useState("");
+  const [debugEvents, setDebugEvents] = useState<string[]>([]);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
   const [micPeak, setMicPeak] = useState(0);
@@ -358,18 +619,35 @@ export default function SansPsPage({
 
   const transcriptRef = useRef<HTMLDivElement | null>(null);
   const micRef = useRef<AudioStreamer | null>(null);
+  const sessionRef = useRef<LiveSession | null>(null);
   const recordedAudioUrlRef = useRef<string | null>(null);
   const autoEvaluateHandledRef = useRef(false);
   const autoExportedEvaluationRef = useRef<string | null>(null);
-  const silenceTimerRef = useRef<number | null>(null);
-  const currentTurnChunksRef = useRef<Blob[]>([]);
-  const isSpeechActiveRef = useRef(false);
-  const isFinalizingTurnRef = useRef(false);
-  const shouldCaptureAudioRef = useRef(true);
+  const shouldSendAudioRef = useRef(true);
   const isMicMutedRef = useRef(false);
+  const pendingManualTurnEndRef = useRef(false);
+  const turnEndFallbackTimerRef = useRef<number | null>(null);
   const currentSessionIdRef = useRef<string | null>(null);
+  const inputTranscriptRef = useRef("");
+  const monologueEntryIdRef = useRef<string | null>(null);
+  const audioChunkCountRef = useRef(0);
+  const lastAudioDebugAtRef = useRef(0);
+  const lastLiveUsageTotalsRef = useRef({
+    inputTextTokens: 0,
+    inputAudioTokens: 0,
+    outputTextTokens: 0,
+    outputAudioTokens: 0,
+    totalTokens: 0,
+  });
 
   const gridReady = Boolean(gradingGrid);
+  const hasCommittedStudentTranscript = transcript.some(
+    (entry) => entry.role === "student" && entry.text.trim().length > 0,
+  );
+  const hasStudentTranscript =
+    hasCommittedStudentTranscript ||
+    inputTranscriptRef.current.trim().length > 0 ||
+    studentDraftText.trim().length > 0;
   const canStart =
     gridReady &&
     !isConnecting &&
@@ -383,7 +661,7 @@ export default function SansPsPage({
     !isDiscussing &&
     !isPaused &&
     !isEvaluating &&
-    transcript.some((entry) => entry.role === "student") &&
+    hasStudentTranscript &&
     Boolean(gradingGrid);
   const canResetSession =
     !isConnecting &&
@@ -416,34 +694,41 @@ export default function SansPsPage({
     : "bg-gradient-to-br from-slate-50 via-white to-slate-100";
   const textClass = darkMode ? "text-slate-100" : "text-slate-900";
   const cardBg = darkMode
-    ? "bg-slate-900/72 border-white/10 ring-1 ring-inset ring-white/5 shadow-[0_12px_40px_rgba(2,6,23,0.38)] backdrop-blur-xl"
+    ? "bg-slate-900/72 shadow-[0_12px_40px_rgba(2,6,23,0.38)] backdrop-blur-xl"
     : "bg-white/90 border-slate-200/60";
   const subCardBg = darkMode
-    ? "bg-slate-800/55 border-white/8 ring-1 ring-inset ring-white/5"
+    ? "bg-slate-800/55"
     : "bg-slate-50/80 border-slate-200/50";
   const inputBg = darkMode
-    ? "bg-slate-950/80 border-white/10 text-slate-100 placeholder-slate-500 ring-1 ring-inset ring-white/5"
+    ? "bg-slate-950/80 border-transparent text-slate-100 placeholder-slate-500"
     : "bg-white border-slate-200 text-slate-900 placeholder-slate-400";
   const mutedText = darkMode ? "text-slate-300/90" : "text-slate-500";
-  const subtleBg = darkMode ? "bg-slate-800/45 ring-1 ring-inset ring-white/5" : "bg-slate-100/60";
+  const subtleBg = darkMode ? "bg-slate-800/45" : "bg-slate-100/60";
   const transcriptForDisplay = useMemo(() => {
     const withVisibleRoles = settings.showSystemMessages
       ? transcript
       : transcript.filter((entry) => entry.role !== "system");
 
-    if (settings.showLiveTranscript || hasEndedDiscussion) {
+    if (
+      settings.showLiveTranscript ||
+      hasEndedDiscussion ||
+      showStudentDraftIndicator ||
+      hasCommittedStudentTranscript
+    ) {
       return withVisibleRoles;
     }
 
     return [];
   }, [
+    hasCommittedStudentTranscript,
     hasEndedDiscussion,
+    showStudentDraftIndicator,
     settings.showLiveTranscript,
     settings.showSystemMessages,
     transcript,
   ]);
   const showLiveTranscriptContent =
-    settings.showLiveTranscript || hasEndedDiscussion;
+    settings.showLiveTranscript || hasEndedDiscussion || showStudentDraftIndicator;
   const showDraftIndicatorForDisplay =
     showStudentDraftIndicator && showLiveTranscriptContent;
   const transcriptCopyText = useMemo(
@@ -451,7 +736,7 @@ export default function SansPsPage({
     [settings.showSystemMessages, transcript],
   );
   const canCopyTranscript =
-    (settings.showLiveTranscript || hasEndedDiscussion) &&
+    (settings.showLiveTranscript || hasEndedDiscussion || hasCommittedStudentTranscript) &&
     transcriptCopyText.trim().length > 0;
   const transcriptPanelHeightClass = hasEndedDiscussion
     ? "h-[460px]"
@@ -480,7 +765,7 @@ export default function SansPsPage({
   const statusLabel = useMemo(() => {
     switch (sessionPhase) {
       case "student-speaking":
-        return "Monologue";
+        return "Discussion";
       case "paused":
         return "En pause";
       default:
@@ -488,86 +773,17 @@ export default function SansPsPage({
     }
   }, [sessionPhase]);
 
-  async function transcribeAudioChunks(audioChunks: Blob[]) {
-    if (audioChunks.length === 0) {
-      return "";
-    }
-
-    const audioBlob = new Blob(audioChunks, {
-      type: "audio/pcm;rate=16000",
-    });
-    const arrayBuffer = await audioBlob.arrayBuffer();
-    const base64Audio = uint8ToBase64(new Uint8Array(arrayBuffer));
-
-    const response = await fetch("/api/transcribe-turn", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        audioBase64: base64Audio,
-        mimeType: "audio/pcm;rate=16000",
-        googleApiKey: settings.googleApiKey || undefined,
-        sessionId: currentSessionIdRef.current || undefined,
-      }),
+  function pushDebugEvent(message: string) {
+    const timestamp = new Date().toLocaleTimeString("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
     });
 
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
-
-    const result = (await response.json()) as { text?: string };
-    return result.text?.trim() ?? "";
-  }
-
-  function clearSilenceTimer() {
-    if (silenceTimerRef.current) {
-      window.clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
-  }
-
-  async function finalizeStudentTurn() {
-    if (isFinalizingTurnRef.current) {
-      return;
-    }
-
-    const audioChunks = [...currentTurnChunksRef.current];
-    if (audioChunks.length === 0) {
-      isSpeechActiveRef.current = false;
-      setShowStudentDraftIndicator(false);
-      return;
-    }
-
-    isFinalizingTurnRef.current = true;
-    currentTurnChunksRef.current = [];
-    isSpeechActiveRef.current = false;
-    setShowStudentDraftIndicator(false);
-
-    try {
-      const text = await transcribeAudioChunks(audioChunks);
-      if (!text) {
-        return;
-      }
-
-      setTranscript((current) => [
-        ...current,
-        {
-          id: crypto.randomUUID(),
-          role: "student",
-          text,
-          timestamp: createTimestamp(),
-        },
-      ]);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Erreur inconnue";
-      setTranscript((current) => [
-        ...current,
-        createTranscriptEntry("system", `Erreur de transcription : ${message}`),
-      ]);
-    } finally {
-      isFinalizingTurnRef.current = false;
-    }
+    setDebugEvents((current) => [
+      ...current.slice(-11),
+      `${timestamp}  ${message}`,
+    ]);
   }
 
   function handleParse() {
@@ -583,21 +799,34 @@ export default function SansPsPage({
       setParseError(
         "Impossible d'identifier une grille de correction exploitable dans ce texte.",
       );
-      setStatus("Mode sans PS prêt");
+      setStatus("Session sans PS prête");
       return;
     }
 
     setParseError("");
-    setStatus("Grille prête pour monologue");
+    setStatus("Grille prête pour évaluation");
   }
 
   function resetRecordingState() {
-    currentTurnChunksRef.current = [];
-    isSpeechActiveRef.current = false;
-    isFinalizingTurnRef.current = false;
-    shouldCaptureAudioRef.current = true;
-    clearSilenceTimer();
+    shouldSendAudioRef.current = true;
+    pendingManualTurnEndRef.current = false;
+    if (turnEndFallbackTimerRef.current !== null) {
+      window.clearTimeout(turnEndFallbackTimerRef.current);
+      turnEndFallbackTimerRef.current = null;
+    }
+    inputTranscriptRef.current = "";
+    monologueEntryIdRef.current = null;
+    audioChunkCountRef.current = 0;
+    lastAudioDebugAtRef.current = 0;
+    lastLiveUsageTotalsRef.current = {
+      inputTextTokens: 0,
+      inputAudioTokens: 0,
+      outputTextTokens: 0,
+      outputAudioTokens: 0,
+      totalTokens: 0,
+    };
     setShowStudentDraftIndicator(false);
+    setStudentDraftText("");
     setMicLevel(0);
     setMicPeak(0);
 
@@ -607,6 +836,54 @@ export default function SansPsPage({
     }
 
     setRecordedAudioUrl(null);
+  }
+
+  function flushStudentDraft() {
+    const text = inputTranscriptRef.current.trim();
+    if (!text) {
+      setShowStudentDraftIndicator(false);
+      setStudentDraftText("");
+      return;
+    }
+
+    const entryId = monologueEntryIdRef.current ?? crypto.randomUUID();
+    monologueEntryIdRef.current = entryId;
+    setTranscript((current) =>
+      upsertTranscriptEntryAtEndById(current, entryId, "student", text),
+    );
+    inputTranscriptRef.current = "";
+    setShowStudentDraftIndicator(false);
+    setStudentDraftText("");
+  }
+
+  function clearTurnEndFallbackTimer() {
+    if (turnEndFallbackTimerRef.current !== null) {
+      window.clearTimeout(turnEndFallbackTimerRef.current);
+      turnEndFallbackTimerRef.current = null;
+    }
+  }
+
+  function scheduleTurnEndFallbackFlush(reason: string) {
+    clearTurnEndFallbackTimer();
+    turnEndFallbackTimerRef.current = window.setTimeout(() => {
+      turnEndFallbackTimerRef.current = null;
+      if (!pendingManualTurnEndRef.current) {
+        return;
+      }
+
+      pushDebugEvent(`${reason}: flush de secours du draft`);
+      flushStudentDraft();
+      pendingManualTurnEndRef.current = false;
+      setSessionPhase("idle");
+      setStatus("En attente de l'étudiant");
+    }, 1600);
+  }
+
+  function requestTurnCompletion(reason: string) {
+    pendingManualTurnEndRef.current = true;
+    sessionRef.current?.sendRealtimeInput?.({ audioStreamEnd: true });
+    pushDebugEvent(`${reason}: audioStreamEnd envoyé`);
+    scheduleTurnEndFallbackFlush(reason);
   }
 
   async function copyTextToClipboard(text: string, successMessage: string) {
@@ -636,18 +913,18 @@ export default function SansPsPage({
 
   async function resetSessionState() {
     try {
-      shouldCaptureAudioRef.current = false;
-      clearSilenceTimer();
+      shouldSendAudioRef.current = false;
       await micRef.current?.stop();
+      sessionRef.current?.close();
     } catch {
       //
     } finally {
       micRef.current = null;
-      clearSilenceTimer();
-      currentTurnChunksRef.current = [];
-      isSpeechActiveRef.current = false;
-      isFinalizingTurnRef.current = false;
-      shouldCaptureAudioRef.current = true;
+      sessionRef.current = null;
+      currentSessionIdRef.current = null;
+      shouldSendAudioRef.current = true;
+      inputTranscriptRef.current = "";
+      monologueEntryIdRef.current = null;
       autoEvaluateHandledRef.current = false;
       autoExportedEvaluationRef.current = null;
       setTranscript([]);
@@ -660,7 +937,7 @@ export default function SansPsPage({
       setIsDiscussing(false);
       setIsPaused(false);
       setSessionPhase("idle");
-      setStatus(gradingGrid ? "Grille prête pour monologue" : "Mode sans PS prêt");
+      setStatus(gradingGrid ? "Grille prête pour évaluation" : "Session sans PS prête");
       setRemainingSeconds(settings.defaultTimerSeconds);
       setShowStudentDraftIndicator(false);
       setMicLevel(0);
@@ -689,7 +966,7 @@ export default function SansPsPage({
     setParseError("");
     setShowEvaluationReport(false);
     setShowReportAudioPlayer(false);
-    setStatus("Mode sans PS prêt");
+    setStatus("Session sans PS prête");
     onShowToast(
       "Zone vidée",
       "Le texte collé et les résultats associés ont été supprimés.",
@@ -762,32 +1039,263 @@ export default function SansPsPage({
       setIsConnecting(true);
       setEvaluation(null);
       setHasEndedDiscussion(false);
-      setStatus("Préparation du monologue");
+      setStatus("Préparation de la session");
       setRemainingSeconds(sessionDurationSeconds);
       setTranscript([
         createTranscriptEntry(
           "system",
-          "Monologue démarré. Présentez votre raisonnement et votre conduite à tenir.",
+          "Session démarrée. Présentez votre raisonnement et votre conduite à tenir.",
         ),
       ]);
+      setDebugEvents([]);
+      pushDebugEvent("Session Sans PS initialisée");
       setIsPaused(false);
       setIsMicMuted(false);
       isMicMutedRef.current = false;
       resetRecordingState();
+      lastLiveUsageTotalsRef.current = {
+        inputTextTokens: 0,
+        inputAudioTokens: 0,
+        outputTextTokens: 0,
+        outputAudioTokens: 0,
+        totalTokens: 0,
+      };
+      const mediaStream = await requestMicrophoneStream();
 
-      const stream = await requestMicrophoneStream();
+      const tokenResponse = await fetch("/api/live-token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mode: "silent",
+          googleApiKey: settings.googleApiKey || undefined,
+          sessionId: currentSessionIdRef.current,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        throw new Error(await tokenResponse.text());
+      }
+
+      const tokenPayload = (await tokenResponse.json()) as {
+        token: string;
+        model: string;
+      };
+      pushDebugEvent(
+        `Jeton Live reçu (mode=silent, model=${tokenPayload.model || liveModel})`,
+      );
+
+      setStatus("Ouverture de la session Live");
+
+      const ai = new GoogleGenAI({
+        apiKey: tokenPayload.token,
+        httpOptions: {
+          apiVersion: "v1alpha",
+        },
+      });
+
+      const session = (await ai.live.connect({
+        model: tokenPayload.model || liveModel,
+        config: {
+          responseModalities: [Modality.AUDIO],
+          inputAudioTranscription: {},
+          outputAudioTranscription: {},
+          realtimeInputConfig: {
+            automaticActivityDetection: {
+              startOfSpeechSensitivity:
+                StartSensitivity.START_SENSITIVITY_HIGH,
+              endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
+              prefixPaddingMs: 160,
+              silenceDurationMs: 1800,
+            },
+            activityHandling: ActivityHandling.START_OF_ACTIVITY_INTERRUPTS,
+            turnCoverage: TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY,
+          },
+        },
+        callbacks: {
+          onopen: () => {
+            shouldSendAudioRef.current = true;
+            setStatus("Session Live ouverte, en attente de l'étudiant");
+            setSessionPhase("idle");
+            pushDebugEvent("Connexion Live ouverte");
+          },
+
+          onmessage: (message: LiveServerMessage) => {
+            const liveMessage = message as SansPsLiveMessage;
+            const serverContent = liveMessage.serverContent;
+            const modelTurn = serverContent?.modelTurn;
+
+            const liveUsage = extractLiveUsageCounts(liveMessage.usageMetadata);
+            const previousUsage = lastLiveUsageTotalsRef.current;
+            const liveUsageDelta = {
+              inputTextTokens: Math.max(0, liveUsage.inputTextTokens - previousUsage.inputTextTokens),
+              inputAudioTokens: Math.max(0, liveUsage.inputAudioTokens - previousUsage.inputAudioTokens),
+              outputTextTokens: Math.max(0, liveUsage.outputTextTokens - previousUsage.outputTextTokens),
+              outputAudioTokens: Math.max(0, liveUsage.outputAudioTokens - previousUsage.outputAudioTokens),
+              totalTokens: Math.max(0, liveUsage.totalTokens - previousUsage.totalTokens),
+            };
+
+            if (
+              currentSessionIdRef.current &&
+              (liveUsageDelta.inputTextTokens > 0 ||
+                liveUsageDelta.inputAudioTokens > 0 ||
+                liveUsageDelta.outputTextTokens > 0 ||
+                liveUsageDelta.outputAudioTokens > 0)
+            ) {
+              lastLiveUsageTotalsRef.current = {
+                inputTextTokens: liveUsage.inputTextTokens,
+                inputAudioTokens: liveUsage.inputAudioTokens,
+                outputTextTokens: liveUsage.outputTextTokens,
+                outputAudioTokens: liveUsage.outputAudioTokens,
+                totalTokens: liveUsage.totalTokens,
+              };
+
+              void fetch("/api/usage/live", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  sessionId: currentSessionIdRef.current,
+                  googleApiKey: settings.googleApiKey || undefined,
+                  ...liveUsageDelta,
+                }),
+              });
+            }
+
+            const inputTranscription =
+              liveMessage.inputTranscription ??
+              serverContent?.inputTranscription;
+
+            pushDebugEvent(
+              [
+                "Live msg",
+                inputTranscription?.text?.trim()
+                  ? `inputTx=${inputTranscription.text.trim().length}c`
+                  : "inputTx=0",
+                serverContent?.generationComplete ? "generationComplete" : null,
+                serverContent?.turnComplete ? "turnComplete" : null,
+                serverContent?.waitingForInput
+                  ? "waitingForInput"
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" | "),
+            );
+
+            if (inputTranscription?.text) {
+              pushDebugEvent(
+                `Transcription reçue: ${inputTranscription.text.slice(0, 80)}`,
+              );
+              inputTranscriptRef.current = appendTranscriptChunk(
+                inputTranscriptRef.current,
+                inputTranscription.text,
+              );
+              setStudentDraftText(inputTranscriptRef.current);
+              setSessionPhase("student-speaking");
+              setStatus("Session en cours");
+              setShowStudentDraftIndicator(true);
+              if (pendingManualTurnEndRef.current) {
+                scheduleTurnEndFallbackFlush("Mute");
+              }
+            }
+
+            const parts = modelTurn?.parts ?? [];
+            const hasAudioParts = parts.some(
+              (part) =>
+                !!part.inlineData?.data &&
+                !!part.inlineData.mimeType?.startsWith("audio/pcm"),
+            );
+
+            if (hasAudioParts) {
+              pushDebugEvent("Audio modèle détecté, draft étudiant finalisé");
+              shouldSendAudioRef.current = false;
+              flushStudentDraft();
+              setShowStudentDraftIndicator(false);
+            }
+
+            if (serverContent?.interrupted) {
+              shouldSendAudioRef.current = true;
+              setSessionPhase("student-speaking");
+              setStatus("Session en cours");
+              setShowStudentDraftIndicator(true);
+            }
+
+            if (serverContent?.generationComplete) {
+              setSessionPhase("idle");
+              setStatus("Traitement de la fin de tour");
+            }
+
+            if (serverContent?.waitingForInput) {
+              shouldSendAudioRef.current = true;
+              clearTurnEndFallbackTimer();
+              pendingManualTurnEndRef.current = false;
+              pushDebugEvent("waitingForInput détecté, flush du draft");
+              flushStudentDraft();
+              setSessionPhase("idle");
+              setStatus("En attente de l'étudiant");
+            }
+
+            if (serverContent?.turnComplete) {
+              shouldSendAudioRef.current = true;
+              clearTurnEndFallbackTimer();
+              pendingManualTurnEndRef.current = false;
+              pushDebugEvent("turnComplete détecté, flush du draft");
+              flushStudentDraft();
+              setSessionPhase("idle");
+              setStatus("En attente de l'étudiant");
+            }
+          },
+
+          onerror: (error) => {
+            shouldSendAudioRef.current = true;
+            clearTurnEndFallbackTimer();
+            pendingManualTurnEndRef.current = false;
+            setStatus(`Erreur Live : ${error.message}`);
+            setSessionPhase("idle");
+            setShowStudentDraftIndicator(false);
+            setStudentDraftText("");
+            pushDebugEvent(`Erreur Live: ${error.message}`);
+          },
+
+          onclose: () => {
+            shouldSendAudioRef.current = true;
+            clearTurnEndFallbackTimer();
+            pendingManualTurnEndRef.current = false;
+            setSessionPhase("idle");
+            setShowStudentDraftIndicator(false);
+            setStudentDraftText("");
+            pushDebugEvent("Connexion Live fermée");
+          },
+        },
+      })) as LiveSession;
+
+      sessionRef.current = session;
+
       const microphone = await startMicrophoneStream(
         async (chunk) => {
-          if (
-            !shouldCaptureAudioRef.current ||
-            isPaused ||
-            isMicMutedRef.current ||
-            !isSpeechActiveRef.current
-          ) {
+          if (!shouldSendAudioRef.current || isPaused || isMicMutedRef.current) {
             return;
           }
 
-          currentTurnChunksRef.current.push(chunk);
+          const arrayBuffer = await chunk.arrayBuffer();
+          const uint8 = new Uint8Array(arrayBuffer);
+          const base64Audio = uint8ToBase64(uint8);
+
+          audioChunkCountRef.current += 1;
+          const now = Date.now();
+          if (now - lastAudioDebugAtRef.current > 1500) {
+            lastAudioDebugAtRef.current = now;
+            pushDebugEvent(`Audio envoyé (${audioChunkCountRef.current} chunks)`);
+          }
+
+          session.sendRealtimeInput?.({
+            audio: {
+              data: base64Audio,
+              mimeType: "audio/pcm;rate=16000",
+            },
+          });
         },
         (sample: MicrophoneLevelSample) => {
           if (isMicMutedRef.current) {
@@ -800,35 +1308,19 @@ export default function SansPsPage({
           setMicPeak(sample.peak);
 
           const isSpeaking = sample.rms >= 0.02 || sample.peak >= 0.06;
-
-          if (isSpeaking) {
-            clearSilenceTimer();
-            isSpeechActiveRef.current = true;
-            setShowStudentDraftIndicator(true);
+          if (isSpeaking && !isPaused && shouldSendAudioRef.current) {
             setSessionPhase("student-speaking");
-            setStatus("Monologue en cours");
-            return;
-          }
-
-          if (
-            isSpeechActiveRef.current &&
-            !silenceTimerRef.current &&
-            !isPaused &&
-            shouldCaptureAudioRef.current
-          ) {
-            silenceTimerRef.current = window.setTimeout(() => {
-              silenceTimerRef.current = null;
-              void finalizeStudentTurn();
-            }, 1200);
+            setStatus("Session en cours");
+            setShowStudentDraftIndicator(true);
           }
         },
-        stream,
+        mediaStream,
       );
 
       micRef.current = microphone;
       setIsDiscussing(true);
-      setSessionPhase("student-speaking");
-      setStatus("Monologue en cours");
+      setSessionPhase("idle");
+      setStatus("Session Live ouverte, en attente de l'étudiant");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erreur inconnue";
       setStatus(`Impossible de démarrer : ${message}`);
@@ -883,33 +1375,39 @@ export default function SansPsPage({
     }
 
     if (!isPaused) {
-      shouldCaptureAudioRef.current = false;
+      requestTurnCompletion("Pause");
+      shouldSendAudioRef.current = false;
+      isMicMutedRef.current = true;
+      setIsMicMuted(true);
+      setMicLevel(0);
+      setMicPeak(0);
       setIsDiscussing(false);
       setIsPaused(true);
       setSessionPhase("paused");
-      setStatus("Monologue en pause");
-      clearSilenceTimer();
-      await finalizeStudentTurn();
+      setStatus("Session en pause");
       setTranscript((current) => [
         ...current,
-        createTranscriptEntry("system", "Monologue mis en pause."),
+        createTranscriptEntry("system", "Session mise en pause."),
       ]);
       return;
     }
 
-    shouldCaptureAudioRef.current = true;
+    shouldSendAudioRef.current = true;
+    isMicMutedRef.current = false;
+    setIsMicMuted(false);
+    pushDebugEvent("Session reprise");
     setIsDiscussing(true);
     setIsPaused(false);
-    setSessionPhase("student-speaking");
-    setStatus("Monologue repris");
+    setSessionPhase("idle");
+    setStatus("Session reprise");
     setTranscript((current) => [
       ...current,
-      createTranscriptEntry("system", "Monologue repris."),
+      createTranscriptEntry("system", "Session reprise."),
     ]);
   }
 
   async function stopSession() {
-    setStatus("Finalisation du monologue");
+    setStatus("Finalisation de la session");
     let finished = false;
     let elapsedSummary = "";
 
@@ -917,16 +1415,25 @@ export default function SansPsPage({
       elapsedSummary = formatElapsedDiscussion(
         sessionDurationSeconds - remainingSeconds,
       );
-      shouldCaptureAudioRef.current = false;
-      clearSilenceTimer();
-      await finalizeStudentTurn();
-
+      shouldSendAudioRef.current = false;
+      clearTurnEndFallbackTimer();
+      pendingManualTurnEndRef.current = false;
+      flushStudentDraft();
+      requestTurnCompletion("Terminer");
       const recordedBlob = await micRef.current?.stop();
       if (recordedBlob) {
         const nextUrl = URL.createObjectURL(recordedBlob);
         recordedAudioUrlRef.current = nextUrl;
         setRecordedAudioUrl(nextUrl);
       }
+
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 1400);
+      });
+
+      flushStudentDraft();
+
+      sessionRef.current?.close();
 
       finished = true;
     } catch (error) {
@@ -937,23 +1444,25 @@ export default function SansPsPage({
       ]);
     } finally {
       micRef.current = null;
-      clearSilenceTimer();
-      currentTurnChunksRef.current = [];
-      isSpeechActiveRef.current = false;
-      isFinalizingTurnRef.current = false;
+      sessionRef.current = null;
+      currentSessionIdRef.current = null;
+      shouldSendAudioRef.current = true;
+      clearTurnEndFallbackTimer();
+      pendingManualTurnEndRef.current = false;
+      inputTranscriptRef.current = "";
       setShowStudentDraftIndicator(false);
       setIsDiscussing(false);
       setIsPaused(false);
       setHasEndedDiscussion(true);
       setSessionPhase("idle");
-      setStatus("Monologue terminé. Transcription prête pour évaluation.");
+      setStatus("Session terminée. Transcription prête pour évaluation.");
       setMicLevel(0);
       setMicPeak(0);
 
       if (finished) {
         onShowToast(
-          "Monologue terminé",
-          `Vous avez fini en ${elapsedSummary}.`,
+          "Session terminée",
+          `Vous avez terminé en ${elapsedSummary}.`,
           "success",
         );
       }
@@ -1028,8 +1537,18 @@ export default function SansPsPage({
       isMicMutedRef.current = next;
 
       if (next) {
+        requestTurnCompletion("Mute");
+        setSessionPhase("idle");
+        setStatus("Transcription en attente");
+        shouldSendAudioRef.current = false;
         setMicLevel(0);
         setMicPeak(0);
+      } else {
+        shouldSendAudioRef.current = true;
+        pushDebugEvent("Micro réactivé");
+        if (isDiscussing && !isPaused) {
+          setStatus("Session en cours");
+        }
       }
 
       return next;
@@ -1223,9 +1742,11 @@ export default function SansPsPage({
 
   useEffect(() => {
     return () => {
-      shouldCaptureAudioRef.current = false;
-      clearSilenceTimer();
+      shouldSendAudioRef.current = false;
+      clearTurnEndFallbackTimer();
+      pendingManualTurnEndRef.current = false;
       void micRef.current?.stop();
+      sessionRef.current?.close();
       if (recordedAudioUrlRef.current) {
         URL.revokeObjectURL(recordedAudioUrlRef.current);
       }
@@ -1249,7 +1770,7 @@ export default function SansPsPage({
           <div className="flex items-center gap-3">
             <div className={`flex items-center rounded-xl border p-1 ${
               darkMode
-                ? "border-slate-700 bg-slate-800"
+                ? "border-transparent bg-slate-800"
                 : "border-slate-200 bg-white"
             }`}>
               <button
@@ -1295,7 +1816,7 @@ export default function SansPsPage({
               onClick={onOpenDashboard}
               className={`rounded-xl border p-2.5 transition-all duration-200 ${
                 darkMode
-                  ? "border-white/10 bg-slate-800/70 ring-1 ring-inset ring-white/5 hover:bg-slate-700/80"
+                  ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
                   : "border-slate-200 bg-white hover:bg-slate-50"
               }`}
               aria-label="Open dashboard"
@@ -1307,7 +1828,7 @@ export default function SansPsPage({
               onClick={() => onDarkModeChange(!darkMode)}
               className={`rounded-xl border p-2.5 transition-all duration-200 ${
                 darkMode
-                  ? "border-white/10 bg-slate-800/70 ring-1 ring-inset ring-white/5 hover:bg-slate-700/80"
+                  ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
                   : "border-slate-200 bg-white hover:bg-slate-50"
               }`}
               aria-label="Basculer le mode sombre"
@@ -1324,7 +1845,7 @@ export default function SansPsPage({
               onClick={onOpenSettings}
               className={`rounded-xl border p-2.5 transition-all duration-200 ${
                 darkMode
-                  ? "border-white/10 bg-slate-800/70 ring-1 ring-inset ring-white/5 hover:bg-slate-700/80"
+                  ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
                   : "border-slate-200 bg-white hover:bg-slate-50"
               }`}
               aria-label="Open settings"
@@ -1338,7 +1859,7 @@ export default function SansPsPage({
       {showEvaluationReport && evaluation ? (
         <main className="mx-auto max-w-[1280px] px-6 py-8">
           <div className="space-y-6">
-            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
                 <div className="min-w-0">
                   <button
@@ -1349,7 +1870,7 @@ export default function SansPsPage({
                     }}
                     className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all ${
                       darkMode
-                        ? "border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700"
+                        ? "border-transparent bg-slate-800 text-slate-100 hover:bg-slate-700"
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
@@ -1357,7 +1878,7 @@ export default function SansPsPage({
                   </button>
                   <h1 className="mt-4 text-3xl font-bold tracking-tight">Résultats de l&apos;évaluation</h1>
                   <p className={`mt-2 text-sm ${mutedText}`}>
-                    Rapport détaillé du monologue avec synthèse pédagogique et recommandations.
+                    Rapport détaillé de la station avec synthèse pédagogique et recommandations.
                   </p>
                 </div>
                 <div className="flex w-full flex-col gap-3 xl:w-auto xl:min-w-[440px] xl:max-w-[860px] xl:items-end">
@@ -1377,7 +1898,7 @@ export default function SansPsPage({
                           onClick={() => setShowReportAudioPlayer((current) => !current)}
                           className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
                             darkMode
-                              ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
+                              ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
                               : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
                           }`}
                         >
@@ -1389,7 +1910,7 @@ export default function SansPsPage({
                           onClick={downloadRecordedAudio}
                           className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
                             darkMode
-                              ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
+                              ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
                               : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
                           }`}
                         >
@@ -1408,7 +1929,7 @@ export default function SansPsPage({
                       }
                       className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
                         darkMode
-                          ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
+                          ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
                           : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
                       }`}
                     >
@@ -1448,7 +1969,7 @@ export default function SansPsPage({
       <main className="mx-auto max-w-[1600px] px-6 py-8">
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[470px_1fr]">
           <div className="space-y-6">
-            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
               <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
                 <h2 className="flex min-w-0 items-center gap-2 whitespace-nowrap text-base font-semibold md:text-lg">
                   <FileTextIcon className="h-5 w-5 shrink-0 text-primary-500" />
@@ -1480,7 +2001,7 @@ export default function SansPsPage({
               <textarea
                 value={rawInput}
                 onChange={(event) => setRawInput(event.target.value)}
-                placeholder="Collez ici la station sans PS et sa grille de correction..."
+                placeholder="Collez ici la grille de correction de la station..."
                 className={`h-64 w-full resize-none rounded-xl border p-4 text-sm leading-relaxed transition-all duration-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 ${inputBg}`}
               />
 
@@ -1490,34 +2011,34 @@ export default function SansPsPage({
                 </div>
               ) : (
                 <p className={`mt-3 text-xs ${mutedText}`}>
-                  Aucun patient n&apos;est simulé. Seule la grille sert à l&apos;évaluation finale.
+                  Aucun patient n&apos;est simulé. La grille sert de référence pour l&apos;évaluation finale.
                 </p>
               )}
             </div>
 
-            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
               <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
                 <ActivityIcon className="h-5 w-5 text-primary-500" />
                 Consigne
               </h2>
-              <div className={`rounded-xl border ${subCardBg} p-4`}>
+              <div className={`rounded-xl ${darkMode ? "" : "border"} ${subCardBg} p-4`}>
                 <p className="text-sm font-medium">
                   Présentez votre raisonnement à voix haute comme devant un examinateur.
                 </p>
                 <p className={`mt-2 text-sm leading-relaxed ${mutedText}`}>
-                  Le mode sans PS écoute uniquement l&apos;étudiant, segmente la parole sur les silences, transcrit le monologue au fil de la station, puis compare le texte final à la grille.
+                  Le mode sans PS reprend la logique de la station sans patient interactif : l&apos;étudiant parle librement, la session est transcrite, puis le contenu final est comparé à la grille après `Terminer`.
                 </p>
               </div>
             </div>
           </div>
 
           <div className="space-y-6">
-            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
               <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                 <div className="flex min-w-0 items-center gap-4">
                   <div className={`h-3 w-3 rounded-full ${statusColor} ${sessionPhase !== "idle" ? "animate-pulse" : ""}`} />
                   <div className="min-w-0">
-                    <h2 className="text-lg font-semibold">Session Monologue</h2>
+                    <h2 className="text-lg font-semibold">Session de discussion</h2>
                     <p className={`text-sm ${mutedText}`}>{status}</p>
                   </div>
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${subtleBg}`}>
@@ -1532,10 +2053,10 @@ export default function SansPsPage({
                     className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all duration-200 ${
                       canStart
                         ? darkMode
-                          ? "bg-primary-500 text-white shadow-lg shadow-primary-500/20 ring-1 ring-inset ring-white/10 hover:bg-primary-400"
+                          ? "bg-primary-500 text-white shadow-lg shadow-primary-500/20 hover:bg-primary-400"
                           : "bg-primary-600 text-white shadow-lg shadow-primary-500/20 hover:bg-primary-700"
                         : darkMode
-                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500 ring-1 ring-inset ring-white/5"
+                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
                           : "cursor-not-allowed bg-slate-200 text-slate-400"
                     }`}
                   >
@@ -1549,10 +2070,10 @@ export default function SansPsPage({
                     className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all duration-200 ${
                       canPause || isPaused
                         ? darkMode
-                          ? "bg-slate-800/85 text-slate-100 ring-1 ring-inset ring-white/5 hover:bg-slate-700/90"
+                          ? "bg-slate-800/85 text-slate-100 hover:bg-slate-700/90"
                           : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
                         : darkMode
-                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500 ring-1 ring-inset ring-white/5"
+                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
                           : "cursor-not-allowed bg-slate-200 text-slate-400"
                     }`}
                   >
@@ -1570,10 +2091,10 @@ export default function SansPsPage({
                     className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all duration-200 ${
                       canEnd
                         ? darkMode
-                          ? "bg-slate-800/85 text-slate-100 ring-1 ring-inset ring-white/5 hover:bg-slate-700/90"
+                          ? "bg-slate-800/85 text-slate-100 hover:bg-slate-700/90"
                           : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
                         : darkMode
-                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500 ring-1 ring-inset ring-white/5"
+                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
                           : "cursor-not-allowed bg-slate-200 text-slate-400"
                     }`}
                   >
@@ -1587,10 +2108,10 @@ export default function SansPsPage({
                     className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all duration-200 ${
                       canJudge
                         ? darkMode
-                          ? "bg-slate-800/85 text-slate-100 ring-1 ring-inset ring-white/5 hover:bg-slate-700/90"
+                          ? "bg-slate-800/85 text-slate-100 hover:bg-slate-700/90"
                           : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
                         : darkMode
-                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500 ring-1 ring-inset ring-white/5"
+                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
                           : "cursor-not-allowed bg-slate-200 text-slate-400"
                     }`}
                   >
@@ -1604,10 +2125,10 @@ export default function SansPsPage({
                     className={`flex min-w-[112px] items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all duration-200 ${
                       canResetSession
                         ? darkMode
-                          ? "bg-slate-800/85 text-slate-100 ring-1 ring-inset ring-white/5 hover:bg-slate-700/90"
+                          ? "bg-slate-800/85 text-slate-100 hover:bg-slate-700/90"
                           : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
                         : darkMode
-                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500 ring-1 ring-inset ring-white/5"
+                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
                           : "cursor-not-allowed bg-slate-200 text-slate-400"
                     }`}
                   >
@@ -1619,13 +2140,13 @@ export default function SansPsPage({
             </div>
 
             <div className={`grid min-h-0 items-start grid-cols-1 gap-6 lg:grid-cols-[320px_1fr] ${discussionPanelHeightClass}`}>
-              <div className={`self-start rounded-2xl border ${cardBg} p-6 shadow-soft lg:h-full`}>
+              <div className={`self-start rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft lg:h-full`}>
                 <div className="flex items-center gap-2">
                   <ClockIcon className={`h-4 w-4 ${mutedText}`} />
                   <span className="text-sm font-semibold">Outils de session</span>
                 </div>
 
-                <div className="mt-5 rounded-2xl border border-slate-200/70 p-5 dark:border-slate-700/60">
+                <div className={`mt-5 rounded-2xl p-5 ${darkMode ? "bg-slate-950/36" : "border border-slate-200/70"}`}>
                   <div className="flex items-center gap-2">
                     <ClockIcon className={`h-4 w-4 ${mutedText}`} />
                     <span className={`text-sm font-medium ${mutedText}`}>Temps restant</span>
@@ -1730,10 +2251,10 @@ export default function SansPsPage({
                       className={`absolute inset-0 z-10 m-auto flex h-16 w-16 items-center justify-center rounded-full transition-all ${
                         isMicMuted
                           ? darkMode
-                            ? "border border-rose-800 bg-slate-900"
+                            ? "border-transparent bg-slate-900"
                             : "border border-rose-200 bg-white"
                           : darkMode
-                            ? "border border-slate-700 bg-slate-800 hover:bg-slate-700"
+                            ? "border-transparent bg-slate-800 hover:bg-slate-700"
                             : "border border-slate-200 bg-white hover:bg-slate-50"
                       }`}
                     >
@@ -1762,7 +2283,7 @@ export default function SansPsPage({
                       </span>
                     </div>
 
-                    <div className={`mt-4 rounded-xl border ${subCardBg} p-3 opacity-75`}>
+                    <div className={`mt-4 rounded-xl ${darkMode ? "" : "border"} ${subCardBg} p-3 opacity-75`}>
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
@@ -1791,7 +2312,7 @@ export default function SansPsPage({
                         <button
                           type="button"
                           disabled
-                          className="shrink-0 cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500"
+                          className="shrink-0 cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-400 dark:border-transparent dark:bg-slate-800 dark:text-slate-500"
                         >
                           Modifier
                         </button>
@@ -1801,7 +2322,7 @@ export default function SansPsPage({
                 </div>
               </div>
 
-              <div className={`flex ${transcriptPanelHeightClass} min-h-0 flex-col overflow-hidden rounded-2xl border ${cardBg} p-6 shadow-soft lg:h-full`}>
+              <div className={`flex ${transcriptPanelHeightClass} min-h-0 flex-col overflow-hidden rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft lg:h-full`}>
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <h3 className="text-lg font-semibold">Transcription du monologue</h3>
                   <button
@@ -1815,7 +2336,7 @@ export default function SansPsPage({
                     disabled={!canCopyTranscript}
                     className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
                       darkMode
-                        ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
+                        ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
                         : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
                     } ${!canCopyTranscript ? "cursor-not-allowed opacity-60" : ""}`}
                   >
@@ -1880,27 +2401,22 @@ export default function SansPsPage({
                             </div>
                           ) : (
                             <div className="flex w-full justify-start">
-                              <div className="inline-flex w-fit max-w-[78%] items-start gap-3">
-                                <div className={`${darkMode ? "bg-slate-800 text-slate-300" : "bg-indigo-100 text-slate-500"} mt-5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full`}>
-                                  <UserIcon className="h-4 w-4" />
+                              <div className="w-full max-w-[84%]">
+                                <div className={`mb-1.5 flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                                  darkMode ? "text-slate-400" : "text-slate-500"
+                                }`}>
+                                  <span>STUDENT</span>
+                                  <span className={darkMode ? "text-slate-500" : "text-slate-400"}>
+                                    {entry.timestamp}
+                                  </span>
                                 </div>
-                                <div className="flex min-w-0 flex-col items-start">
-                                  <div className={`mb-1.5 flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
-                                    darkMode ? "text-slate-400" : "text-slate-500"
-                                  }`}>
-                                    <span>STUDENT</span>
-                                    <span className={darkMode ? "text-slate-500" : "text-slate-400"}>
-                                      {entry.timestamp}
-                                    </span>
-                                  </div>
-                                  <div className={`inline-block w-fit max-w-full rounded-[22px] px-4 py-3 text-left shadow-sm ${
-                                    darkMode
-                                      ? "border border-slate-700 bg-slate-900 text-slate-100"
-                                      : "border border-slate-200 bg-white text-slate-700"
-                                  }`}>
-                                    <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                                      {entry.text}
-                                    </div>
+                                <div className={`rounded-2xl px-4 py-3 text-left shadow-sm ${
+                                  darkMode
+                                    ? "border border-slate-700 bg-slate-900/95 text-slate-100"
+                                    : "border border-slate-200 bg-white text-slate-700"
+                                }`}>
+                                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                                    {entry.text}
                                   </div>
                                 </div>
                               </div>
@@ -1912,24 +2428,25 @@ export default function SansPsPage({
                       {showDraftIndicatorForDisplay && (
                         <div className="animate-fade-in">
                           <div className="flex w-full justify-start">
-                            <div className="inline-flex w-fit max-w-[78%] items-start gap-3">
-                              <div className={`${darkMode ? "bg-slate-800 text-slate-300" : "bg-indigo-100 text-slate-500"} mt-5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full`}>
-                                <UserIcon className="h-4 w-4" />
+                            <div className="w-full max-w-[84%]">
+                              <div className={`mb-1.5 flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                                darkMode ? "text-slate-400" : "text-slate-500"
+                              }`}>
+                                <span>STUDENT</span>
+                                <span className={darkMode ? "text-slate-500" : "text-slate-400"}>
+                                  {createTimestamp()}
+                                </span>
                               </div>
-                              <div className="flex min-w-0 flex-col items-start">
-                                <div className={`mb-1.5 flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
-                                  darkMode ? "text-slate-400" : "text-slate-500"
-                                }`}>
-                                  <span>STUDENT</span>
-                                  <span className={darkMode ? "text-slate-500" : "text-slate-400"}>
-                                    {createTimestamp()}
-                                  </span>
-                                </div>
-                                <div className={`inline-block w-fit max-w-full rounded-[22px] px-4 py-3 shadow-sm ${
-                                  darkMode
-                                    ? "border border-slate-700 bg-slate-900 text-slate-100"
-                                    : "border border-slate-200 bg-white text-slate-700"
-                                }`}>
+                              <div className={`rounded-2xl px-4 py-3 shadow-sm ${
+                                darkMode
+                                  ? "border border-slate-700 bg-slate-900/95 text-slate-100"
+                                  : "border border-slate-200 bg-white text-slate-700"
+                              }`}>
+                                {studentDraftText.trim() ? (
+                                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                                    {studentDraftText}
+                                  </div>
+                                ) : (
                                   <div className="flex items-center gap-2 text-sm">
                                     <span>En train de parler</span>
                                     <span className="flex gap-1">
@@ -1938,12 +2455,41 @@ export default function SansPsPage({
                                       <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-500 [animation-delay:300ms]" />
                                     </span>
                                   </div>
-                                </div>
+                                )}
                               </div>
                             </div>
                           </div>
                         </div>
                       )}
+                    </div>
+                  )}
+                </div>
+                <div
+                  className={`mt-4 rounded-xl border px-4 py-3 text-xs ${
+                    darkMode
+                      ? "border-slate-700 bg-slate-950/60 text-slate-300"
+                      : "border-slate-200 bg-slate-50 text-slate-600"
+                  }`}
+                >
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <span className="font-semibold uppercase tracking-[0.18em]">
+                      Debug Live
+                    </span>
+                    <span className={mutedText}>
+                      {debugEvents.length > 0 ? `${debugEvents.length} événements` : "Aucun événement"}
+                    </span>
+                  </div>
+                  {debugEvents.length === 0 ? (
+                    <p className={mutedText}>
+                      Les messages debug de la session Sans PS apparaîtront ici.
+                    </p>
+                  ) : (
+                    <div className="space-y-1 font-mono">
+                      {debugEvents.map((event, index) => (
+                        <div key={`${event}-${index}`} className="break-words">
+                          {event}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

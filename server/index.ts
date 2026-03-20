@@ -177,7 +177,8 @@ app.post("/api/usage/live", (request, response) => {
 
 app.post("/api/live-token", async (request, response) => {
   const schema = z.object({
-    patientScript: z.string().min(1),
+    mode: z.enum(["interactive", "silent"]).optional().default("interactive"),
+    patientScript: z.string().optional(),
     googleApiKey: z.string().optional(),
     sessionId: z.string().optional(),
     voiceName: z.string().optional(),
@@ -186,6 +187,14 @@ app.post("/api/live-token", async (request, response) => {
   const parsed = schema.safeParse(request.body);
   if (!parsed.success) {
     response.status(400).json(parsed.error.flatten());
+    return;
+  }
+
+  if (
+    parsed.data.mode === "interactive" &&
+    !parsed.data.patientScript?.trim()
+  ) {
+    response.status(400).send("patientScript is required in interactive mode.");
     return;
   }
 
@@ -220,31 +229,43 @@ app.post("/api/live-token", async (request, response) => {
     });
 
     const cleanedPatientScript = stripParentheticalStageDirections(
-      parsed.data.patientScript,
+      parsed.data.patientScript ?? "",
     );
     const voiceName = isSupportedVoiceName(parsed.data.voiceName ?? "")
       ? parsed.data.voiceName
       : undefined;
 
-    const systemInstruction = [
-      "Tu es le patient décrit ci-dessous.",
-      "Agis de façon réaliste et naturelle.",
-      "Ne sors jamais de ton rôle.",
-      "Tu réponds uniquement à ce que l'étudiant te demande.",
-      "Ne donne jamais d'indices, d'aides, de pistes, ni d'orientation implicite ou explicite.",
-      "Ne suggère jamais spontanément un symptôme, un diagnostic, un examen, un antécédent, un traitement ou une information non demandée.",
-      "Si l'étudiant pose une question vague, réponds de façon vague comme un vrai patient, sans l'aider à mieux formuler.",
-      "Ne structure pas tes réponses comme un enseignant, un correcteur ou un médecin.",
-      "Ne donne jamais la réponse attendue à l'ECOS.",
-      "Si une information importante n'est pas explicitement demandée, garde-la pour toi.",
-      "Les émotions éventuelles doivent être exprimées uniquement par le ton, les pauses, l'intonation et la voix.",
-      "Ne lis jamais de didascalies, de parenthèses, d'émotions ou d'indications scéniques à voix haute.",
-      "Ne prononce jamais des mots comme fatiguée, gênée, stressée, perdue, soupir, hésitante, embarrassée, sauf si le patient les dit réellement comme contenu de sa réponse.",
-      "Ne mentionne jamais d'informations qui sont déjà présentes sur la grille d'évaluation.",
-      "Ne donne aucun détail supplémentaire si le médecin ne te le demande pas explicitement.",
-      "",
-      cleanedPatientScript,
-    ].join("\n");
+    const systemInstruction =
+      parsed.data.mode === "silent"
+        ? [
+            "Tu accompagnes un ECOS sans patient simulé.",
+            "L'étudiant parle seul pour exposer son raisonnement clinique.",
+            "Ne joue jamais un patient, un examinateur ou un assistant.",
+            "Ne donne jamais de contenu clinique, de conseil, de question, d'indice, de correction ou de réponse pédagogique.",
+            "N'ajoute jamais d'information médicale.",
+            "Quand l'étudiant parle, laisse uniquement la transcription d'entrée être produite par la session Live.",
+            "N'émet aucune réponse utile au modèle, aucun texte explicatif, aucun résumé, aucune reformulation.",
+            "Si tu dois produire une sortie, elle doit être vide et silencieuse.",
+          ].join("\n")
+        : [
+            "Tu es le patient décrit ci-dessous.",
+            "Agis de façon réaliste et naturelle.",
+            "Ne sors jamais de ton rôle.",
+            "Tu réponds uniquement à ce que l'étudiant te demande.",
+            "Ne donne jamais d'indices, d'aides, de pistes, ni d'orientation implicite ou explicite.",
+            "Ne suggère jamais spontanément un symptôme, un diagnostic, un examen, un antécédent, un traitement ou une information non demandée.",
+            "Si l'étudiant pose une question vague, réponds de façon vague comme un vrai patient, sans l'aider à mieux formuler.",
+            "Ne structure pas tes réponses comme un enseignant, un correcteur ou un médecin.",
+            "Ne donne jamais la réponse attendue à l'ECOS.",
+            "Si une information importante n'est pas explicitement demandée, garde-la pour toi.",
+            "Les émotions éventuelles doivent être exprimées uniquement par le ton, les pauses, l'intonation et la voix.",
+            "Ne lis jamais de didascalies, de parenthèses, d'émotions ou d'indications scéniques à voix haute.",
+            "Ne prononce jamais des mots comme fatiguée, gênée, stressée, perdue, soupir, hésitante, embarrassée, sauf si le patient les dit réellement comme contenu de sa réponse.",
+            "Ne mentionne jamais d'informations qui sont déjà présentes sur la grille d'évaluation.",
+            "Ne donne aucun détail supplémentaire si le médecin ne te le demande pas explicitement.",
+            "",
+            cleanedPatientScript,
+          ].join("\n");
 
     const promptTokenEstimate = await ai.models.countTokens({
       model: liveModel,
@@ -259,8 +280,11 @@ app.post("/api/live-token", async (request, response) => {
         liveConnectConstraints: {
           model: liveModel,
           config: {
-            responseModalities: [Modality.AUDIO],
-            ...(voiceName
+            responseModalities:
+              parsed.data.mode === "silent"
+                ? [Modality.AUDIO]
+                : [Modality.AUDIO],
+            ...(parsed.data.mode !== "silent" && voiceName
               ? {
                   speechConfig: {
                     voiceConfig: {
@@ -280,7 +304,7 @@ app.post("/api/live-token", async (request, response) => {
                   StartSensitivity.START_SENSITIVITY_HIGH,
                 endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
                 prefixPaddingMs: 160,
-                silenceDurationMs: 1200,
+                silenceDurationMs: parsed.data.mode === "silent" ? 700 : 1200,
               },
               activityHandling: ActivityHandling.START_OF_ACTIVITY_INTERRUPTS,
               turnCoverage: TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY,
@@ -462,96 +486,6 @@ app.post("/api/evaluate", async (request, response) => {
       error instanceof Error ? error.message : "Unable to evaluate transcript.";
     recordUsageEvent({
       endpoint: "evaluate",
-      model: evalModel,
-      keySource: resolveTrackableKeySource(parsed.data.googleApiKey),
-      sessionId: parsed.data.sessionId,
-      occurredAt: new Date().toISOString(),
-      statusCode: 500,
-      outcome: "error",
-      errorType: classifyErrorType(500, message),
-      message,
-      inputTokens: 0,
-      outputTokens: 0,
-      totalTokens: 0,
-      estimatedCostUsd: 0,
-    });
-    response.status(500).send(message);
-  }
-});
-
-app.post("/api/transcribe-turn", async (request, response) => {
-  const schema = z.object({
-    audioBase64: z.string().min(1),
-    mimeType: z.string().min(1),
-    googleApiKey: z.string().optional(),
-    sessionId: z.string().optional(),
-  });
-
-  const parsed = schema.safeParse(request.body);
-  if (!parsed.success) {
-    response.status(400).json(parsed.error.flatten());
-    return;
-  }
-
-  try {
-    const apiKey = resolveApiKey(parsed.data.googleApiKey);
-    const keySource = resolveTrackableKeySource(parsed.data.googleApiKey);
-    if (!apiKey) {
-      response.status(500).send("Missing GEMINI_API_KEY.");
-      return;
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
-
-    const result = await ai.models.generateContent({
-      model: evalModel,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: [
-                "Transcris fidèlement cet audio en français.",
-                "Retourne uniquement le texte prononcé.",
-                "N'ajoute aucun commentaire, aucune explication, aucun formatage.",
-              ].join("\n"),
-            },
-            {
-              inlineData: {
-                data: parsed.data.audioBase64,
-                mimeType: parsed.data.mimeType,
-              },
-            },
-          ],
-        },
-      ],
-    });
-
-    response.json({ text: result.text?.trim() ?? "" });
-
-    const usage = usageMetadataToCounts(result.usageMetadata);
-    recordUsageEvent({
-      endpoint: "transcribe-turn",
-      model: evalModel,
-      keySource,
-      sessionId: parsed.data.sessionId,
-      occurredAt: new Date().toISOString(),
-      statusCode: 200,
-      outcome: "success",
-      inputTokens: usage.inputTokens,
-      outputTokens: usage.outputTokens,
-      totalTokens: usage.totalTokens,
-      estimatedCostUsd: estimateCostUsd({
-        model: evalModel,
-        inputAudioTokens: usage.inputTokens,
-        outputTextTokens: usage.outputTokens,
-      }),
-    });
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unable to transcribe audio.";
-    recordUsageEvent({
-      endpoint: "transcribe-turn",
       model: evalModel,
       keySource: resolveTrackableKeySource(parsed.data.googleApiKey),
       sessionId: parsed.data.sessionId,
