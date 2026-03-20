@@ -11,6 +11,8 @@ import {
 import { parseCaseInput, transcriptToPlainText } from "./lib/parser";
 import { buildPsPdfDocument } from "./lib/pdf";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { EvaluationReport } from "./EvaluationReport";
+import { RecordingPlayer } from "./RecordingPlayer";
 import {
   FEMALE_VOICE_OPTIONS,
   hasVoicePreviewSample,
@@ -396,47 +398,6 @@ function HeartIcon({
   );
 }
 
-function parseScore(score?: string) {
-  if (!score) {
-    return { value: 0, max: 15, ratio: 0 };
-  }
-
-  const match = score.match(/(\d+(?:[.,]\d+)?)\s*\/\s*(\d+(?:[.,]\d+)?)/);
-  if (!match) {
-    return { value: 0, max: 15, ratio: 0 };
-  }
-
-  const value = Number(match[1].replace(",", "."));
-  const max = Number(match[2].replace(",", "."));
-  const ratio = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
-
-  return { value, max, ratio };
-}
-
-function scoreGradient(ratio: number) {
-  if (ratio >= 0.75) {
-    return "linear-gradient(90deg, #16a34a, #22c55e)";
-  }
-
-  if (ratio >= 0.45) {
-    return "linear-gradient(90deg, #ca8a04, #eab308)";
-  }
-
-  return "linear-gradient(90deg, #dc2626, #f87171)";
-}
-
-function scoreColor(ratio: number) {
-  if (ratio >= 0.75) {
-    return "#15803d";
-  }
-
-  if (ratio >= 0.45) {
-    return "#a16207";
-  }
-
-  return "#b91c1c";
-}
-
 function formatFeedbackDetailLabel(level: AppSettings["feedbackDetailLevel"]) {
   switch (level) {
     case "brief":
@@ -682,11 +643,6 @@ export default function App({
   const [remainingSeconds, setRemainingSeconds] = useState(
     settings.defaultTimerSeconds,
   );
-  const [evaluationWarning, setEvaluationWarning] = useState<{
-    mode: "confirm" | "blocked";
-    title: string;
-    body: string;
-  } | null>(null);
   const [sessionGuardDialog, setSessionGuardDialog] = useState<{
     action: "reset" | "clear";
     title: string;
@@ -714,7 +670,6 @@ export default function App({
 
   const transcriptRef = useRef<HTMLDivElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const voicePreviewAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const sessionRef = useRef<LiveSession | null>(null);
@@ -773,8 +728,7 @@ export default function App({
     (transcript.length > 0 ||
       evaluation !== null ||
       recordedAudioUrl !== null ||
-      hasEndedDiscussion ||
-      evaluationWarning !== null);
+      hasEndedDiscussion);
   const canClearText =
     !isConnecting &&
     !isEvaluating &&
@@ -788,7 +742,6 @@ export default function App({
       recordedAudioUrl !== null ||
       hasEndedDiscussion);
 
-  const scoreState = parseScore(evaluation?.score);
   const timerDanger = remainingSeconds <= 60;
   const canSwitchModes = !isDiscussing && !isPaused;
   const transcriptForDisplay = useMemo(() => {
@@ -818,6 +771,14 @@ export default function App({
   const canCopyTranscript =
     (settings.showLiveTranscript || hasEndedDiscussion) &&
     transcriptCopyText.trim().length > 0;
+  const transcriptHeightClass =
+    transcriptForDisplay.length === 0 && !showDraftIndicatorForDisplay
+      ? hasEndedDiscussion
+        ? "h-[320px]"
+        : "h-[340px]"
+      : hasEndedDiscussion
+        ? "h-[400px]"
+        : "h-[500px]";
   const evaluationCopyText = evaluation ? buildEvaluationCopy(evaluation) : "";
   const canRerunEvaluation =
     Boolean(evaluation) &&
@@ -1672,7 +1633,6 @@ export default function App({
   async function resetSessionState() {
     try {
       shouldSendAudioRef.current = false;
-      setEvaluationWarning(null);
       await stopMixedRecorder();
       await micRef.current?.stop();
       sessionRef.current?.close();
@@ -1844,26 +1804,6 @@ export default function App({
   }
 
   function handleEvaluateClick() {
-    const discussionDurationSeconds = sessionDurationSeconds - remainingSeconds;
-
-    if (discussionDurationSeconds < 120) {
-      setEvaluationWarning({
-        mode: "blocked",
-        title: "Evaluation unavailable",
-        body: "Evaluation is unavailable for discussions shorter than 2 minutes. Please continue the discussion and try again.",
-      });
-      return;
-    }
-
-    if (discussionDurationSeconds < 180) {
-      setEvaluationWarning({
-        mode: "confirm",
-        title: "Short discussion",
-        body: "This discussion is shorter than 3 minutes, so the evaluation may be unreliable. Do you want to continue?",
-      });
-      return;
-    }
-
     void evaluateDiscussion();
   }
 
@@ -1917,12 +1857,6 @@ export default function App({
       setRemainingSeconds(settings.defaultTimerSeconds);
     }
   }, [isDiscussing, isPaused, settings.defaultTimerSeconds]);
-
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.playbackRate = settings.recordedAudioPlaybackRate;
-    }
-  }, [recordedAudioUrl, settings.recordedAudioPlaybackRate]);
 
   useEffect(() => {
     if (!hasEndedDiscussion) {
@@ -2330,7 +2264,7 @@ export default function App({
                         {group.title}
                       </div>
                       <div
-                        className={`max-h-[12.75rem] space-y-2 overflow-y-auto pr-1 ${
+                        className={`max-h-[10.5rem] space-y-2 overflow-y-auto pr-1 ${
                           darkMode ? "scrollbar-dark" : "scrollbar-light"
                         }`}
                       >
@@ -2752,7 +2686,7 @@ export default function App({
                 </div>
                 <div
                   ref={transcriptRef}
-                  className={`h-[500px] overflow-y-auto rounded-xl p-4 ${
+                  className={`${transcriptHeightClass} overflow-y-auto rounded-xl p-4 ${
                     darkMode ? "bg-slate-950/50" : "bg-slate-50/80"
                   }`}
                 >
@@ -2890,25 +2824,27 @@ export default function App({
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Audio Replay */}
-          {recordedAudioUrl && (
-            <div className={`xl:col-span-2 rounded-2xl border ${cardBg} p-6 shadow-soft`}>
-              <h3 className="text-lg font-semibold mb-4">Enregistrement audio</h3>
-              <div className={`p-4 rounded-xl ${subCardBg} border`}>
-                <audio ref={audioRef} controls className="w-full" src={recordedAudioUrl}>
-                  Votre navigateur ne supporte pas la lecture audio.
-                </audio>
-              </div>
-            </div>
-          )}
 
           {/* Results */}
-          <div ref={resultsRef} className={`xl:col-span-2 rounded-2xl border ${cardBg} p-6 shadow-soft`}>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">Résultats d'évaluation</h2>
-              <div className="flex items-center gap-2">
+          <div ref={resultsRef} className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+            <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+              <div>
+                <h2 className="text-xl font-bold">Résultats d'évaluation</h2>
+                <p className={`mt-1 text-sm ${mutedText}`}>
+                  {evaluation
+                    ? "Synthèse de la correction et utilitaires de session."
+                    : "La correction apparaîtra ici à la fin de la session."}
+                </p>
+              </div>
+              <div className="flex w-full flex-col gap-3 xl:w-auto xl:min-w-[430px]">
+                {recordedAudioUrl && (
+                  <RecordingPlayer
+                    src={recordedAudioUrl}
+                    darkMode={darkMode}
+                    playbackRate={settings.recordedAudioPlaybackRate}
+                  />
+                )}
+                <div className="flex flex-wrap items-center gap-2 xl:justify-end">
                 {canRerunEvaluation && (
                   <button
                     onClick={handleRerunEvaluation}
@@ -2930,7 +2866,7 @@ export default function App({
                     darkMode
                       ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
                       : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
-                  } ${!evaluation ? "cursor-not-allowed opacity-60" : ""}`}
+                  } ${!evaluation ? "cursor-not-allowed opacity-40 saturate-50" : ""}`}
                 >
                   <CopyIcon className="w-4 h-4" />
                   Copy evaluation
@@ -2941,17 +2877,18 @@ export default function App({
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                     evaluation
                       ? "bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white"
-                      : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed opacity-60"
                   }`}
                 >
                   <FileTextIcon className="w-4 h-4" />
                   Export PDF
                 </button>
+                </div>
               </div>
             </div>
 
             {!evaluation ? (
-              <div className={`p-12 rounded-xl ${subtleBg} text-center`}>
+              <div className={`rounded-xl ${subtleBg} px-6 py-6 text-center`}>
                 <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl ${subtleBg} flex items-center justify-center`}>
                   <CheckIcon className={`w-8 h-8 ${mutedText}`} />
                 </div>
@@ -2960,96 +2897,15 @@ export default function App({
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-6 items-start">
-                <div className={`rounded-xl ${subCardBg} border p-6`}>
-                  <div className={`text-sm font-medium uppercase tracking-wider ${mutedText} mb-4`}>
-                    Note finale
-                  </div>
-                  <div className="text-center">
-                    <div className="text-6xl font-bold mb-2">{evaluation.score}</div>
-                    <div className={`text-sm ${mutedText} mb-4`}>Évaluation complète</div>
-                  </div>
-                  <div className={`h-3 rounded-full overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-200"}`}>
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{
-                        width: `${scoreState.ratio * 100}%`,
-                        background: scoreGradient(scoreState.ratio),
-                      }}
-                    />
-                  </div>
-                  <div
-                    className="text-center text-sm font-semibold mt-3"
-                    style={{ color: scoreColor(scoreState.ratio) }}
-                  >
-                    {scoreState.value} / {scoreState.max} points
-                  </div>
-                </div>
-
-                <div className={`rounded-xl ${subCardBg} border overflow-hidden`}>
-                  <table className="w-full text-sm">
-                    <thead className={`${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
-                      <tr>
-                        <th className="text-left px-6 py-4 font-semibold">Critère</th>
-                        <th className="text-left px-6 py-4 font-semibold w-44">Résultat</th>
-                        <th className="text-left px-6 py-4 font-semibold">
-                          <div className="flex items-center gap-2">
-                            <span>Feedback</span>
-                            <span
-                              className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${
-                                darkMode
-                                  ? "border-slate-700 bg-slate-800 text-slate-300"
-                                  : "border-slate-200 bg-slate-100 text-slate-600"
-                              }`}
-                            >
-                              {formatFeedbackDetailLabel(
-                                lastEvaluatedFeedbackDetailLevel ??
-                                  settings.feedbackDetailLevel,
-                              )}
-                            </span>
-                          </div>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                      {evaluation.details.map((detail, index) => (
-                        <tr
-                          key={`${detail.criterion}-${index}`}
-                          className={darkMode ? "bg-slate-900/20" : "bg-white"}
-                        >
-                          <td className="px-6 py-5 align-top font-medium leading-relaxed">
-                            {detail.criterion}
-                          </td>
-                          <td className="px-6 py-5 align-top">
-                            <span
-                              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold border ${
-                                detail.observed
-                                  ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
-                                  : "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"
-                              }`}
-                            >
-                              <span
-                                className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-xs ${
-                                  detail.observed
-                                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
-                                    : "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300"
-                                }`}
-                              >
-                                {detail.observed ? "✓" : "×"}
-                              </span>
-                              {detail.observed ? "Observé" : "Non observé"}
-                            </span>
-                          </td>
-                          <td className={`px-6 py-5 align-top leading-relaxed ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
-                            {detail.feedback}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              <EvaluationReport
+                evaluation={evaluation}
+                darkMode={darkMode}
+                feedbackDetailLabel={formatFeedbackDetailLabel(
+                  lastEvaluatedFeedbackDetailLevel ?? settings.feedbackDetailLevel,
+                )}
+              />
             )}
+          </div>
           </div>
         </div>
       </main>
@@ -3077,68 +2933,6 @@ export default function App({
 
             <div className="mt-4 text-center">
               <span className="text-2xl font-bold">{evaluationProgress}%</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {evaluationWarning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm px-4">
-          <div className={`relative w-full max-w-md rounded-2xl border ${cardBg} p-8 shadow-2xl`}>
-            <button
-              type="button"
-              onClick={() => setEvaluationWarning(null)}
-              className={`absolute right-0 top-0 -translate-y-1/2 translate-x-1/2 rounded-full border p-2 shadow-lg transition-colors ${
-                darkMode
-                  ? "border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800"
-                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-              }`}
-              aria-label="Close popup"
-            >
-              <XIcon className="h-4 w-4" />
-            </button>
-
-            <div className="text-center">
-              <h3 className="text-xl font-bold">{evaluationWarning.title}</h3>
-              <p className={`mt-3 text-sm leading-relaxed ${mutedText}`}>
-                {evaluationWarning.body}
-              </p>
-            </div>
-
-            <div className="mt-6 flex items-center justify-center gap-3">
-              {evaluationWarning.mode === "confirm" ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setEvaluationWarning(null)}
-                    className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-all ${
-                      darkMode
-                        ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                    }`}
-                  >
-                    No
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEvaluationWarning(null);
-                      void evaluateDiscussion();
-                    }}
-                    className="rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-700"
-                  >
-                    Yes
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setEvaluationWarning(null)}
-                  className="rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-700"
-                >
-                  Retry
-                </button>
-              )}
             </div>
           </div>
         </div>
