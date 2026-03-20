@@ -267,6 +267,15 @@ function ClockIcon({ className }: { className?: string }) {
   );
 }
 
+function UserIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 20a6 6 0 0 0-12 0" />
+      <circle cx="12" cy="10" r="4" />
+    </svg>
+  );
+}
+
 function DownloadIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1788,14 +1797,12 @@ export default function SansPsPage({
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-3 p-4">
+                    <div className="space-y-4 p-4">
                       {transcriptForDisplay.map((entry) => (
                         <div
                           key={entry.id}
                           className={`animate-fade-in ${
-                            entry.role === "student"
-                              ? "ml-auto max-w-[85%]"
-                              : "mx-auto max-w-full"
+                            entry.role === "student" ? "w-full" : "mx-auto max-w-full"
                           }`}
                         >
                           {entry.role === "system" ? (
@@ -1812,13 +1819,30 @@ export default function SansPsPage({
                               </div>
                             </div>
                           ) : (
-                            <div className="rounded-2xl bg-primary-600 px-4 py-3 text-white">
-                              <div className="mb-1.5 flex items-center justify-between gap-4 text-[10px] uppercase tracking-wider text-primary-100">
-                                <span className="font-semibold">étudiant</span>
-                                <span>{entry.timestamp}</span>
-                              </div>
-                              <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                                {entry.text}
+                            <div className="flex w-full justify-start">
+                              <div className="flex max-w-[78%] items-start gap-3">
+                                <div className={`${darkMode ? "bg-slate-800 text-slate-300" : "bg-indigo-100 text-slate-500"} mt-5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full`}>
+                                  <UserIcon className="h-4 w-4" />
+                                </div>
+                                <div>
+                                  <div className={`mb-1.5 flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                                    darkMode ? "text-slate-400" : "text-slate-500"
+                                  }`}>
+                                    <span>CLINICIAN</span>
+                                    <span className={darkMode ? "text-slate-500" : "text-slate-400"}>
+                                      {entry.timestamp}
+                                    </span>
+                                  </div>
+                                  <div className={`rounded-[22px] px-4 py-3 shadow-sm ${
+                                    darkMode
+                                      ? "border border-slate-700 bg-slate-900 text-slate-100"
+                                      : "border border-slate-200 bg-white text-slate-700"
+                                  }`}>
+                                    <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                                      {entry.text}
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           )}
@@ -1826,19 +1850,36 @@ export default function SansPsPage({
                       ))}
 
                       {showDraftIndicatorForDisplay && (
-                        <div className="ml-auto max-w-[85%] animate-fade-in">
-                          <div className="rounded-2xl bg-primary-500/90 px-4 py-3 text-white shadow-sm">
-                            <div className="mb-1.5 flex items-center justify-between gap-4 text-[10px] uppercase tracking-wider text-primary-100">
-                              <span className="font-semibold">étudiant</span>
-                              <span>{createTimestamp()}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <span>En train de parler</span>
-                              <span className="flex gap-1">
-                                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/90" />
-                                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/90 [animation-delay:150ms]" />
-                                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/90 [animation-delay:300ms]" />
-                              </span>
+                        <div className="animate-fade-in">
+                          <div className="flex w-full justify-start">
+                            <div className="flex max-w-[78%] items-start gap-3">
+                              <div className={`${darkMode ? "bg-slate-800 text-slate-300" : "bg-indigo-100 text-slate-500"} mt-5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full`}>
+                                <UserIcon className="h-4 w-4" />
+                              </div>
+                              <div>
+                                <div className={`mb-1.5 flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                                  darkMode ? "text-slate-400" : "text-slate-500"
+                                }`}>
+                                  <span>CLINICIAN</span>
+                                  <span className={darkMode ? "text-slate-500" : "text-slate-400"}>
+                                    {createTimestamp()}
+                                  </span>
+                                </div>
+                                <div className={`rounded-[22px] px-4 py-3 shadow-sm ${
+                                  darkMode
+                                    ? "border border-slate-700 bg-slate-900 text-slate-100"
+                                    : "border border-slate-200 bg-white text-slate-700"
+                                }`}>
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <span>En train de parler</span>
+                                    <span className="flex gap-1">
+                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-500" />
+                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-500 [animation-delay:150ms]" />
+                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-500 [animation-delay:300ms]" />
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>

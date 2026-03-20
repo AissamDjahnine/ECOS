@@ -810,6 +810,13 @@ export default function App({
     settings.showLiveTranscript || hasEndedDiscussion;
   const showDraftIndicatorForDisplay =
     showStudentDraftIndicator && showLiveTranscriptContent;
+  const patientTranscriptLabel = useMemo(() => {
+    const candidate =
+      parsedCase.patientFirstName?.trim() ||
+      parsedCase.patientName?.trim() ||
+      "Patient";
+    return `${candidate.toUpperCase()} (AI)`;
+  }, [parsedCase.patientFirstName, parsedCase.patientName]);
   const transcriptCopyText = useMemo(
     () => buildTranscriptCopy(transcript, settings.showSystemMessages),
     [settings.showSystemMessages, transcript],
@@ -2755,16 +2762,12 @@ export default function App({
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-3 p-4">
+                    <div className="space-y-4 p-4">
                       {transcriptForDisplay.map((entry) => (
                         <div
                           key={entry.id}
-                          className={`max-w-[85%] animate-fade-in ${
-                            entry.role === "student"
-                              ? "ml-auto"
-                              : entry.role === "patient"
-                                ? "mr-auto"
-                                : "mx-auto max-w-full"
+                          className={`animate-fade-in ${
+                            entry.role === "system" ? "mx-auto max-w-full" : "w-full"
                           }`}
                         >
                           {entry.role === "system" ? (
@@ -2815,23 +2818,54 @@ export default function App({
                               </div>
                             </div>
                           ) : (
-                            <div
-                              className={`rounded-2xl px-4 py-3 ${
-                                entry.role === "student"
-                                  ? "bg-primary-600 text-white"
-                                  : darkMode
-                                    ? "bg-slate-800 border border-slate-700"
-                                    : "bg-white border border-slate-200 shadow-sm"
-                              }`}
-                            >
-                              <div className={`flex items-center justify-between gap-4 text-[10px] uppercase tracking-wider mb-1.5 ${
-                                entry.role === "student" ? "text-primary-100" : mutedText
-                              }`}>
-                                <span className="font-semibold">{entry.role}</span>
-                                <span>{entry.timestamp}</span>
-                              </div>
-                              <div className="text-sm leading-relaxed whitespace-pre-wrap">
-                                {entry.text}
+                            <div className={`flex w-full ${entry.role === "patient" ? "justify-end" : "justify-start"}`}>
+                              <div
+                                className={`flex max-w-[78%] items-start gap-3 ${
+                                  entry.role === "patient" ? "flex-row-reverse text-right" : ""
+                                }`}
+                              >
+                                <div
+                                  className={`mt-5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                                    entry.role === "patient"
+                                      ? "bg-primary-100 text-primary-700"
+                                      : darkMode
+                                        ? "bg-slate-800 text-slate-300"
+                                        : "bg-indigo-100 text-slate-500"
+                                  }`}
+                                >
+                                  <UserIcon className="h-4 w-4" />
+                                </div>
+                                <div>
+                                  <div
+                                    className={`mb-1.5 flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                                      entry.role === "patient"
+                                        ? "justify-end text-primary-700"
+                                        : darkMode
+                                          ? "text-slate-400"
+                                          : "text-slate-500"
+                                    }`}
+                                  >
+                                    <span>
+                                      {entry.role === "patient"
+                                        ? patientTranscriptLabel
+                                        : "CLINICIAN"}
+                                    </span>
+                                    <span className={darkMode ? "text-slate-500" : "text-slate-400"}>
+                                      {entry.timestamp}
+                                    </span>
+                                  </div>
+                                  <div
+                                    className={`rounded-[22px] px-4 py-3 text-sm leading-relaxed shadow-sm ${
+                                      entry.role === "patient"
+                                        ? "bg-primary-600 text-white"
+                                        : darkMode
+                                          ? "border border-slate-700 bg-slate-900 text-slate-100"
+                                          : "border border-slate-200 bg-white text-slate-700"
+                                    }`}
+                                  >
+                                    <div className="whitespace-pre-wrap">{entry.text}</div>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           )}
@@ -2839,19 +2873,36 @@ export default function App({
                       ))}
 
                       {showDraftIndicatorForDisplay && (
-                        <div className="ml-auto max-w-[85%] animate-fade-in">
-                          <div className="bg-primary-600/90 text-white rounded-2xl px-4 py-3">
-                            <div className="flex items-center justify-between gap-4 text-[10px] uppercase tracking-wider mb-1.5 text-primary-100">
-                              <span className="font-semibold">étudiant</span>
-                              <span>{createTimestamp()}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <span>En train de parler</span>
-                              <span className="flex gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-white/90 animate-bounce" />
-                                <span className="w-1.5 h-1.5 rounded-full bg-white/90 animate-bounce [animation-delay:150ms]" />
-                                <span className="w-1.5 h-1.5 rounded-full bg-white/90 animate-bounce [animation-delay:300ms]" />
-                              </span>
+                        <div className="animate-fade-in">
+                          <div className="flex w-full justify-start">
+                            <div className="flex max-w-[78%] items-start gap-3">
+                              <div className={`${darkMode ? "bg-slate-800 text-slate-300" : "bg-indigo-100 text-slate-500"} mt-5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full`}>
+                                <UserIcon className="h-4 w-4" />
+                              </div>
+                              <div>
+                                <div className={`mb-1.5 flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                                  darkMode ? "text-slate-400" : "text-slate-500"
+                                }`}>
+                                  <span>CLINICIAN</span>
+                                  <span className={darkMode ? "text-slate-500" : "text-slate-400"}>
+                                    {createTimestamp()}
+                                  </span>
+                                </div>
+                                <div className={`rounded-[22px] px-4 py-3 shadow-sm ${
+                                  darkMode
+                                    ? "border border-slate-700 bg-slate-900 text-slate-100"
+                                    : "border border-slate-200 bg-white text-slate-700"
+                                }`}>
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <span>En train de parler</span>
+                                    <span className="flex gap-1">
+                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-500" />
+                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-500 [animation-delay:150ms]" />
+                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-500 [animation-delay:300ms]" />
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
