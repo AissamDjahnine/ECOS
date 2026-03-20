@@ -89,6 +89,22 @@ function stripParentheticalStageDirections(text: string) {
   return text.replace(/\s*\(([^)]*)\)\s*/g, " ").replace(/\s{2,}/g, " ").trim();
 }
 
+function normalizeEvaluationScore(payload: {
+  score?: string;
+  commentary?: string;
+  details?: Array<{ criterion?: string; observed?: boolean; feedback?: string }>;
+}) {
+  const details = Array.isArray(payload.details) ? payload.details : [];
+  const observedCount = details.filter((detail) => detail?.observed === true).length;
+  const maxScore = 15;
+
+  return {
+    ...payload,
+    score: `${observedCount}/${maxScore}`,
+    details,
+  };
+}
+
 app.use(cors());
 app.use(express.json({ limit: "4mb" }));
 
@@ -480,7 +496,13 @@ app.post("/api/evaluate", async (request, response) => {
       }),
     });
 
-    response.type("application/json").send(text);
+    const normalized = normalizeEvaluationScore(JSON.parse(text) as {
+      score?: string;
+      commentary?: string;
+      details?: Array<{ criterion?: string; observed?: boolean; feedback?: string }>;
+    });
+
+    response.json(normalized);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unable to evaluate transcript.";
