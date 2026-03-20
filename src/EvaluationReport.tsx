@@ -385,6 +385,7 @@ export function EvaluationReport({
             />
             <div className="text-center">
               <div
+                data-testid="score-ring"
                 className="mx-auto flex h-44 w-44 items-center justify-center rounded-full"
                 style={{
                   background: `conic-gradient(from 180deg, transparent 0deg, transparent ${
@@ -395,6 +396,7 @@ export function EvaluationReport({
                 }}
               >
                 <div
+                  data-testid="score-core"
                   className={`relative flex h-[132px] w-[132px] flex-col items-center justify-center rounded-full ring-1 ring-inset ${
                     darkMode ? "ring-white/0" : "ring-white/50"
                   } ${verdictTintClass}`}
