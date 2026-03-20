@@ -397,6 +397,98 @@ describe("SansPsPage", () => {
     expect(screen.getByText("Actif")).toBeInTheDocument();
   });
 
+  it("does not render a second draft bubble when a student bubble already exists", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <SansPsPage
+        currentMode="sans-ps"
+        onNavigate={vi.fn()}
+        settings={DEFAULT_SETTINGS}
+        onOpenDashboard={vi.fn()}
+        onOpenSettings={vi.fn()}
+        darkMode={false}
+        onDarkModeChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(
+      screen.getByPlaceholderText(
+        /collez ici la grille de correction de la station/i,
+      ),
+      { target: { value: validStation } },
+    );
+    await user.click(screen.getByRole("button", { name: "Analyser" }));
+    await user.click(screen.getByRole("button", { name: "Démarrer" }));
+
+    await act(async () => {
+      liveCallbacksRef.current?.onmessage?.({
+        inputTranscription: { text: "Premier segment." },
+        serverContent: { waitingForInput: true },
+      });
+    });
+
+    await act(async () => {
+      liveCallbacksRef.current?.onmessage?.({
+        inputTranscription: { text: "Suite en cours" },
+      });
+    });
+
+    expect(screen.getAllByText("STUDENT")).toHaveLength(1);
+    expect(
+      screen.getByText(/Premier segment\. Suite en cours/i, {
+        selector: "div.whitespace-pre-wrap",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("preserves the last pending transcription when pausing", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <SansPsPage
+        currentMode="sans-ps"
+        onNavigate={vi.fn()}
+        settings={DEFAULT_SETTINGS}
+        onOpenDashboard={vi.fn()}
+        onOpenSettings={vi.fn()}
+        darkMode={false}
+        onDarkModeChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(
+      screen.getByPlaceholderText(
+        /collez ici la grille de correction de la station/i,
+      ),
+      { target: { value: validStation } },
+    );
+    await user.click(screen.getByRole("button", { name: "Analyser" }));
+    await user.click(screen.getByRole("button", { name: "Démarrer" }));
+
+    await act(async () => {
+      liveCallbacksRef.current?.onmessage?.({
+        inputTranscription: { text: "Texte avant pause." },
+      });
+    });
+
+    await user.click(screen.getByRole("button", { name: "Pause" }));
+
+    await act(async () => {
+      liveCallbacksRef.current?.onmessage?.({
+        inputTranscription: { text: "Suite finale." },
+        serverContent: { waitingForInput: true },
+      });
+    });
+
+    expect(
+      screen.getByText(/Texte avant pause\. Suite finale\./i, {
+        selector: "div.whitespace-pre-wrap",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Coupé")).toBeInTheDocument();
+  });
+
   it("clears the station textarea when clicking Clear", async () => {
     const user = userEvent.setup();
 

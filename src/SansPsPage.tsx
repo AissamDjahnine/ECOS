@@ -597,6 +597,7 @@ export default function SansPsPage({
   const [remainingSeconds, setRemainingSeconds] = useState(
     settings.defaultTimerSeconds,
   );
+  const [lastSessionElapsedSeconds, setLastSessionElapsedSeconds] = useState(0);
   const [showStudentDraftIndicator, setShowStudentDraftIndicator] =
     useState(false);
   const [studentDraftText, setStudentDraftText] = useState("");
@@ -625,6 +626,7 @@ export default function SansPsPage({
   const autoExportedEvaluationRef = useRef<string | null>(null);
   const shouldSendAudioRef = useRef(true);
   const isMicMutedRef = useRef(false);
+  const isPausedRef = useRef(false);
   const pendingManualTurnEndRef = useRef(false);
   const turnEndFallbackTimerRef = useRef<number | null>(null);
   const currentSessionIdRef = useRef<string | null>(null);
@@ -709,6 +711,22 @@ export default function SansPsPage({
       ? transcript
       : transcript.filter((entry) => entry.role !== "system");
 
+    if (showStudentDraftIndicator && studentDraftText.trim()) {
+      const lastStudentIndex = [...withVisibleRoles]
+        .map((entry) => entry.role)
+        .lastIndexOf("student");
+
+      if (lastStudentIndex >= 0) {
+        const next = [...withVisibleRoles];
+        const existing = next[lastStudentIndex];
+        next[lastStudentIndex] = {
+          ...existing,
+          text: appendTranscriptChunk(existing.text, studentDraftText),
+        };
+        return next;
+      }
+    }
+
     if (
       settings.showLiveTranscript ||
       hasEndedDiscussion ||
@@ -730,7 +748,9 @@ export default function SansPsPage({
   const showLiveTranscriptContent =
     settings.showLiveTranscript || hasEndedDiscussion || showStudentDraftIndicator;
   const showDraftIndicatorForDisplay =
-    showStudentDraftIndicator && showLiveTranscriptContent;
+    showStudentDraftIndicator &&
+    showLiveTranscriptContent &&
+    !hasCommittedStudentTranscript;
   const transcriptCopyText = useMemo(
     () => buildTranscriptCopy(transcript, settings.showSystemMessages),
     [settings.showSystemMessages, transcript],
@@ -836,6 +856,7 @@ export default function SansPsPage({
     }
 
     setRecordedAudioUrl(null);
+    setLastSessionElapsedSeconds(0);
   }
 
   function flushStudentDraft() {
@@ -874,8 +895,13 @@ export default function SansPsPage({
       pushDebugEvent(`${reason}: flush de secours du draft`);
       flushStudentDraft();
       pendingManualTurnEndRef.current = false;
-      setSessionPhase("idle");
-      setStatus("En attente de l'étudiant");
+      if (isPausedRef.current) {
+        setSessionPhase("paused");
+        setStatus("Session en pause");
+      } else {
+        setSessionPhase("idle");
+        setStatus("En attente de l'étudiant");
+      }
     }, 1600);
   }
 
@@ -1050,6 +1076,7 @@ export default function SansPsPage({
       setDebugEvents([]);
       pushDebugEvent("Session Sans PS initialisée");
       setIsPaused(false);
+      isPausedRef.current = false;
       setIsMicMuted(false);
       isMicMutedRef.current = false;
       resetRecordingState();
@@ -1185,6 +1212,10 @@ export default function SansPsPage({
             );
 
             if (inputTranscription?.text) {
+              if (isPausedRef.current && !pendingManualTurnEndRef.current) {
+                pushDebugEvent("Transcription ignorée pendant la pause");
+                return;
+              }
               pushDebugEvent(
                 `Transcription reçue: ${inputTranscription.text.slice(0, 80)}`,
               );
@@ -1193,11 +1224,16 @@ export default function SansPsPage({
                 inputTranscription.text,
               );
               setStudentDraftText(inputTranscriptRef.current);
-              setSessionPhase("student-speaking");
-              setStatus("Session en cours");
+              if (isPausedRef.current) {
+                setSessionPhase("paused");
+                setStatus("Finalisation de la pause");
+              } else {
+                setSessionPhase("student-speaking");
+                setStatus("Session en cours");
+              }
               setShowStudentDraftIndicator(true);
               if (pendingManualTurnEndRef.current) {
-                scheduleTurnEndFallbackFlush("Mute");
+                scheduleTurnEndFallbackFlush(isPausedRef.current ? "Pause" : "Mute");
               }
             }
 
@@ -1233,8 +1269,13 @@ export default function SansPsPage({
               pendingManualTurnEndRef.current = false;
               pushDebugEvent("waitingForInput détecté, flush du draft");
               flushStudentDraft();
-              setSessionPhase("idle");
-              setStatus("En attente de l'étudiant");
+              if (isPausedRef.current) {
+                setSessionPhase("paused");
+                setStatus("Session en pause");
+              } else {
+                setSessionPhase("idle");
+                setStatus("En attente de l'étudiant");
+              }
             }
 
             if (serverContent?.turnComplete) {
@@ -1243,8 +1284,13 @@ export default function SansPsPage({
               pendingManualTurnEndRef.current = false;
               pushDebugEvent("turnComplete détecté, flush du draft");
               flushStudentDraft();
-              setSessionPhase("idle");
-              setStatus("En attente de l'étudiant");
+              if (isPausedRef.current) {
+                setSessionPhase("paused");
+                setStatus("Session en pause");
+              } else {
+                setSessionPhase("idle");
+                setStatus("En attente de l'étudiant");
+              }
             }
           },
 
@@ -1378,13 +1424,14 @@ export default function SansPsPage({
       requestTurnCompletion("Pause");
       shouldSendAudioRef.current = false;
       isMicMutedRef.current = true;
+      isPausedRef.current = true;
       setIsMicMuted(true);
       setMicLevel(0);
       setMicPeak(0);
       setIsDiscussing(false);
       setIsPaused(true);
       setSessionPhase("paused");
-      setStatus("Session en pause");
+      setStatus("Finalisation de la pause");
       setTranscript((current) => [
         ...current,
         createTranscriptEntry("system", "Session mise en pause."),
@@ -1394,6 +1441,7 @@ export default function SansPsPage({
 
     shouldSendAudioRef.current = true;
     isMicMutedRef.current = false;
+    isPausedRef.current = false;
     setIsMicMuted(false);
     pushDebugEvent("Session reprise");
     setIsDiscussing(true);
@@ -1412,9 +1460,11 @@ export default function SansPsPage({
     let elapsedSummary = "";
 
     try {
+      const elapsedSeconds = sessionDurationSeconds - remainingSeconds;
       elapsedSummary = formatElapsedDiscussion(
-        sessionDurationSeconds - remainingSeconds,
+        elapsedSeconds,
       );
+      setLastSessionElapsedSeconds(elapsedSeconds);
       shouldSendAudioRef.current = false;
       clearTurnEndFallbackTimer();
       pendingManualTurnEndRef.current = false;
@@ -1453,6 +1503,7 @@ export default function SansPsPage({
       setShowStudentDraftIndicator(false);
       setIsDiscussing(false);
       setIsPaused(false);
+      isPausedRef.current = false;
       setHasEndedDiscussion(true);
       setSessionPhase("idle");
       setStatus("Session terminée. Transcription prête pour évaluation.");
@@ -1745,6 +1796,7 @@ export default function SansPsPage({
       shouldSendAudioRef.current = false;
       clearTurnEndFallbackTimer();
       pendingManualTurnEndRef.current = false;
+      isPausedRef.current = false;
       void micRef.current?.stop();
       sessionRef.current?.close();
       if (recordedAudioUrlRef.current) {
@@ -1961,7 +2013,7 @@ export default function SansPsPage({
               feedbackDetailLabel={formatFeedbackDetailLabel(
                 lastEvaluatedFeedbackDetailLevel ?? settings.feedbackDetailLevel,
               )}
-              elapsedSeconds={sessionDurationSeconds - remainingSeconds}
+              elapsedSeconds={lastSessionElapsedSeconds}
             />
           </div>
         </main>
