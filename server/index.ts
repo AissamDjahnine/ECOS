@@ -256,10 +256,13 @@ app.post("/api/live-token", async (request, response) => {
         ? [
             "Tu accompagnes un ECOS sans patient simulé.",
             "L'étudiant parle seul pour exposer son raisonnement clinique.",
+            "La langue parlée par l'étudiant est le français de France.",
+            "Interprète toute entrée vocale en français et privilégie la reconnaissance fidèle des termes médicaux, des nombres, des unités et des valeurs biologiques.",
             "Ne joue jamais un patient, un examinateur ou un assistant.",
             "Ne donne jamais de contenu clinique, de conseil, de question, d'indice, de correction ou de réponse pédagogique.",
             "N'ajoute jamais d'information médicale.",
             "Quand l'étudiant parle, laisse uniquement la transcription d'entrée être produite par la session Live.",
+            "Ne reformule jamais la parole de l'étudiant et ne corrige pas son raisonnement: la transcription doit rester au plus proche des mots prononcés.",
             "N'émet aucune réponse utile au modèle, aucun texte explicatif, aucun résumé, aucune reformulation.",
             "Si tu dois produire une sortie, elle doit être vide et silencieuse.",
           ].join("\n")
@@ -319,8 +322,8 @@ app.post("/api/live-token", async (request, response) => {
                 startOfSpeechSensitivity:
                   StartSensitivity.START_SENSITIVITY_HIGH,
                 endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
-                prefixPaddingMs: 160,
-                silenceDurationMs: parsed.data.mode === "silent" ? 700 : 1200,
+                prefixPaddingMs: parsed.data.mode === "silent" ? 320 : 160,
+                silenceDurationMs: parsed.data.mode === "silent" ? 1800 : 1200,
               },
               activityHandling: ActivityHandling.START_OF_ACTIVITY_INTERRUPTS,
               turnCoverage: TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY,
@@ -508,6 +511,134 @@ app.post("/api/evaluate", async (request, response) => {
       error instanceof Error ? error.message : "Unable to evaluate transcript.";
     recordUsageEvent({
       endpoint: "evaluate",
+      model: evalModel,
+      keySource: resolveTrackableKeySource(parsed.data.googleApiKey),
+      sessionId: parsed.data.sessionId,
+      occurredAt: new Date().toISOString(),
+      statusCode: 500,
+      outcome: "error",
+      errorType: classifyErrorType(500, message),
+      message,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      estimatedCostUsd: 0,
+    });
+    response.status(500).send(message);
+  }
+});
+
+app.post("/api/transcript-debug", async (request, response) => {
+  const schema = z.object({
+    transcriptSegment: z.string().min(1),
+    googleApiKey: z.string().optional(),
+    sessionId: z.string().optional(),
+  });
+
+  const parsed = schema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json(parsed.error.flatten());
+    return;
+  }
+
+  try {
+    const apiKey = resolveApiKey(parsed.data.googleApiKey);
+    const keySource = resolveTrackableKeySource(parsed.data.googleApiKey);
+    if (!apiKey) {
+      response.status(500).send("Missing GEMINI_API_KEY.");
+      return;
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+
+    const result = await ai.models.generateContent({
+      model: evalModel,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: [
+                "Tu aides à corriger minimalement une transcription vocale d'ECOS sans patient simulé.",
+                "On te donne un transcript brut, potentiellement bruité.",
+                "Ta tâche est de produire une correction IA au plus proche de la source.",
+                "Conserve l'ordre, la structure et le sens apparent du texte original.",
+                "Fais uniquement des corrections minimales et prudentes : espaces, apostrophes, coupures de mots évidentes, ponctuation simple, nombres et unités quand ils sont manifestes.",
+                "N'ajoute jamais d'information absente et ne reformule pas librement.",
+                "Si un mot, un nombre ou un terme médical reste ambigu, laisse une version prudente dans la correction et signale l'ambiguïté explicitement.",
+                "Réponds uniquement en JSON conforme au schema.",
+                "",
+                "Transcript brut:",
+                parsed.data.transcriptSegment,
+              ].join("\n"),
+            },
+          ],
+        },
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseJsonSchema: {
+          type: "object",
+          properties: {
+            understoodText: {
+              type: "string",
+              description:
+                "Transcript corrigé minimalement, au plus proche de la source.",
+            },
+            confidence: {
+              type: "string",
+              enum: ["low", "medium", "high"],
+              description: "Niveau de confiance global sur l'interprétation.",
+            },
+            ambiguities: {
+              type: "array",
+              items: { type: "string" },
+              description:
+                "Mots, nombres ou expressions qui restent ambigus ou mal compris.",
+            },
+          },
+          required: ["understoodText", "confidence", "ambiguities"],
+        },
+      },
+    });
+
+    const text = result.text;
+    if (!text) {
+      response.status(502).send("Gemini returned an empty response.");
+      return;
+    }
+
+    const usage = usageMetadataToCounts(result.usageMetadata);
+    recordUsageEvent({
+      endpoint: "transcript-debug",
+      model: evalModel,
+      keySource,
+      sessionId: parsed.data.sessionId,
+      occurredAt: new Date().toISOString(),
+      statusCode: 200,
+      outcome: "success",
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      totalTokens: usage.totalTokens,
+      estimatedCostUsd: estimateCostUsd({
+        model: evalModel,
+        inputTextTokens: usage.inputTokens,
+        outputTextTokens: usage.outputTokens,
+      }),
+    });
+
+    response.json(
+      JSON.parse(text) as {
+        understoodText: string;
+        confidence: "low" | "medium" | "high";
+        ambiguities: string[];
+      },
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unable to debug transcript.";
+    recordUsageEvent({
+      endpoint: "transcript-debug",
       model: evalModel,
       keySource: resolveTrackableKeySource(parsed.data.googleApiKey),
       sessionId: parsed.data.sessionId,

@@ -76,4 +76,20 @@ describe("pdf export builders", () => {
     expect(html).toContain("Student");
     expect(html).toContain("Observé");
   });
+
+  it("includes both corrected and raw transcript blocks in the Sans PS export when AI correction is active", () => {
+    const html = buildSansPsPdfDocument(
+      "Station\n\nGrille de correction",
+      sampleTranscript,
+      sampleEvaluation,
+      "standard",
+      "Je vérifie le temps passé au sol.",
+      "Je verifie le temps passe au sol",
+    );
+
+    expect(html).toContain("Correction IA");
+    expect(html).toContain("Transcript source brut");
+    expect(html).toContain("Je verifie le temps passe au sol");
+    expect(html).toContain("Je vérifie le temps passé au sol.");
+  });
 });

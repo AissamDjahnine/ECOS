@@ -28,6 +28,14 @@ import type {
 
 type SessionPhase = "idle" | "student-speaking" | "paused";
 
+type TranscriptDebugUnderstanding = {
+  sourceText: string;
+  understoodText: string;
+  confidence: "low" | "medium" | "high";
+  ambiguities: string[];
+  timestamp: string;
+};
+
 const liveModel =
   import.meta.env.VITE_GEMINI_LIVE_MODEL ??
   "gemini-2.5-flash-native-audio-preview-12-2025";
@@ -344,6 +352,35 @@ function appendTranscriptChunk(currentText: string, incomingChunk: string) {
   return `${current} ${chunk}`;
 }
 
+function buildStudentTranscriptPlainText(
+  entries: TranscriptEntry[],
+  pendingText = "",
+) {
+  const studentEntries = entries
+    .filter((entry) => entry.role === "student" && entry.text.trim().length > 0)
+    .map((entry) => ({
+      role: entry.role,
+      text: entry.text.trim(),
+    }));
+
+  if (pendingText.trim()) {
+    if (studentEntries.length > 0) {
+      const last = studentEntries[studentEntries.length - 1];
+      studentEntries[studentEntries.length - 1] = {
+        ...last,
+        text: appendTranscriptChunk(last.text, pendingText),
+      };
+    } else {
+      studentEntries.push({
+        role: "student",
+        text: pendingText.trim(),
+      });
+    }
+  }
+
+  return transcriptToPlainText(studentEntries);
+}
+
 function formatFeedbackDetailLabel(level: AppSettings["feedbackDetailLevel"]) {
   switch (level) {
     case "brief":
@@ -423,6 +460,18 @@ function CopyIcon({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+function SparklesIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3l1.9 4.8L19 9.7l-5.1 1.9L12 16.5l-1.9-4.9L5 9.7l5.1-1.9L12 3z" />
+      <path d="M19 3v4" />
+      <path d="M21 5h-4" />
+      <path d="M4 14v3" />
+      <path d="M5.5 15.5H2.5" />
     </svg>
   );
 }
@@ -602,6 +651,11 @@ export default function SansPsPage({
     useState(false);
   const [studentDraftText, setStudentDraftText] = useState("");
   const [debugEvents, setDebugEvents] = useState<string[]>([]);
+  const [aiCorrection, setAiCorrection] =
+    useState<TranscriptDebugUnderstanding | null>(null);
+  const [isCorrectingTranscript, setIsCorrectingTranscript] = useState(false);
+  const [useAiCorrectedTranscript, setUseAiCorrectedTranscript] =
+    useState(false);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
   const [micPeak, setMicPeak] = useState(0);
@@ -758,6 +812,14 @@ export default function SansPsPage({
   const canCopyTranscript =
     (settings.showLiveTranscript || hasEndedDiscussion || hasCommittedStudentTranscript) &&
     transcriptCopyText.trim().length > 0;
+  const rawStudentTranscriptText = useMemo(
+    () => buildStudentTranscriptPlainText(transcript, studentDraftText),
+    [studentDraftText, transcript],
+  );
+  const evaluationTranscriptText =
+    useAiCorrectedTranscript && aiCorrection?.understoodText?.trim()
+      ? aiCorrection.understoodText.trim()
+      : rawStudentTranscriptText;
   const transcriptPanelHeightClass = hasEndedDiscussion
     ? "h-[460px]"
     : "h-[560px]";
@@ -857,6 +919,64 @@ export default function SansPsPage({
 
     setRecordedAudioUrl(null);
     setLastSessionElapsedSeconds(0);
+    setAiCorrection(null);
+    setIsCorrectingTranscript(false);
+    setUseAiCorrectedTranscript(false);
+  }
+
+  async function requestTranscriptUnderstanding(text: string) {
+    if (!text.trim()) {
+      return;
+    }
+
+    try {
+      setIsCorrectingTranscript(true);
+      const response = await fetch("/api/transcript-debug", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          transcriptSegment: text,
+          googleApiKey: settings.googleApiKey || undefined,
+          sessionId: currentSessionIdRef.current || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const payload = (await response.json()) as {
+        understoodText: string;
+        confidence: "low" | "medium" | "high";
+        ambiguities: string[];
+      };
+
+      setAiCorrection({
+        sourceText: text,
+        understoodText: payload.understoodText,
+        confidence: payload.confidence,
+        ambiguities: payload.ambiguities,
+        timestamp: createTimestamp(),
+      });
+      setUseAiCorrectedTranscript(true);
+      pushDebugEvent(`Correction IA (${payload.confidence}) reçue`);
+      onShowToast(
+        "Correction IA prête",
+        "La correction IA sera utilisée pour l'évaluation tant qu'elle reste activée.",
+        "success",
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Erreur de compréhension debug inconnue";
+      pushDebugEvent(`Échec compréhension IA: ${message}`);
+      onShowToast("Échec correction IA", message, "error");
+    } finally {
+      setIsCorrectingTranscript(false);
+    }
   }
 
   function flushStudentDraft() {
@@ -1133,7 +1253,7 @@ export default function SansPsPage({
               startOfSpeechSensitivity:
                 StartSensitivity.START_SENSITIVITY_HIGH,
               endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
-              prefixPaddingMs: 160,
+              prefixPaddingMs: 320,
               silenceDurationMs: 1800,
             },
             activityHandling: ActivityHandling.START_OF_ACTIVITY_INTERRUPTS,
@@ -1151,7 +1271,6 @@ export default function SansPsPage({
           onmessage: (message: LiveServerMessage) => {
             const liveMessage = message as SansPsLiveMessage;
             const serverContent = liveMessage.serverContent;
-            const modelTurn = serverContent?.modelTurn;
 
             const liveUsage = extractLiveUsageCounts(liveMessage.usageMetadata);
             const previousUsage = lastLiveUsageTotalsRef.current;
@@ -1237,30 +1356,8 @@ export default function SansPsPage({
               }
             }
 
-            const parts = modelTurn?.parts ?? [];
-            const hasAudioParts = parts.some(
-              (part) =>
-                !!part.inlineData?.data &&
-                !!part.inlineData.mimeType?.startsWith("audio/pcm"),
-            );
-
-            if (hasAudioParts) {
-              pushDebugEvent("Audio modèle détecté, draft étudiant finalisé");
-              shouldSendAudioRef.current = false;
-              flushStudentDraft();
-              setShowStudentDraftIndicator(false);
-            }
-
-            if (serverContent?.interrupted) {
-              shouldSendAudioRef.current = true;
-              setSessionPhase("student-speaking");
-              setStatus("Session en cours");
-              setShowStudentDraftIndicator(true);
-            }
-
             if (serverContent?.generationComplete) {
-              setSessionPhase("idle");
-              setStatus("Traitement de la fin de tour");
+              pushDebugEvent("generationComplete ignoré en mode Sans PS");
             }
 
             if (serverContent?.waitingForInput) {
@@ -1525,24 +1622,13 @@ export default function SansPsPage({
       setIsEvaluating(true);
       setStatus("Évaluation de la transcription");
 
-      const cleanedTranscript = transcriptToPlainText(
-        transcript
-          .filter(
-            (entry) => entry.role === "student" && entry.text.trim().length > 0,
-          )
-          .map((entry) => ({
-            role: entry.role,
-            text: entry.text.trim(),
-          })),
-      );
-
       const response = await fetch("/api/evaluate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          transcript: cleanedTranscript,
+          transcript: evaluationTranscriptText,
           gradingGrid,
           feedbackDetailLevel: settings.feedbackDetailLevel,
           googleApiKey: settings.googleApiKey || undefined,
@@ -1580,6 +1666,34 @@ export default function SansPsPage({
 
   function handleEvaluateClick() {
     void evaluateDiscussion();
+  }
+
+  function handleAiCorrectionClick() {
+    if (isCorrectingTranscript) {
+      return;
+    }
+
+    if (aiCorrection?.understoodText?.trim()) {
+      setUseAiCorrectedTranscript((current) => {
+        const next = !current;
+        onShowToast(
+          next ? "Correction IA activée" : "Transcript brut activé",
+          next
+            ? "L'évaluation utilisera la correction IA."
+            : "L'évaluation utilisera le transcript brut.",
+          "info",
+        );
+        return next;
+      });
+      return;
+    }
+
+    if (!hasEndedDiscussion || !rawStudentTranscriptText.trim()) {
+      return;
+    }
+
+    setStatus("Analyse de la correction IA");
+    void requestTranscriptUnderstanding(rawStudentTranscriptText);
   }
 
   function toggleMicMute() {
@@ -1624,6 +1738,8 @@ export default function SansPsPage({
         transcript,
         evaluation,
         lastEvaluatedFeedbackDetailLevel ?? settings.feedbackDetailLevel,
+        useAiCorrectedTranscript ? aiCorrection?.understoodText ?? null : null,
+        rawStudentTranscriptText,
       ),
     );
     popup.document.close();
@@ -1806,7 +1922,7 @@ export default function SansPsPage({
   }, []);
 
   return (
-    <div className={`min-h-screen ${theme} ${bgClass} ${textClass} transition-colors duration-300`}>
+    <div className={`flex min-h-screen flex-col ${theme} ${bgClass} ${textClass} transition-colors duration-300`}>
       <header className="sticky top-0 z-40 border-b border-slate-200/20 backdrop-blur-xl dark:border-slate-700/20">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
@@ -1909,7 +2025,7 @@ export default function SansPsPage({
       </header>
 
       {showEvaluationReport && evaluation ? (
-        <main className="mx-auto max-w-[1280px] px-6 py-8">
+        <main className="mx-auto w-full max-w-[1280px] flex-1 px-6 py-8">
           <div className="space-y-6">
             <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
@@ -2018,7 +2134,7 @@ export default function SansPsPage({
           </div>
         </main>
       ) : (
-      <main className="mx-auto max-w-[1600px] px-6 py-8">
+      <main className="mx-auto w-full max-w-[1600px] flex-1 px-6 py-8">
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[470px_1fr]">
           <div className="space-y-6">
             <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
@@ -2377,24 +2493,59 @@ export default function SansPsPage({
               <div className={`flex ${transcriptPanelHeightClass} min-h-0 flex-col overflow-hidden rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft lg:h-full`}>
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <h3 className="text-lg font-semibold">Transcription du monologue</h3>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void copyTextToClipboard(
-                        transcriptCopyText,
-                        "La transcription a été copiée.",
-                      )
-                    }
-                    disabled={!canCopyTranscript}
-                    className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
-                      darkMode
-                        ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
-                        : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
-                    } ${!canCopyTranscript ? "cursor-not-allowed opacity-60" : ""}`}
-                  >
-                    <CopyIcon className="h-4 w-4" />
-                    Copy transcript
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleAiCorrectionClick}
+                      disabled={
+                        isCorrectingTranscript ||
+                        !hasEndedDiscussion ||
+                        !rawStudentTranscriptText.trim()
+                      }
+                      className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                        useAiCorrectedTranscript && aiCorrection
+                          ? darkMode
+                            ? "border-transparent bg-primary-400 text-slate-950 hover:bg-primary-300"
+                            : "border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100"
+                          : darkMode
+                            ? "border-transparent bg-slate-800 text-slate-100 hover:bg-slate-700"
+                            : "border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-50"
+                      } ${
+                        isCorrectingTranscript ||
+                        !hasEndedDiscussion ||
+                        !rawStudentTranscriptText.trim()
+                          ? "cursor-not-allowed opacity-60"
+                          : ""
+                      }`}
+                    >
+                      <SparklesIcon className={`h-4 w-4 ${isCorrectingTranscript ? "animate-pulse" : ""}`} />
+                      {isCorrectingTranscript
+                        ? "Correcting..."
+                        : aiCorrection
+                          ? useAiCorrectedTranscript
+                            ? "AI correction active"
+                            : "Correct transcript with AI"
+                          : "Correct transcript with AI"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void copyTextToClipboard(
+                          transcriptCopyText,
+                          "La transcription a été copiée.",
+                        )
+                      }
+                      disabled={!canCopyTranscript}
+                      className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                        darkMode
+                          ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
+                          : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
+                      } ${!canCopyTranscript ? "cursor-not-allowed opacity-60" : ""}`}
+                    >
+                      <CopyIcon className="h-4 w-4" />
+                      Copy transcript
+                    </button>
+                  </div>
                 </div>
                 <div
                   ref={transcriptRef}
@@ -2516,6 +2667,82 @@ export default function SansPsPage({
                     </div>
                   )}
                 </div>
+                {aiCorrection && (
+                  <div
+                    className={`mt-4 rounded-xl border px-4 py-3 text-xs ${
+                      darkMode
+                        ? "border-slate-700 bg-slate-950/60 text-slate-300"
+                        : "border-slate-200 bg-slate-50 text-slate-600"
+                    }`}
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <span className="font-semibold uppercase tracking-[0.18em]">
+                        Correction IA
+                      </span>
+                      <span className={mutedText}>
+                        {useAiCorrectedTranscript
+                          ? "Utilisée pour l'évaluation"
+                          : "Non utilisée pour l'évaluation"}
+                      </span>
+                    </div>
+                    <div
+                      className={`rounded-xl px-3 py-3 ${
+                        darkMode ? "bg-slate-900/80" : "bg-white"
+                      }`}
+                    >
+                      <div className="mb-1 flex items-center justify-between gap-3">
+                        <span className="font-semibold uppercase tracking-[0.16em]">
+                          Transcript {aiCorrection.timestamp}
+                        </span>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+                            aiCorrection.confidence === "high"
+                              ? darkMode
+                                ? "bg-emerald-950/70 text-emerald-300"
+                                : "bg-emerald-100 text-emerald-700"
+                              : aiCorrection.confidence === "medium"
+                                ? darkMode
+                                  ? "bg-amber-950/70 text-amber-300"
+                                  : "bg-amber-100 text-amber-700"
+                                : darkMode
+                                  ? "bg-rose-950/70 text-rose-300"
+                                  : "bg-rose-100 text-rose-700"
+                          }`}
+                        >
+                          {aiCorrection.confidence}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        <div>
+                          <div className={`mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${mutedText}`}>
+                            Brut transcrit
+                          </div>
+                          <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                            {aiCorrection.sourceText}
+                          </div>
+                        </div>
+                        <div>
+                          <div className={`mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${mutedText}`}>
+                            Correction IA
+                          </div>
+                          <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                            {aiCorrection.understoodText}
+                          </div>
+                        </div>
+                        {aiCorrection.ambiguities.length > 0 && (
+                          <div>
+                            <div className={`mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${mutedText}`}>
+                              Points ambigus
+                            </div>
+                            <div className="text-sm leading-relaxed">
+                              {aiCorrection.ambiguities.join(", ")}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div
                   className={`mt-4 rounded-xl border px-4 py-3 text-xs ${
                     darkMode
@@ -2551,6 +2778,19 @@ export default function SansPsPage({
           </div>
         </div>
       </main>
+      )}
+
+      {!showEvaluationReport && (
+        <div className={`mt-auto w-full px-8 pb-8 pt-6 text-center text-xs leading-relaxed ${mutedText}`}>
+          <div className="mx-auto max-w-4xl">
+            <span className="block">
+              Echo-IA utilise une technologie d&apos;intelligence artificielle de pointe pour la transcription.
+            </span>
+            <span className="block">
+              Bien que performant, des erreurs peuvent subsister. Nous vous recommandons de vérifier les points critiques à l&apos;aide de l&apos;audio original intégré.
+            </span>
+          </div>
+        </div>
       )}
 
       {isEvaluating && (
