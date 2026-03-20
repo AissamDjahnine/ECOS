@@ -322,7 +322,7 @@ app.post("/api/live-token", async (request, response) => {
                 startOfSpeechSensitivity:
                   StartSensitivity.START_SENSITIVITY_HIGH,
                 endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
-                prefixPaddingMs: parsed.data.mode === "silent" ? 320 : 160,
+                prefixPaddingMs: 320,
                 silenceDurationMs: parsed.data.mode === "silent" ? 1800 : 1200,
               },
               activityHandling: ActivityHandling.START_OF_ACTIVITY_INTERRUPTS,

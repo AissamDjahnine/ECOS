@@ -1301,7 +1301,7 @@ export default function App({
               startOfSpeechSensitivity:
                 StartSensitivity.START_SENSITIVITY_HIGH,
               endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
-              prefixPaddingMs: 160,
+              prefixPaddingMs: 320,
               silenceDurationMs: 1200,
             },
             activityHandling: ActivityHandling.START_OF_ACTIVITY_INTERRUPTS,
