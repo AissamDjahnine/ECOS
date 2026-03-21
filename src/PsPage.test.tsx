@@ -261,11 +261,11 @@ describe("PsPage", () => {
     await user.click(screen.getByRole("button", { name: "Terminer" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Reset" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Réinitialiser" })).toBeEnabled();
     });
 
-    await user.click(screen.getByRole("button", { name: "Reset" }));
     await user.click(screen.getByRole("button", { name: "Réinitialiser" }));
+    await user.click(screen.getByRole("button", { name: "Oui, réinitialiser" }));
 
     await waitFor(() => {
       expect(textarea).toHaveValue(validCase);

@@ -2211,7 +2211,7 @@ export default function App({
                     ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
                     : "border-slate-200 bg-white hover:bg-slate-50"
                 }`}
-                aria-label="Open dashboard"
+                aria-label="Ouvrir le tableau de bord"
               >
                 <ActivityIcon className={`w-5 h-5 ${darkMode ? "text-slate-200" : "text-slate-600"}`} />
               </button>
@@ -2240,7 +2240,7 @@ export default function App({
                     ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
                     : "border-slate-200 bg-white hover:bg-slate-50"
                 }`}
-                aria-label="Open settings"
+                aria-label="Ouvrir les réglages"
               >
                 <SettingsIcon className={`w-5 h-5 ${darkMode ? "text-slate-200" : "text-slate-600"}`} />
               </button>
@@ -2297,7 +2297,7 @@ export default function App({
                           }`}
                         >
                           <PlayIcon className="w-4 h-4" />
-                          Play discussion audio
+                          Écouter l&apos;audio
                         </button>
                         <button
                           type="button"
@@ -2309,7 +2309,7 @@ export default function App({
                           }`}
                         >
                           <DownloadIcon className="w-4 h-4" />
-                          Download discussion audio
+                          Télécharger l&apos;audio
                         </button>
                       </>
                     )}
@@ -2328,14 +2328,14 @@ export default function App({
                       }`}
                     >
                       <CopyIcon className="w-4 h-4" />
-                      Copy evaluation
+                      Copier l&apos;évaluation
                     </button>
                     <button
                       onClick={exportPdf}
                       className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-800 px-3.5 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600"
                     >
                       <FileTextIcon className="w-4 h-4" />
-                      Export PDF
+                      Exporter en PDF
                     </button>
                   </div>
                   {recordedAudioUrl && showReportAudioPlayer && (
@@ -2383,7 +2383,7 @@ export default function App({
                         : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
                     }`}
                   >
-                    Clear
+                    Effacer
                   </button>
                   <button
                     onClick={handleParse}
@@ -2543,7 +2543,7 @@ export default function App({
                     }`}
                   >
                     <ResetIcon className="w-4 h-4" />
-                    Reset
+                    Réinitialiser
                   </button>
                 </div>
               </div>
@@ -2791,7 +2791,7 @@ export default function App({
                     } ${!canCopyTranscript ? "cursor-not-allowed opacity-60" : ""}`}
                   >
                     <CopyIcon className="w-4 h-4" />
-                    Copy transcript
+                    Copier le transcript
                   </button>
                 </div>
                 <div
@@ -3033,7 +3033,7 @@ export default function App({
         darkMode={darkMode}
         title={sessionGuardDialog?.title ?? ""}
         body={sessionGuardDialog?.body ?? ""}
-        confirmLabel={sessionGuardDialog?.action === "clear" ? "Effacer" : "Réinitialiser"}
+        confirmLabel={sessionGuardDialog?.action === "clear" ? "Oui, effacer" : "Oui, réinitialiser"}
         cancelLabel="Annuler"
         tone="danger"
         onCancel={() => setSessionGuardDialog(null)}

@@ -97,7 +97,7 @@ test.describe("dashboard and start guardrails", () => {
     });
 
     await page.goto("/ps");
-    await page.getByRole("button", { name: "Open dashboard" }).click();
+    await page.getByRole("button", { name: "Ouvrir le tableau de bord" }).click();
 
     await expect(page.getByText("Dashboard")).toBeVisible();
     await expect(

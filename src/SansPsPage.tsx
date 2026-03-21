@@ -1939,7 +1939,7 @@ export default function SansPsPage({
                   ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
                   : "border-slate-200 bg-white hover:bg-slate-50"
               }`}
-              aria-label="Open dashboard"
+              aria-label="Ouvrir le tableau de bord"
             >
               <ActivityIcon className={`h-5 w-5 ${darkMode ? "text-slate-200" : "text-slate-600"}`} />
             </button>
@@ -1968,7 +1968,7 @@ export default function SansPsPage({
                   ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
                   : "border-slate-200 bg-white hover:bg-slate-50"
               }`}
-              aria-label="Open settings"
+              aria-label="Ouvrir les réglages"
             >
               <SettingsIcon className={`h-5 w-5 ${darkMode ? "text-slate-200" : "text-slate-600"}`} />
             </button>
@@ -2023,7 +2023,7 @@ export default function SansPsPage({
                           }`}
                         >
                           <PlayIcon className="h-4 w-4" />
-                          Play discussion audio
+                          Écouter l&apos;audio
                         </button>
                         <button
                           type="button"
@@ -2035,7 +2035,7 @@ export default function SansPsPage({
                           }`}
                         >
                           <DownloadIcon className="h-4 w-4" />
-                          Download discussion audio
+                          Télécharger l&apos;audio
                         </button>
                       </>
                     )}
@@ -2054,14 +2054,14 @@ export default function SansPsPage({
                       }`}
                     >
                       <CopyIcon className="h-4 w-4" />
-                      Copy evaluation
+                      Copier l&apos;évaluation
                     </button>
                     <button
                       onClick={exportPdf}
                       className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-800 px-3.5 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600"
                     >
                       <FileTextIcon className="h-4 w-4" />
-                      Export PDF
+                      Exporter en PDF
                     </button>
                   </div>
                   {recordedAudioUrl && showReportAudioPlayer && (
@@ -2107,7 +2107,7 @@ export default function SansPsPage({
                         : "cursor-not-allowed bg-slate-200 text-slate-400 dark:bg-slate-700"
                     }`}
                   >
-                    Clear
+                    Effacer
                   </button>
                   <button
                     onClick={handleParse}
@@ -2253,7 +2253,7 @@ export default function SansPsPage({
                     }`}
                   >
                     <ResetIcon className="h-4 w-4" />
-                    Reset
+                    Réinitialiser
                   </button>
                 </div>
               </div>
@@ -2489,7 +2489,7 @@ export default function SansPsPage({
                       } ${!canCopyTranscript ? "cursor-not-allowed opacity-60" : ""}`}
                     >
                       <CopyIcon className="h-4 w-4" />
-                      Copy transcript
+                      Copier le transcript
                     </button>
                   </div>
                 </div>
@@ -2685,7 +2685,7 @@ export default function SansPsPage({
         darkMode={darkMode}
         title={sessionGuardDialog?.title ?? ""}
         body={sessionGuardDialog?.body ?? ""}
-        confirmLabel={sessionGuardDialog?.action === "clear" ? "Effacer" : "Réinitialiser"}
+        confirmLabel={sessionGuardDialog?.action === "clear" ? "Oui, effacer" : "Oui, réinitialiser"}
         cancelLabel="Annuler"
         tone="danger"
         onCancel={() => setSessionGuardDialog(null)}
