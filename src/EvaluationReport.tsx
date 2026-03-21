@@ -50,6 +50,7 @@ function scorePalette(ratio: number) {
       } satisfies CSSProperties,
       glowClass: "shadow-[0_18px_48px_rgba(34,197,94,0.18)]",
       badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      badgeClassDark: "border-emerald-500/25 bg-emerald-500/15 text-emerald-300",
     };
   }
 
@@ -63,6 +64,7 @@ function scorePalette(ratio: number) {
       } satisfies CSSProperties,
       glowClass: "shadow-[0_18px_48px_rgba(245,158,11,0.18)]",
       badgeClass: "border-amber-200 bg-amber-50 text-amber-700",
+      badgeClassDark: "border-amber-500/25 bg-amber-500/15 text-amber-300",
     };
   }
 
@@ -75,6 +77,7 @@ function scorePalette(ratio: number) {
     } satisfies CSSProperties,
     glowClass: "shadow-[0_18px_48px_rgba(248,113,113,0.18)]",
     badgeClass: "border-rose-200 bg-rose-50 text-rose-700",
+    badgeClassDark: "border-rose-500/25 bg-rose-500/15 text-rose-300",
   };
 }
 
@@ -110,6 +113,7 @@ function buildValidationSummary(observedCount: number, totalCount: number) {
       title: "Synthèse des résultats",
       badge: "Validé",
       badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      badgeClassDark: "border-emerald-500/25 bg-emerald-500/15 text-emerald-300",
       body:
         "Le seuil de validation est atteint. La démarche est globalement recevable, avec quelques points encore perfectibles selon la grille.",
     };
@@ -119,6 +123,7 @@ function buildValidationSummary(observedCount: number, totalCount: number) {
     title: "Synthèse des résultats",
     badge: "Non validé",
     badgeClass: "border-rose-200 bg-rose-50 text-rose-700",
+    badgeClassDark: "border-rose-500/25 bg-rose-500/15 text-rose-300",
     body:
       "Le seuil de validation n'a pas été atteint. Les éléments non observés doivent être retravaillés pour garantir une démarche clinique complète.",
   };
@@ -426,7 +431,7 @@ export function EvaluationReport({
                 </div>
               </div>
               <span
-                className={`mt-5 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold uppercase tracking-[0.16em] ${darkMode ? "" : "ring-1 ring-inset ring-white/50"} ${validationSummary.badgeClass}`}
+                className={`mt-5 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold uppercase tracking-[0.16em] ${darkMode ? "" : "ring-1 ring-inset ring-white/50"} ${darkMode ? validationSummary.badgeClassDark : validationSummary.badgeClass}`}
               >
                 <span
                   className={`h-2 w-2 animate-pulse rounded-full ${
@@ -563,8 +568,12 @@ export function EvaluationReport({
                     <span
                       className={`inline-flex whitespace-nowrap rounded-full border px-3 py-1 text-sm font-semibold ${
                         detail.observed
-                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                          : "border-rose-200 bg-rose-50 text-rose-700"
+                          ? darkMode
+                            ? "border-emerald-500/25 bg-emerald-500/15 text-emerald-300"
+                            : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : darkMode
+                            ? "border-rose-500/25 bg-rose-500/15 text-rose-300"
+                            : "border-rose-200 bg-rose-50 text-rose-700"
                       }`}
                     >
                       {detail.observed ? "Observé" : "Non observé"}

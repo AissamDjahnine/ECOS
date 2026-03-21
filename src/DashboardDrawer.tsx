@@ -466,7 +466,11 @@ export function DashboardDrawer({
                       Mis à jour à {formatUpdatedAt(dashboard.updatedAt)}
                     </span>
                   </div>
-                  <div className="mt-3 inline-flex rounded-xl border border-white/50 bg-white/50 p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+                  <div className={`mt-3 inline-flex rounded-xl border p-1 shadow-sm ${
+                    darkMode
+                      ? "border-slate-700 bg-slate-900/70"
+                      : "border-white/50 bg-white/50"
+                  }`}>
                     {WINDOW_OPTIONS.map((option) => (
                       <button
                         key={option.value}
