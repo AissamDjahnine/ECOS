@@ -1690,7 +1690,7 @@ export default function SansPsPage({
         transcript,
         evaluation,
         lastEvaluatedFeedbackDetailLevel ?? settings.feedbackDetailLevel,
-        useAiCorrectedTranscript ? aiCorrection?.understoodText ?? null : null,
+        aiCorrection?.understoodText ?? null,
         rawStudentTranscriptText,
       ),
     );
@@ -2449,16 +2449,19 @@ export default function SansPsPage({
                       disabled={
                         isCorrectingTranscript ||
                         !hasEndedDiscussion ||
-                        !rawStudentTranscriptText.trim()
+                        !rawStudentTranscriptText.trim() ||
+                        Boolean(evaluation)
                       }
                       title={
                         isCorrectingTranscript
                           ? "Correction en cours…"
-                          : !hasEndedDiscussion
-                            ? "Disponible après la fin du monologue"
-                            : !rawStudentTranscriptText.trim()
-                              ? "Aucun transcript disponible"
-                              : undefined
+                          : evaluation
+                            ? "La source est verrouillée après l'évaluation"
+                            : !hasEndedDiscussion
+                              ? "Disponible après la fin du monologue"
+                              : !rawStudentTranscriptText.trim()
+                                ? "Aucun transcript disponible"
+                                : undefined
                       }
                       className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
                         useAiCorrectedTranscript && aiCorrection
@@ -2471,7 +2474,8 @@ export default function SansPsPage({
                       } ${
                         isCorrectingTranscript ||
                         !hasEndedDiscussion ||
-                        !rawStudentTranscriptText.trim()
+                        !rawStudentTranscriptText.trim() ||
+                        evaluation
                           ? "cursor-not-allowed opacity-60"
                           : ""
                       }`}
