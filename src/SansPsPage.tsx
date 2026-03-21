@@ -1798,7 +1798,6 @@ export default function SansPsPage({
     hasEndedDiscussion,
     isCorrectingTranscript,
     isEvaluating,
-    remainingSeconds,
     settings.autoEvaluateAfterEnd,
   ]);
 

@@ -1997,7 +1997,6 @@ export default function App({
     evaluation,
     hasEndedDiscussion,
     isEvaluating,
-    remainingSeconds,
     settings.autoEvaluateAfterEnd,
   ]);
 
