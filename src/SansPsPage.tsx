@@ -2169,7 +2169,7 @@ export default function SansPsPage({
               <textarea
                 value={rawInput}
                 onChange={(event) => setRawInput(event.target.value)}
-                placeholder="Collez ici la grille de correction de la station..."
+                placeholder="Collez ici la station sans PS et sa grille de correction..."
                 className={`h-64 w-full resize-none rounded-xl border p-4 text-sm leading-relaxed transition-all duration-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 ${inputBg}`}
               />
 
