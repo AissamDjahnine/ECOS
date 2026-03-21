@@ -190,7 +190,7 @@ function TooltipLabel({
           <InfoIcon className="h-3.5 w-3.5" />
         </button>
         <div
-          className={`pointer-events-none absolute left-0 top-full z-10 mt-2 w-64 rounded-2xl border px-3 py-2 text-sm leading-relaxed opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
+          className={`pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 rounded-2xl border px-4 py-3 text-sm font-normal leading-relaxed opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
             darkMode
               ? "border-slate-700 bg-slate-900 text-slate-200"
               : "border-slate-200 bg-white text-slate-700"
@@ -372,6 +372,15 @@ export function DashboardDrawer({
     };
   }, [isOpen, selectedWindow, settings.googleApiKey]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   const overlayClass = isOpen
     ? "pointer-events-auto opacity-100"
     : "pointer-events-none opacity-0";
@@ -426,7 +435,10 @@ export function DashboardDrawer({
               <button
                 type="button"
                 onClick={() => void loadDashboard()}
+                disabled={isLoading}
                 className={`rounded-xl border p-2.5 transition-colors shadow-sm ${
+                  isLoading ? "opacity-50 cursor-not-allowed" : ""
+                } ${
                   darkMode
                     ? "border-slate-700 bg-slate-800 hover:bg-slate-700"
                     : "border-slate-200 bg-white hover:bg-slate-50"
@@ -466,7 +478,11 @@ export function DashboardDrawer({
                       Mis à jour à {formatUpdatedAt(dashboard.updatedAt)}
                     </span>
                   </div>
-                  <div className="mt-3 inline-flex rounded-xl border border-white/50 bg-white/50 p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+                  <div className={`mt-3 inline-flex rounded-xl border p-1 shadow-sm ${
+                    darkMode
+                      ? "border-slate-700 bg-slate-900/70"
+                      : "border-white/50 bg-white/50"
+                  }`}>
                     {WINDOW_OPTIONS.map((option) => (
                       <button
                         key={option.value}
@@ -477,7 +493,7 @@ export function DashboardDrawer({
                             ? "bg-primary-600 text-white shadow-sm"
                             : darkMode
                               ? "text-slate-200 hover:bg-slate-800"
-                              : "text-slate-300 hover:bg-slate-100 hover:text-slate-500"
+                              : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                         }`}
                       >
                         {option.label}

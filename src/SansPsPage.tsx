@@ -15,6 +15,7 @@ import {
   type MicrophoneLevelSample,
 } from "./lib/audio";
 import { extractGradingGridOnly, transcriptToPlainText } from "./lib/parser";
+import sansPsExampleText from "./examples/sans-ps-example.txt?raw";
 import { buildSansPsPdfDocument } from "./lib/pdf";
 import { EvaluationReport } from "./EvaluationReport";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -298,6 +299,10 @@ function upsertTranscriptEntryAtEndById(
   ];
 }
 
+const NO_LEADING_SPACE_BEFORE = new Set([
+  ".", ",", ";", ":", "!", "?", ")", "]", "}", "'", "\u2019",
+]);
+
 function appendTranscriptChunk(currentText: string, incomingChunk: string) {
   const chunk = incomingChunk.trim();
   if (!chunk) {
@@ -327,21 +332,7 @@ function appendTranscriptChunk(currentText: string, incomingChunk: string) {
     }
   }
 
-  const noLeadingSpaceBefore = new Set([
-    ".",
-    ",",
-    ";",
-    ":",
-    "!",
-    "?",
-    ")",
-    "]",
-    "}",
-    "'",
-    "'",
-  ]);
-
-  if (noLeadingSpaceBefore.has(chunk)) {
+  if (NO_LEADING_SPACE_BEFORE.has(chunk)) {
     return `${current}${chunk}`;
   }
 
@@ -379,17 +370,6 @@ function buildStudentTranscriptPlainText(
   }
 
   return transcriptToPlainText(studentEntries);
-}
-
-function formatFeedbackDetailLabel(level: AppSettings["feedbackDetailLevel"]) {
-  switch (level) {
-    case "brief":
-      return "Brief";
-    case "detailed":
-      return "Detailed";
-    default:
-      return "Standard";
-  }
 }
 
 function buildTranscriptCopy(
@@ -586,11 +566,41 @@ function ClockIcon({ className }: { className?: string }) {
   );
 }
 
-function UserIcon({ className }: { className?: string }) {
+function BeakerIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 20a6 6 0 0 0-12 0" />
-      <circle cx="12" cy="10" r="4" />
+      <path d="M4.5 3h15" />
+      <path d="M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3" />
+      <path d="M6 14h12" />
+    </svg>
+  );
+}
+
+function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 6h18" />
+      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+    </svg>
+  );
+}
+
+function SearchIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+  );
+}
+
+function InfoIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 16v-4" />
+      <path d="M12 8h.01" />
     </svg>
   );
 }
@@ -633,6 +643,7 @@ export default function SansPsPage({
   const [status, setStatus] = useState("Session sans PS prête");
   const [sessionPhase, setSessionPhase] = useState<SessionPhase>("idle");
   const [isConnecting, setIsConnecting] = useState(false);
+  const isConnectingRef = useRef(false);
   const [isDiscussing, setIsDiscussing] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [hasEndedDiscussion, setHasEndedDiscussion] = useState(false);
@@ -659,7 +670,7 @@ export default function SansPsPage({
   const [micLevel, setMicLevel] = useState(0);
   const [micPeak, setMicPeak] = useState(0);
   const [sessionGuardDialog, setSessionGuardDialog] = useState<{
-    action: "reset" | "clear";
+    action: "reset" | "clear" | "stop";
     title: string;
     body: string;
   } | null>(null);
@@ -685,8 +696,6 @@ export default function SansPsPage({
   const currentSessionIdRef = useRef<string | null>(null);
   const inputTranscriptRef = useRef("");
   const monologueEntryIdRef = useRef<string | null>(null);
-  const audioChunkCountRef = useRef(0);
-  const lastAudioDebugAtRef = useRef(0);
   const lastLiveUsageTotalsRef = useRef({
     inputTextTokens: 0,
     inputAudioTokens: 0,
@@ -745,20 +754,20 @@ export default function SansPsPage({
 
   const theme = darkMode ? "dark" : "light";
   const bgClass = darkMode
-    ? "bg-[radial-gradient(circle_at_top,_rgba(45,212,191,0.10),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.08),_transparent_24%),linear-gradient(135deg,_#020617_0%,_#0b1120_48%,_#111827_100%)]"
+    ? "bg-[radial-gradient(circle_at_top,_rgba(45,212,191,0.06),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.04),_transparent_24%),linear-gradient(135deg,_#0f172a_0%,_#1e293b_100%)]"
     : "bg-gradient-to-br from-slate-50 via-white to-slate-100";
   const textClass = darkMode ? "text-slate-100" : "text-slate-900";
   const cardBg = darkMode
-    ? "bg-slate-900/72 shadow-[0_12px_40px_rgba(2,6,23,0.38)] backdrop-blur-xl"
+    ? "bg-slate-800/80 border-slate-700/60 shadow-lg backdrop-blur-xl"
     : "bg-white/90 border-slate-200/60";
   const subCardBg = darkMode
-    ? "bg-slate-800/55"
+    ? "bg-slate-900/70 border-slate-700/40"
     : "bg-slate-50/80 border-slate-200/50";
   const inputBg = darkMode
-    ? "bg-slate-950/80 border-transparent text-slate-100 placeholder-slate-500"
+    ? "bg-slate-900 border-slate-700 text-slate-100 placeholder-slate-400"
     : "bg-white border-slate-200 text-slate-900 placeholder-slate-400";
-  const mutedText = darkMode ? "text-slate-300/90" : "text-slate-500";
-  const subtleBg = darkMode ? "bg-slate-800/45" : "bg-slate-100/60";
+  const mutedText = darkMode ? "text-slate-400" : "text-slate-500";
+  const subtleBg = darkMode ? "bg-slate-700/50" : "bg-slate-100/60";
   const transcriptForDisplay = useMemo(() => {
     const withVisibleRoles = settings.showSystemMessages
       ? transcript
@@ -784,7 +793,8 @@ export default function SansPsPage({
       settings.showLiveTranscript ||
       hasEndedDiscussion ||
       showStudentDraftIndicator ||
-      hasCommittedStudentTranscript
+      hasCommittedStudentTranscript ||
+      (isMicMuted && isDiscussing)
     ) {
       return withVisibleRoles;
     }
@@ -793,7 +803,10 @@ export default function SansPsPage({
   }, [
     hasCommittedStudentTranscript,
     hasEndedDiscussion,
+    isMicMuted,
+    isDiscussing,
     showStudentDraftIndicator,
+    studentDraftText,
     settings.showLiveTranscript,
     settings.showSystemMessages,
     transcript,
@@ -887,8 +900,6 @@ export default function SansPsPage({
     }
     inputTranscriptRef.current = "";
     monologueEntryIdRef.current = null;
-    audioChunkCountRef.current = 0;
-    lastAudioDebugAtRef.current = 0;
     lastLiveUsageTotalsRef.current = {
       inputTextTokens: 0,
       inputAudioTokens: 0,
@@ -1047,8 +1058,8 @@ export default function SansPsPage({
       shouldSendAudioRef.current = false;
       await micRef.current?.stop();
       sessionRef.current?.close();
-    } catch {
-      //
+    } catch (err) {
+      console.warn("Erreur lors du nettoyage de session :", err);
     } finally {
       micRef.current = null;
       sessionRef.current = null;
@@ -1105,6 +1116,18 @@ export default function SansPsPage({
     );
   }
 
+  function requestStopSession() {
+    if (!canEnd) {
+      return;
+    }
+
+    setSessionGuardDialog({
+      action: "stop",
+      title: "Terminer la session ?",
+      body: "La session en cours sera arrêtée. Vous pourrez ensuite évaluer la transcription.",
+    });
+  }
+
   function requestResetSession() {
     if (!canResetSession) {
       return;
@@ -1137,6 +1160,11 @@ export default function SansPsPage({
     const { action } = sessionGuardDialog;
     setSessionGuardDialog(null);
 
+    if (action === "stop") {
+      void stopSession();
+      return;
+    }
+
     if (action === "reset") {
       void handleResetSession();
       return;
@@ -1165,6 +1193,8 @@ export default function SansPsPage({
   }
 
   async function startSessionInternal() {
+    if (isConnectingRef.current) return;
+    isConnectingRef.current = true;
     try {
       currentSessionIdRef.current = crypto.randomUUID();
       setIsConnecting(true);
@@ -1251,6 +1281,7 @@ export default function SansPsPage({
             const liveMessage = message as SansPsLiveMessage;
             const serverContent = liveMessage.serverContent;
 
+
             const liveUsage = extractLiveUsageCounts(liveMessage.usageMetadata);
             const previousUsage = lastLiveUsageTotalsRef.current;
             const liveUsageDelta = {
@@ -1286,7 +1317,7 @@ export default function SansPsPage({
                   googleApiKey: settings.googleApiKey || undefined,
                   ...liveUsageDelta,
                 }),
-              });
+              }).catch(() => {});
             }
 
             const inputTranscription =
@@ -1303,44 +1334,40 @@ export default function SansPsPage({
                 inputTranscription.text,
               );
               setStudentDraftText(inputTranscriptRef.current);
-              if (isPausedRef.current) {
+              if (isMicMutedRef.current) {
+                // Buffered transcription arrived after mute — flush immediately
+                flushStudentDraft();
+              } else if (isPausedRef.current) {
                 setSessionPhase("paused");
                 setStatus("Finalisation de la pause");
+                setShowStudentDraftIndicator(true);
+                if (pendingManualTurnEndRef.current) {
+                  scheduleTurnEndFallbackFlush("Pause");
+                }
               } else {
                 setSessionPhase("student-speaking");
                 setStatus("Session en cours");
-              }
-              setShowStudentDraftIndicator(true);
-              if (pendingManualTurnEndRef.current) {
-                scheduleTurnEndFallbackFlush(isPausedRef.current ? "Pause" : "Mute");
+                setShowStudentDraftIndicator(true);
+                if (pendingManualTurnEndRef.current) {
+                  scheduleTurnEndFallbackFlush("Mute");
+                }
               }
             }
 
-            if (serverContent?.generationComplete) {
-            }
 
-            if (serverContent?.waitingForInput) {
-              shouldSendAudioRef.current = true;
+            if (serverContent?.waitingForInput || serverContent?.turnComplete) {
+              if (!isMicMutedRef.current) {
+                shouldSendAudioRef.current = true;
+              }
               clearTurnEndFallbackTimer();
               pendingManualTurnEndRef.current = false;
               flushStudentDraft();
               if (isPausedRef.current) {
                 setSessionPhase("paused");
                 setStatus("Session en pause");
-              } else {
+              } else if (isMicMutedRef.current) {
                 setSessionPhase("idle");
-                setStatus("En attente de l'étudiant");
-              }
-            }
-
-            if (serverContent?.turnComplete) {
-              shouldSendAudioRef.current = true;
-              clearTurnEndFallbackTimer();
-              pendingManualTurnEndRef.current = false;
-              flushStudentDraft();
-              if (isPausedRef.current) {
-                setSessionPhase("paused");
-                setStatus("Session en pause");
+                setStatus("Microphone coupé");
               } else {
                 setSessionPhase("idle");
                 setStatus("En attente de l'étudiant");
@@ -1372,20 +1399,12 @@ export default function SansPsPage({
       sessionRef.current = session;
 
       const microphone = await startMicrophoneStream(
-        async (chunk) => {
-          if (!shouldSendAudioRef.current || isPaused || isMicMutedRef.current) {
+        (_chunk, rawPcm) => {
+          if (!shouldSendAudioRef.current || isPausedRef.current || isMicMutedRef.current) {
             return;
           }
 
-          const arrayBuffer = await chunk.arrayBuffer();
-          const uint8 = new Uint8Array(arrayBuffer);
-          const base64Audio = uint8ToBase64(uint8);
-
-          audioChunkCountRef.current += 1;
-          const now = Date.now();
-          if (now - lastAudioDebugAtRef.current > 1500) {
-            lastAudioDebugAtRef.current = now;
-          }
+          const base64Audio = uint8ToBase64(rawPcm);
 
           session.sendRealtimeInput?.({
             audio: {
@@ -1405,7 +1424,7 @@ export default function SansPsPage({
           setMicPeak(sample.peak);
 
           const isSpeaking = sample.rms >= 0.02 || sample.peak >= 0.06;
-          if (isSpeaking && !isPaused && shouldSendAudioRef.current) {
+          if (isSpeaking && !isPausedRef.current && shouldSendAudioRef.current) {
             setSessionPhase("student-speaking");
             setStatus("Session en cours");
             setShowStudentDraftIndicator(true);
@@ -1419,7 +1438,9 @@ export default function SansPsPage({
       setSessionPhase("idle");
       setStatus("Session Live ouverte, en attente de l'étudiant");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Erreur inconnue";
+      const message =
+        (error instanceof Error ? error.message : String(error)) ||
+        "Impossible de se connecter au serveur. Vérifiez que le backend est lancé.";
       setStatus(`Impossible de démarrer : ${message}`);
       onShowToast("Démarrage impossible", message, "error");
       setSessionPhase("idle");
@@ -1429,6 +1450,7 @@ export default function SansPsPage({
       ]);
     } finally {
       setIsConnecting(false);
+      isConnectingRef.current = false;
     }
   }
 
@@ -1672,7 +1694,7 @@ export default function SansPsPage({
     });
   }
 
-  function exportPdf() {
+  function exportPdf(): boolean {
     const popup = window.open("", "_blank", "width=1200,height=900");
     if (!popup) {
       onShowToast(
@@ -1680,7 +1702,7 @@ export default function SansPsPage({
         "Autorisez les popups pour ouvrir l’aperçu d’impression.",
         "error",
       );
-      return;
+      return false;
     }
 
     popup.document.open();
@@ -1690,7 +1712,7 @@ export default function SansPsPage({
         transcript,
         evaluation,
         lastEvaluatedFeedbackDetailLevel ?? settings.feedbackDetailLevel,
-        useAiCorrectedTranscript ? aiCorrection?.understoodText ?? null : null,
+        aiCorrection?.understoodText ?? null,
         rawStudentTranscriptText,
       ),
     );
@@ -1702,6 +1724,7 @@ export default function SansPsPage({
       "L’aperçu d’impression du compte rendu est ouvert.",
       "success",
     );
+    return true;
   }
 
   function downloadRecordedAudio() {
@@ -1753,18 +1776,20 @@ export default function SansPsPage({
       !settings.autoEvaluateAfterEnd ||
       autoEvaluateHandledRef.current ||
       isEvaluating ||
+      isCorrectingTranscript ||
       evaluation
     ) {
       return;
     }
 
     autoEvaluateHandledRef.current = true;
-    handleEvaluateClick();
+    const timer = window.setTimeout(() => handleEvaluateClick(), 3000);
+    return () => window.clearTimeout(timer);
   }, [
     evaluation,
     hasEndedDiscussion,
+    isCorrectingTranscript,
     isEvaluating,
-    remainingSeconds,
     settings.autoEvaluateAfterEnd,
   ]);
 
@@ -1779,8 +1804,9 @@ export default function SansPsPage({
       settings.autoExportPdfAfterEvaluation &&
       autoExportedEvaluationRef.current !== evaluationKey
     ) {
-      autoExportedEvaluationRef.current = evaluationKey;
-      exportPdf();
+      if (exportPdf()) {
+        autoExportedEvaluationRef.current = evaluationKey;
+      }
     }
   }, [evaluation, settings.autoExportPdfAfterEvaluation]);
 
@@ -1805,19 +1831,20 @@ export default function SansPsPage({
       return;
     }
 
-    if (remainingSeconds <= 0) {
-      void stopSession();
-      return;
-    }
-
     const timer = window.setInterval(() => {
-      setRemainingSeconds((current) => current - 1);
+      setRemainingSeconds((current) => {
+        if (current <= 1) {
+          void stopSession();
+          return 0;
+        }
+        return current - 1;
+      });
     }, 1000);
 
     return () => {
       window.clearInterval(timer);
     };
-  }, [isDiscussing, remainingSeconds]);
+  }, [isDiscussing]);
 
   useEffect(() => {
     if (!isEvaluating) {
@@ -1939,7 +1966,7 @@ export default function SansPsPage({
                   ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
                   : "border-slate-200 bg-white hover:bg-slate-50"
               }`}
-              aria-label="Open dashboard"
+              aria-label="Ouvrir le tableau de bord"
             >
               <ActivityIcon className={`h-5 w-5 ${darkMode ? "text-slate-200" : "text-slate-600"}`} />
             </button>
@@ -1968,7 +1995,7 @@ export default function SansPsPage({
                   ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
                   : "border-slate-200 bg-white hover:bg-slate-50"
               }`}
-              aria-label="Open settings"
+              aria-label="Ouvrir les réglages"
             >
               <SettingsIcon className={`h-5 w-5 ${darkMode ? "text-slate-200" : "text-slate-600"}`} />
             </button>
@@ -1979,7 +2006,7 @@ export default function SansPsPage({
       {showEvaluationReport && evaluation ? (
         <main className="mx-auto w-full max-w-[1280px] flex-1 px-6 py-8">
           <div className="space-y-6">
-            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
+            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
                 <div className="min-w-0">
                   <button
@@ -2002,13 +2029,14 @@ export default function SansPsPage({
                   </p>
                 </div>
                 <div className="flex w-full flex-col gap-3 xl:w-auto xl:min-w-[440px] xl:max-w-[860px] xl:items-end">
-                  <div className="flex flex-nowrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {canRerunEvaluation && (
                       <button
+                        type="button"
                         onClick={handleRerunEvaluation}
                         className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-primary-700"
                       >
-                        Re-run evaluation
+                        Réévaluer
                       </button>
                     )}
                     {recordedAudioUrl && (
@@ -2023,7 +2051,7 @@ export default function SansPsPage({
                           }`}
                         >
                           <PlayIcon className="h-4 w-4" />
-                          Play discussion audio
+                          Écouter l&apos;audio
                         </button>
                         <button
                           type="button"
@@ -2035,7 +2063,7 @@ export default function SansPsPage({
                           }`}
                         >
                           <DownloadIcon className="h-4 w-4" />
-                          Download discussion audio
+                          Télécharger l&apos;audio
                         </button>
                       </>
                     )}
@@ -2054,14 +2082,15 @@ export default function SansPsPage({
                       }`}
                     >
                       <CopyIcon className="h-4 w-4" />
-                      Copy evaluation
+                      Copier l&apos;évaluation
                     </button>
                     <button
+                      type="button"
                       onClick={exportPdf}
                       className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-800 px-3.5 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600"
                     >
                       <FileTextIcon className="h-4 w-4" />
-                      Export PDF
+                      Exporter en PDF
                     </button>
                   </div>
                   {recordedAudioUrl && showReportAudioPlayer && (
@@ -2078,9 +2107,6 @@ export default function SansPsPage({
             <EvaluationReport
               evaluation={evaluation}
               darkMode={darkMode}
-              feedbackDetailLabel={formatFeedbackDetailLabel(
-                lastEvaluatedFeedbackDetailLevel ?? settings.feedbackDetailLevel,
-              )}
               elapsedSeconds={lastSessionElapsedSeconds}
             />
           </div>
@@ -2089,17 +2115,57 @@ export default function SansPsPage({
       <main className="mx-auto w-full max-w-[1600px] flex-1 px-6 py-8">
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[470px_1fr]">
           <div className="flex flex-col gap-6">
-            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
-              <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-                <h2 className="flex min-w-0 items-center gap-2 whitespace-nowrap text-base font-semibold md:text-lg">
+            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+              <div className="mb-4 flex items-center justify-between gap-2">
+                <h2 className="flex items-center gap-2 text-lg font-semibold">
                   <FileTextIcon className="h-5 w-5 shrink-0 text-primary-500" />
-                  <span>Configuration de station</span>
+                  Configuration de station
+                  <div className="group relative">
+                    <button
+                      type="button"
+                      className={`flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
+                        darkMode
+                          ? "border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                          : "border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-700"
+                      }`}
+                      aria-label="Informations sur la configuration de station"
+                    >
+                      <InfoIcon className="h-3.5 w-3.5" />
+                    </button>
+                    <div
+                      className={`pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 rounded-2xl border px-4 py-3 text-sm font-normal leading-relaxed opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
+                        darkMode
+                          ? "border-slate-700 bg-slate-900 text-slate-200"
+                          : "border-slate-200 bg-white text-slate-700"
+                      }`}
+                    >
+                      Aucun patient n&apos;est simulé. La grille sert de référence pour l&apos;évaluation finale.
+                    </div>
+                  </div>
                 </h2>
                 <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
                   <button
+                    type="button"
+                    onClick={() => setRawInput(sansPsExampleText)}
+                    disabled={isDiscussing || isPaused || isEvaluating || isConnecting}
+                    title="Charger un exemple"
+                    aria-label="Charger un exemple"
+                    className={`rounded-lg p-2 transition-colors ${
+                      isDiscussing || isPaused || isEvaluating || isConnecting
+                        ? "cursor-not-allowed bg-slate-200 text-slate-400 dark:bg-slate-700"
+                        : darkMode
+                          ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    <BeakerIcon className="h-4 w-4" />
+                  </button>
+                  <button
                     onClick={requestClearText}
                     disabled={!canClearText}
-                    className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors md:px-4 md:text-sm ${
+                    title="Effacer"
+                    aria-label="Effacer"
+                    className={`rounded-lg p-2 transition-colors ${
                       canClearText
                         ? darkMode
                           ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
@@ -2107,12 +2173,19 @@ export default function SansPsPage({
                         : "cursor-not-allowed bg-slate-200 text-slate-400 dark:bg-slate-700"
                     }`}
                   >
-                    Clear
+                    <TrashIcon className="h-4 w-4" />
                   </button>
                   <button
+                    type="button"
                     onClick={handleParse}
-                    className="rounded-lg bg-primary-600 px-3 py-2 text-xs font-medium text-white shadow-sm shadow-primary-500/20 transition-colors hover:bg-primary-700 md:px-4 md:text-sm"
+                    disabled={isDiscussing || isPaused || isEvaluating || isConnecting}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium shadow-sm transition-colors md:px-4 md:text-sm ${
+                      isDiscussing || isPaused || isEvaluating || isConnecting
+                        ? "cursor-not-allowed bg-primary-600/50 text-white/60"
+                        : "bg-primary-600 text-white shadow-primary-500/20 hover:bg-primary-700"
+                    }`}
                   >
+                    <SearchIcon className="h-3.5 w-3.5" />
                     Analyser
                   </button>
                 </div>
@@ -2125,40 +2198,69 @@ export default function SansPsPage({
                 className={`h-80 w-full resize-none rounded-xl border p-4 text-sm leading-relaxed transition-all duration-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 ${inputBg}`}
               />
 
-              {parseError ? (
+              {parseError && (
                 <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-600 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-400">
                   {parseError}
                 </div>
-              ) : (
-                <p className={`mt-3 text-xs ${mutedText}`}>
-                  Aucun patient n&apos;est simulé. La grille sert de référence pour l&apos;évaluation finale.
-                </p>
               )}
             </div>
 
-            <div className={`flex-1 rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
+            <div className={`flex-1 rounded-2xl border ${cardBg} p-6 shadow-soft`}>
               <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
                 <ActivityIcon className="h-5 w-5 text-primary-500" />
                 Consigne
+                <div className="group relative">
+                  <button
+                    type="button"
+                    className={`flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
+                      darkMode
+                        ? "border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                        : "border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-700"
+                    }`}
+                    aria-label="Informations sur le mode sans PS"
+                  >
+                    <InfoIcon className="h-3.5 w-3.5" />
+                  </button>
+                  <div
+                    className={`pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 rounded-2xl border px-4 py-3 text-sm font-normal leading-relaxed opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
+                      darkMode
+                        ? "border-slate-700 bg-slate-900 text-slate-200"
+                        : "border-slate-200 bg-white text-slate-700"
+                    }`}
+                  >
+                    Le mode sans PS reprend la logique de la station sans patient interactif : vous parlez librement, votre monologue est transcrit, puis comparé à la grille après &laquo;&nbsp;Terminer&nbsp;&raquo;.
+                  </div>
+                </div>
               </h2>
-              <div className={`rounded-xl ${darkMode ? "" : "border"} ${subCardBg} p-4`}>
+              <div className={`rounded-xl border ${subCardBg} p-4`}>
                 <p className="text-sm font-medium">
                   Présentez votre raisonnement à voix haute comme devant un examinateur.
                 </p>
-                <p className={`mt-2 text-sm leading-relaxed ${mutedText}`}>
-                  Le mode sans PS reprend la logique de la station sans patient interactif : l&apos;étudiant parle librement, la session est transcrite, puis le contenu final est comparé à la grille après &laquo;&nbsp;Terminer&nbsp;&raquo;.
-                </p>
+                <ul className={`mt-3 space-y-1.5 text-sm ${mutedText}`}>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-0.5 text-primary-500">•</span>
+                    Structurez votre réponse : anamnèse, examen, hypothèses, plan.
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-0.5 text-primary-500">•</span>
+                    Parlez de manière claire et articulée pour une transcription optimale.
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-0.5 text-primary-500">•</span>
+                    Cliquez &laquo;&nbsp;Terminer&nbsp;&raquo; quand vous avez couvert tous les points.
+                  </li>
+                </ul>
               </div>
             </div>
           </div>
 
           <div className="space-y-6">
-            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
+            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
               <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                 <div className="flex min-w-0 items-center gap-4">
                   <div className={`h-3 w-3 rounded-full ${statusColor} ${sessionPhase !== "idle" ? "animate-pulse" : ""}`} />
                   <div className="min-w-0">
-                    <h2 className="text-lg font-semibold">Session de discussion</h2>
+                    <h2 className="text-lg font-semibold">Session de monologue</h2>
                     <p className={`text-sm ${mutedText}`}>{status}</p>
                   </div>
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${subtleBg}`}>
@@ -2166,7 +2268,7 @@ export default function SansPsPage({
                   </span>
                 </div>
 
-                <div className="flex flex-nowrap items-center gap-3 lg:shrink-0">
+                <div className="flex flex-wrap items-center gap-3 lg:shrink-0">
                   <button
                     onClick={startSession}
                     disabled={!canStart}
@@ -2206,7 +2308,8 @@ export default function SansPsPage({
                   </button>
 
                   <button
-                    onClick={stopSession}
+                    type="button"
+                    onClick={requestStopSession}
                     disabled={!canEnd}
                     className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all duration-200 ${
                       canEnd
@@ -2253,14 +2356,14 @@ export default function SansPsPage({
                     }`}
                   >
                     <ResetIcon className="h-4 w-4" />
-                    Reset
+                    Réinitialiser
                   </button>
                 </div>
               </div>
             </div>
 
             <div className={`grid min-h-0 grid-cols-1 gap-6 lg:grid-cols-[320px_1fr] ${discussionPanelHeightClass}`}>
-              <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft lg:h-full`}>
+              <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft lg:h-full`}>
                 <div className="flex items-center gap-2">
                   <ClockIcon className={`h-4 w-4 ${mutedText}`} />
                   <span className="text-sm font-semibold">Outils de session</span>
@@ -2328,7 +2431,8 @@ export default function SansPsPage({
                     />
                     {Array.from({ length: 36 }, (_, i) => {
                       const angle = (360 / 36) * i;
-                      const displayPeak = isMicMuted ? 0 : micPeak;
+                      const rawPeak = isMicMuted ? 0 : micPeak;
+                      const displayPeak = Math.sqrt(Math.min(rawPeak, 1));
                       const active =
                         !isMicMuted && i < Math.max(3, Math.round(displayPeak * 36));
                       const barHeight = active ? 12 + displayPeak * 18 : 6;
@@ -2399,7 +2503,7 @@ export default function SansPsPage({
                         Désactivée
                       </span>
                     </div>
-                    <div className={`mt-4 rounded-xl opacity-40 ${darkMode ? "" : "border"} ${subCardBg} p-3`}>
+                    <div className={`mt-4 rounded-xl opacity-40 border ${subCardBg} p-3`}>
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
@@ -2436,7 +2540,7 @@ export default function SansPsPage({
                 </div>
               </div>
 
-              <div className={`flex ${transcriptPanelHeightClass} min-h-0 flex-col overflow-hidden rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft lg:h-full`}>
+              <div className={`flex ${transcriptPanelHeightClass} min-h-0 flex-col overflow-hidden rounded-2xl border ${cardBg} p-6 shadow-soft lg:h-full`}>
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <h3 className="text-lg font-semibold">Transcription du monologue</h3>
                   <div className="flex items-center gap-2">
@@ -2446,32 +2550,41 @@ export default function SansPsPage({
                       disabled={
                         isCorrectingTranscript ||
                         !hasEndedDiscussion ||
-                        !rawStudentTranscriptText.trim()
+                        !rawStudentTranscriptText.trim() ||
+                        Boolean(evaluation)
                       }
-                      className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                      title={
+                        isCorrectingTranscript
+                          ? "Correction en cours…"
+                          : evaluation
+                            ? "La source est verrouillée après l'évaluation"
+                            : useAiCorrectedTranscript && aiCorrection
+                              ? "Corrigé par l'IA — cliquer pour revenir au brut"
+                              : !hasEndedDiscussion
+                                ? "Disponible après la fin du monologue"
+                                : !rawStudentTranscriptText.trim()
+                                  ? "Aucun transcript disponible"
+                                  : "Corriger le transcript avec l'IA"
+                      }
+                      aria-label="Correction IA"
+                      className={`rounded-lg p-2 transition-colors ${
                         useAiCorrectedTranscript && aiCorrection
                           ? darkMode
-                            ? "border-transparent bg-primary-400 text-slate-950 hover:bg-primary-300"
-                            : "border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100"
+                            ? "bg-amber-400 text-slate-950 hover:bg-amber-300"
+                            : "bg-amber-50 text-amber-700 hover:bg-amber-100"
                           : darkMode
-                            ? "border-transparent bg-slate-800 text-slate-100 hover:bg-slate-700"
-                            : "border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-50"
+                            ? "bg-slate-800 text-amber-400 hover:bg-slate-700"
+                            : "bg-slate-100 text-amber-600 hover:bg-slate-200"
                       } ${
                         isCorrectingTranscript ||
                         !hasEndedDiscussion ||
-                        !rawStudentTranscriptText.trim()
+                        !rawStudentTranscriptText.trim() ||
+                        evaluation
                           ? "cursor-not-allowed opacity-60"
                           : ""
                       }`}
                     >
                       <SparklesIcon className={`h-4 w-4 ${isCorrectingTranscript ? "animate-pulse" : ""}`} />
-                      {isCorrectingTranscript
-                        ? "Correction en cours…"
-                        : aiCorrection
-                          ? useAiCorrectedTranscript
-                            ? "Correction IA active"
-                            : "Corriger le transcript avec l'IA"
-                          : "Corriger le transcript avec l'IA"}
                     </button>
                     <button
                       type="button"
@@ -2482,14 +2595,15 @@ export default function SansPsPage({
                         )
                       }
                       disabled={!canCopyTranscript}
-                      className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                      title="Copier le transcript"
+                      aria-label="Copier le transcript"
+                      className={`rounded-lg p-2 transition-colors ${
                         darkMode
-                          ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
-                          : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
+                          ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                       } ${!canCopyTranscript ? "cursor-not-allowed opacity-60" : ""}`}
                     >
                       <CopyIcon className="h-4 w-4" />
-                      Copy transcript
                     </button>
                   </div>
                 </div>
@@ -2685,7 +2799,7 @@ export default function SansPsPage({
         darkMode={darkMode}
         title={sessionGuardDialog?.title ?? ""}
         body={sessionGuardDialog?.body ?? ""}
-        confirmLabel={sessionGuardDialog?.action === "clear" ? "Effacer" : "Réinitialiser"}
+        confirmLabel={sessionGuardDialog?.action === "clear" ? "Oui, effacer" : sessionGuardDialog?.action === "stop" ? "Oui, terminer" : "Oui, réinitialiser"}
         cancelLabel="Annuler"
         tone="danger"
         onCancel={() => setSessionGuardDialog(null)}

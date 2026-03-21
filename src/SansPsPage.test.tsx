@@ -154,6 +154,7 @@ describe("SansPsPage", () => {
     expect(screen.getByRole("button", { name: "PS / PSS" })).toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: "Terminer" }));
+    await user.click(screen.getByRole("button", { name: "Oui, terminer" }));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "PS / PSS" })).toBeEnabled();
@@ -192,6 +193,7 @@ describe("SansPsPage", () => {
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Terminer" }));
+    await user.click(screen.getByRole("button", { name: "Oui, terminer" }));
 
     await waitFor(() => {
       expect(
@@ -509,8 +511,8 @@ describe("SansPsPage", () => {
     );
 
     fireEvent.change(textarea, { target: { value: validStation } });
-    await user.click(screen.getByRole("button", { name: "Clear" }));
     await user.click(screen.getByRole("button", { name: "Effacer" }));
+    await user.click(screen.getByRole("button", { name: "Oui, effacer" }));
 
     expect(textarea).toHaveValue("");
     expect(screen.getByText("Session sans PS prête")).toBeInTheDocument();
@@ -640,9 +642,9 @@ describe("SansPsPage", () => {
     );
     await user.click(screen.getByRole("button", { name: "Analyser" }));
 
-    // Before session: button shows French label and is disabled
+    // Before session: button shows icon and is disabled
     expect(
-      screen.getByRole("button", { name: /corriger le transcript avec l'ia/i }),
+      screen.getByRole("button", { name: /correction ia/i }),
     ).toBeDisabled();
   });
 

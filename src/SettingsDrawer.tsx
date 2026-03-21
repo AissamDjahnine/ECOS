@@ -212,7 +212,7 @@ function SettingRow({
                 <InfoIcon className="h-3.5 w-3.5" />
               </button>
               <div
-                className={`pointer-events-none absolute left-0 top-full z-10 mt-2 w-72 rounded-2xl border px-3 py-2 text-sm leading-relaxed opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
+                className={`pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 rounded-2xl border px-4 py-3 text-sm font-normal leading-relaxed opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
                   darkMode
                     ? "border-slate-700 bg-slate-900 text-slate-200"
                     : "border-slate-200 bg-white text-slate-700"
@@ -266,6 +266,15 @@ export function SettingsDrawer({
       setApiKeyDraft(settings.googleApiKey);
     }
   }, [isEditingApiKey, settings.googleApiKey]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   const overlayClass = isOpen
     ? "pointer-events-auto opacity-100"
@@ -353,7 +362,8 @@ export function SettingsDrawer({
                         setApiKeyDraft(settings.googleApiKey);
                         setIsEditingApiKey(true);
                       }}
-                      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-all ${apiKeyActionButtonClass}`}
+                      disabled={isEditingApiKey}
+                      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-all ${isEditingApiKey ? "opacity-40 cursor-not-allowed" : ""} ${apiKeyActionButtonClass}`}
                       aria-label="Modifier la clé API Google"
                     >
                       <PencilIcon className="h-4 w-4" />
@@ -427,7 +437,7 @@ export function SettingsDrawer({
               <SettingRow
                 darkMode={darkMode}
                 title="Afficher la transcription en direct"
-                description="Masque la transcription pendant la session, puis la réaffiche une fois terminée."
+                description="S'applique aux deux modes (PS/PSS et Sans PS). Masque la transcription pendant la session, puis la réaffiche une fois terminée."
                 layout="inline-toggle"
                 control={
                   <Toggle

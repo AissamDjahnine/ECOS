@@ -1,0 +1,80 @@
+SDD 200 : Pour l'examinateur
+Grille d'évaluation
+
+	
+
+Critères ciblés
+	
+
+Observé = 1 Non-observé = 0
+
+1
+	
+
+Calcule la calcémie corrigée du patient et indique qu’elle vaut 2,77 mmol/L
+	
+
+2
+	
+
+Indique que la numération de la formule sanguine et la fonction rénale sont normales
+	
+
+3
+	
+
+Indique que le patient présente une hypophosphorémie
+	
+
+4
+	
+
+Indique que le patient présente un taux anormalement élevé de PTH
+	
+
+5
+	
+
+Indique que le diagnostic le plus probable est celui d’hyperparathyroïdie primaire
+	
+
+6
+	
+
+Indique que le taux de PTH élevée dans le contexte d’hypercalcémie est en faveur du diagnostic
+	
+
+7
+	
+
+Indique que la normalité du dosage de la vitamine D et l’hypophosphorémie sont en faveur du diagnostic
+	
+
+8
+	
+
+Indique que la survenue récente des deux crises de coliques néphrétiques est en faveur du diagnostic
+	
+
+9
+	
+
+Indique que l’ostéoporose du patient est en faveur du diagnostic
+	
+
+10
+	
+
+Indique qu’il serait intéressant que le patient bénéficie d’une échographie des parathyroïdes
+	
+
+11
+	
+
+Indique qu’il serait intéressant que le patient bénéficie d’une scintigraphie au SESTA-MIBI
+	
+Critères d'évaluation génériques
+
+    Aptitude à faire la synthèse des données
+    Aptitude à planifier les soins
+

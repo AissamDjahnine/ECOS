@@ -14,7 +14,7 @@ test.describe("settings and navigation", () => {
 
   test("persists timer setting across reloads", async ({ page }) => {
     await page.goto("/ps");
-    await page.getByRole("button", { name: "Open settings" }).click();
+    await page.getByRole("button", { name: "Ouvrir les réglages" }).click();
     await page.getByRole("button", { name: "10 min" }).click();
 
     await page.reload();

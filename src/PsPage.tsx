@@ -9,6 +9,7 @@ import {
   type LiveServerMessage,
 } from "@google/genai";
 import { parseCaseInput, transcriptToPlainText } from "./lib/parser";
+import psExampleText from "./examples/ps-example.txt?raw";
 import { buildPsPdfDocument } from "./lib/pdf";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { EvaluationReport } from "./EvaluationReport";
@@ -246,6 +247,10 @@ function upsertTranscriptEntryById(
   return updated;
 }
 
+const NO_LEADING_SPACE_BEFORE = new Set([
+  ".", ",", ";", ":", "!", "?", ")", "]", "}", "'", "\u2019",
+]);
+
 function appendTranscriptChunk(currentText: string, incomingChunk: string) {
   const chunk = incomingChunk.trim();
   if (!chunk) {
@@ -275,21 +280,7 @@ function appendTranscriptChunk(currentText: string, incomingChunk: string) {
     }
   }
 
-  const noLeadingSpaceBefore = new Set([
-    ".",
-    ",",
-    ";",
-    ":",
-    "!",
-    "?",
-    ")",
-    "]",
-    "}",
-    "'",
-    "'",
-  ]);
-
-  if (noLeadingSpaceBefore.has(chunk)) {
+  if (NO_LEADING_SPACE_BEFORE.has(chunk)) {
     return `${current}${chunk}`;
   }
 
@@ -405,6 +396,35 @@ function VoiceFemaleIcon({ className }: { className?: string }) {
   );
 }
 
+function BeakerIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4.5 3h15" />
+      <path d="M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3" />
+      <path d="M6 14h12" />
+    </svg>
+  );
+}
+
+function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 6h18" />
+      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+    </svg>
+  );
+}
+
+function SearchIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+  );
+}
+
 function InfoIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -435,17 +455,6 @@ function HeartIcon({
       <path d="m12 21-1.4-1.27C5.4 15 2 11.86 2 8a5 5 0 0 1 8.2-3.84L12 5.75l1.8-1.59A5 5 0 0 1 22 8c0 3.86-3.4 7-8.6 11.73Z" />
     </svg>
   );
-}
-
-function formatFeedbackDetailLabel(level: AppSettings["feedbackDetailLevel"]) {
-  switch (level) {
-    case "brief":
-      return "Brief";
-    case "detailed":
-      return "Detailed";
-    default:
-      return "Standard";
-  }
 }
 
 function buildTranscriptCopy(
@@ -675,8 +684,10 @@ export default function App({
   const [parseError, setParseError] = useState("");
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [isConnecting, setIsConnecting] = useState(false);
+  const isConnectingRef = useRef(false);
   const [isDiscussing, setIsDiscussing] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const isPausedRef = useRef(false);
   const [hasEndedDiscussion, setHasEndedDiscussion] = useState(false);
   const [status, setStatus] = useState("Mode PS/PSS prêt");
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
@@ -698,7 +709,7 @@ export default function App({
   );
   const [lastSessionElapsedSeconds, setLastSessionElapsedSeconds] = useState(0);
   const [sessionGuardDialog, setSessionGuardDialog] = useState<{
-    action: "reset" | "clear";
+    action: "reset" | "clear" | "stop";
     title: string;
     body: string;
   } | null>(null);
@@ -967,17 +978,18 @@ export default function App({
   }
 
   function toggleMicMute() {
-    setIsMicMuted((current) => {
-      const next = !current;
-      isMicMutedRef.current = next;
+    const wasMuted = isMicMutedRef.current;
+    const next = !wasMuted;
+    isMicMutedRef.current = next;
+    setIsMicMuted(next);
 
-      if (next) {
-        setMicLevel(0);
-        setMicPeak(0);
-      }
-
-      return next;
-    });
+    if (next) {
+      setMicLevel(0);
+      setMicPeak(0);
+      // Muting acts like detected silence: finalize draft and let AI respond
+      setShowStudentDraftIndicator(false);
+      finalizeStudentDraft();
+    }
   }
 
   function handleParse() {
@@ -1120,18 +1132,6 @@ export default function App({
 
     const entryId = crypto.randomUUID();
 
-    if (fallbackText) {
-      setTranscript((current) => [
-        ...current,
-        {
-          id: entryId,
-          role: "student",
-          text: fallbackText,
-          timestamp: createTimestamp(),
-        },
-      ]);
-    }
-
     try {
       if (fallbackText) {
         setTranscript((current) =>
@@ -1157,6 +1157,7 @@ export default function App({
       setMicPeak(0);
       setIsDiscussing(false);
       setIsPaused(true);
+      isPausedRef.current = true;
       setConversationPhase("paused");
       setStatus("Discussion en pause");
       setShowStudentDraftIndicator(false);
@@ -1175,6 +1176,7 @@ export default function App({
     setIsMicMuted(false);
     setIsDiscussing(true);
     setIsPaused(false);
+    isPausedRef.current = false;
     setConversationPhase("listening");
     setStatus("Discussion reprise");
     setTranscript((current) => [
@@ -1203,6 +1205,8 @@ export default function App({
   }
 
   async function startDiscussionInternal() {
+    if (isConnectingRef.current) return;
+    isConnectingRef.current = true;
     try {
       const sessionVoiceName =
         voiceSelectionMode === "auto"
@@ -1222,6 +1226,7 @@ export default function App({
       setMicLevel(0);
       setMicPeak(0);
       setIsPaused(false);
+      isPausedRef.current = false;
 
       shouldSendAudioRef.current = true;
       inputTranscriptRef.current = "";
@@ -1388,7 +1393,7 @@ export default function App({
                   googleApiKey: settings.googleApiKey || undefined,
                   ...liveUsageDelta,
                 }),
-              });
+              }).catch(() => {});
             }
 
             const serverContent = liveMessage.serverContent;
@@ -1403,9 +1408,14 @@ export default function App({
                 inputTranscriptRef.current,
                 inputTranscription.text,
               );
-              setConversationPhase("student-speaking");
-              setStatus("Étudiant en train de parler");
-              setShowStudentDraftIndicator(true);
+              if (isMicMutedRef.current) {
+                // Buffered transcription arrived after mute — finalize immediately
+                await finalizeStudentDraft();
+              } else {
+                setConversationPhase("student-speaking");
+                setStatus("Étudiant en train de parler");
+                setShowStudentDraftIndicator(true);
+              }
             }
 
             const outputTranscription =
@@ -1526,10 +1536,10 @@ export default function App({
       sessionRef.current = session;
 
       const microphone = await startMicrophoneStream(
-        async (chunk) => {
+        (chunk, rawPcm) => {
           if (
             !shouldSendAudioRef.current ||
-            isPaused ||
+            isPausedRef.current ||
             isMicMutedRef.current
           ) {
             return;
@@ -1537,9 +1547,7 @@ export default function App({
 
           studentTurnAudioChunksRef.current.push(chunk);
 
-          const arrayBuffer = await chunk.arrayBuffer();
-          const uint8 = new Uint8Array(arrayBuffer);
-          const base64Audio = uint8ToBase64(uint8);
+          const base64Audio = uint8ToBase64(rawPcm);
 
           session.sendRealtimeInput?.({
             audio: {
@@ -1574,10 +1582,13 @@ export default function App({
 
       setIsDiscussing(true);
       setIsPaused(false);
+      isPausedRef.current = false;
       setConversationPhase("listening");
       setStatus("Session Live ouverte, en attente de l'étudiant");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Erreur inconnue";
+      const message =
+        (error instanceof Error ? error.message : String(error)) ||
+        "Impossible de se connecter au serveur. Vérifiez que le backend est lancé.";
 
       shouldSendAudioRef.current = true;
       setStatus(`Impossible de démarrer : ${message}`);
@@ -1590,6 +1601,7 @@ export default function App({
       ]);
     } finally {
       setIsConnecting(false);
+      isConnectingRef.current = false;
     }
   }
 
@@ -1668,6 +1680,7 @@ export default function App({
       setShowStudentDraftIndicator(false);
       setIsDiscussing(false);
       setIsPaused(false);
+      isPausedRef.current = false;
       setHasEndedDiscussion(true);
       setConversationPhase("idle");
       setStatus("Discussion terminée. Transcription prête pour évaluation.");
@@ -1716,8 +1729,8 @@ export default function App({
       await micRef.current?.stop();
       sessionRef.current?.close();
       await playerRef.current?.close();
-    } catch {
-      //
+    } catch (err) {
+      console.warn("Erreur lors du nettoyage de session :", err);
     } finally {
       micRef.current = null;
       sessionRef.current = null;
@@ -1738,6 +1751,7 @@ export default function App({
       setIsConnecting(false);
       setIsDiscussing(false);
       setIsPaused(false);
+      isPausedRef.current = false;
       setConversationPhase("idle");
       setStatus(parsedReady ? "Cas préparé" : "Mode PS/PSS prêt");
       setRemainingSeconds(settings.defaultTimerSeconds);
@@ -1786,6 +1800,18 @@ export default function App({
     );
   }
 
+  function requestStopDiscussion() {
+    if (!canEnd) {
+      return;
+    }
+
+    setSessionGuardDialog({
+      action: "stop",
+      title: "Terminer la session ?",
+      body: "La session en cours sera arrêtée. Vous pourrez ensuite évaluer la transcription.",
+    });
+  }
+
   function requestResetSession() {
     if (!canResetSession) {
       return;
@@ -1817,6 +1843,11 @@ export default function App({
 
     const { action } = sessionGuardDialog;
     setSessionGuardDialog(null);
+
+    if (action === "stop") {
+      void stopDiscussion();
+      return;
+    }
 
     if (action === "reset") {
       void handleResetSession();
@@ -1886,7 +1917,7 @@ export default function App({
     void evaluateDiscussion();
   }
 
-  function exportPdf() {
+  function exportPdf(): boolean {
     const popup = window.open("", "_blank", "width=1200,height=900");
     if (!popup) {
       onShowToast(
@@ -1894,7 +1925,7 @@ export default function App({
         "Autorisez les popups pour ouvrir l’aperçu d’impression.",
         "error",
       );
-      return;
+      return false;
     }
 
     popup.document.open();
@@ -1914,6 +1945,7 @@ export default function App({
       "L’aperçu d’impression du compte rendu est ouvert.",
       "success",
     );
+    return true;
   }
 
   function downloadRecordedAudio() {
@@ -1976,7 +2008,6 @@ export default function App({
     evaluation,
     hasEndedDiscussion,
     isEvaluating,
-    remainingSeconds,
     settings.autoEvaluateAfterEnd,
   ]);
 
@@ -1991,8 +2022,9 @@ export default function App({
       settings.autoExportPdfAfterEvaluation &&
       autoExportedEvaluationRef.current !== evaluationKey
     ) {
-      autoExportedEvaluationRef.current = evaluationKey;
-      exportPdf();
+      if (exportPdf()) {
+        autoExportedEvaluationRef.current = evaluationKey;
+      }
     }
   }, [evaluation, settings.autoExportPdfAfterEvaluation]);
 
@@ -2001,19 +2033,20 @@ export default function App({
       return;
     }
 
-    if (remainingSeconds <= 0) {
-      void stopDiscussion();
-      return;
-    }
-
     const timer = window.setInterval(() => {
-      setRemainingSeconds((current) => current - 1);
+      setRemainingSeconds((current) => {
+        if (current <= 1) {
+          void stopDiscussion();
+          return 0;
+        }
+        return current - 1;
+      });
     }, 1000);
 
     return () => {
       window.clearInterval(timer);
     };
-  }, [isDiscussing, remainingSeconds]);
+  }, [isDiscussing]);
 
   useEffect(() => {
     if (!isEvaluating) {
@@ -2089,20 +2122,20 @@ export default function App({
   // Theme classes
   const theme = darkMode ? "dark" : "light";
   const bgClass = darkMode
-    ? "bg-[radial-gradient(circle_at_top,_rgba(45,212,191,0.10),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.08),_transparent_24%),linear-gradient(135deg,_#020617_0%,_#0b1120_48%,_#111827_100%)]"
+    ? "bg-[radial-gradient(circle_at_top,_rgba(45,212,191,0.06),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.04),_transparent_24%),linear-gradient(135deg,_#0f172a_0%,_#1e293b_100%)]"
     : "bg-gradient-to-br from-slate-50 via-white to-slate-100";
   const textClass = darkMode ? "text-slate-100" : "text-slate-900";
   const cardBg = darkMode
-    ? "bg-slate-900/72 shadow-[0_12px_40px_rgba(2,6,23,0.38)] backdrop-blur-xl"
+    ? "bg-slate-800/80 border-slate-700/60 shadow-lg backdrop-blur-xl"
     : "bg-white/90 border-slate-200/60";
   const subCardBg = darkMode
-    ? "bg-slate-800/55"
+    ? "bg-slate-900/70 border-slate-700/40"
     : "bg-slate-50/80 border-slate-200/50";
   const inputBg = darkMode
-    ? "bg-slate-950/80 border-transparent text-slate-100 placeholder-slate-500"
+    ? "bg-slate-900 border-slate-700 text-slate-100 placeholder-slate-400"
     : "bg-white border-slate-200 text-slate-900 placeholder-slate-400";
-  const mutedText = darkMode ? "text-slate-300/90" : "text-slate-500";
-  const subtleBg = darkMode ? "bg-slate-800/45" : "bg-slate-100/60";
+  const mutedText = darkMode ? "text-slate-400" : "text-slate-500";
+  const subtleBg = darkMode ? "bg-slate-700/50" : "bg-slate-100/60";
 
   // Status indicator
   const getStatusColor = () => {
@@ -2211,7 +2244,7 @@ export default function App({
                     ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
                     : "border-slate-200 bg-white hover:bg-slate-50"
                 }`}
-                aria-label="Open dashboard"
+                aria-label="Ouvrir le tableau de bord"
               >
                 <ActivityIcon className={`w-5 h-5 ${darkMode ? "text-slate-200" : "text-slate-600"}`} />
               </button>
@@ -2240,7 +2273,7 @@ export default function App({
                     ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
                     : "border-slate-200 bg-white hover:bg-slate-50"
                 }`}
-                aria-label="Open settings"
+                aria-label="Ouvrir les réglages"
               >
                 <SettingsIcon className={`w-5 h-5 ${darkMode ? "text-slate-200" : "text-slate-600"}`} />
               </button>
@@ -2253,7 +2286,7 @@ export default function App({
       {showEvaluationReport && evaluation ? (
         <main className="mx-auto w-full max-w-[1280px] flex-1 px-6 py-8">
           <div className="space-y-6">
-            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
+            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
                 <div className="min-w-0">
                   <button
@@ -2276,13 +2309,14 @@ export default function App({
                   </p>
                 </div>
                 <div className="flex w-full flex-col gap-3 xl:w-auto xl:min-w-[440px] xl:max-w-[860px] xl:items-end">
-                  <div className="flex flex-nowrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {canRerunEvaluation && (
                       <button
+                        type="button"
                         onClick={handleRerunEvaluation}
                         className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-primary-700"
                       >
-                        Re-run evaluation
+                        Réévaluer
                       </button>
                     )}
                     {recordedAudioUrl && (
@@ -2297,7 +2331,7 @@ export default function App({
                           }`}
                         >
                           <PlayIcon className="w-4 h-4" />
-                          Play discussion audio
+                          Écouter l&apos;audio
                         </button>
                         <button
                           type="button"
@@ -2309,7 +2343,7 @@ export default function App({
                           }`}
                         >
                           <DownloadIcon className="w-4 h-4" />
-                          Download discussion audio
+                          Télécharger l&apos;audio
                         </button>
                       </>
                     )}
@@ -2328,14 +2362,15 @@ export default function App({
                       }`}
                     >
                       <CopyIcon className="w-4 h-4" />
-                      Copy evaluation
+                      Copier l&apos;évaluation
                     </button>
                     <button
+                      type="button"
                       onClick={exportPdf}
                       className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-800 px-3.5 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600"
                     >
                       <FileTextIcon className="w-4 h-4" />
-                      Export PDF
+                      Exporter en PDF
                     </button>
                   </div>
                   {recordedAudioUrl && showReportAudioPlayer && (
@@ -2352,9 +2387,6 @@ export default function App({
             <EvaluationReport
               evaluation={evaluation}
               darkMode={darkMode}
-              feedbackDetailLabel={formatFeedbackDetailLabel(
-                lastEvaluatedFeedbackDetailLevel ?? settings.feedbackDetailLevel,
-              )}
               elapsedSeconds={lastSessionElapsedSeconds}
             />
           </div>
@@ -2365,17 +2397,57 @@ export default function App({
           {/* Left Sidebar */}
           <div className="flex flex-col gap-6">
             {/* Case Input */}
-            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
-              <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-                <h2 className="flex min-w-0 items-center gap-2 whitespace-nowrap text-base font-semibold md:text-lg">
+            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+              <div className="mb-4 flex items-center justify-between gap-2">
+                <h2 className="flex items-center gap-2 text-lg font-semibold">
                   <FileTextIcon className="h-5 w-5 shrink-0 text-primary-500" />
-                  <span>Configuration du cas</span>
+                  Configuration du cas
+                  <div className="group relative">
+                    <button
+                      type="button"
+                      className={`flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
+                        darkMode
+                          ? "border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                          : "border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-700"
+                      }`}
+                      aria-label="Informations sur la configuration du cas"
+                    >
+                      <InfoIcon className="h-3.5 w-3.5" />
+                    </button>
+                    <div
+                      className={`pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 rounded-2xl border px-4 py-3 text-sm font-normal leading-relaxed opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
+                        darkMode
+                          ? "border-slate-700 bg-slate-900 text-slate-200"
+                          : "border-slate-200 bg-white text-slate-700"
+                      }`}
+                    >
+                      Le parser détecte automatiquement les sections patient et grille à partir du texte au format Hypocampus.
+                    </div>
+                  </div>
                 </h2>
                 <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
                   <button
+                    type="button"
+                    onClick={() => setRawInput(psExampleText)}
+                    disabled={isDiscussing || isPaused || isEvaluating || isConnecting}
+                    title="Charger un exemple"
+                    aria-label="Charger un exemple"
+                    className={`rounded-lg p-2 transition-colors ${
+                      isDiscussing || isPaused || isEvaluating || isConnecting
+                        ? "cursor-not-allowed bg-slate-200 text-slate-400 dark:bg-slate-700"
+                        : darkMode
+                          ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    <BeakerIcon className="h-4 w-4" />
+                  </button>
+                  <button
                     onClick={requestClearText}
                     disabled={!canClearText}
-                    className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors md:px-4 md:text-sm ${
+                    title="Effacer"
+                    aria-label="Effacer"
+                    className={`rounded-lg p-2 transition-colors ${
                       canClearText
                         ? darkMode
                           ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
@@ -2383,12 +2455,19 @@ export default function App({
                         : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
                     }`}
                   >
-                    Clear
+                    <TrashIcon className="h-4 w-4" />
                   </button>
                   <button
+                    type="button"
                     onClick={handleParse}
-                    className="rounded-lg bg-primary-600 px-3 py-2 text-xs font-medium text-white transition-colors shadow-sm shadow-primary-500/20 hover:bg-primary-700 md:px-4 md:text-sm"
+                    disabled={isDiscussing || isPaused || isEvaluating || isConnecting}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium shadow-sm transition-colors md:px-4 md:text-sm ${
+                      isDiscussing || isPaused || isEvaluating || isConnecting
+                        ? "cursor-not-allowed bg-primary-600/50 text-white/60"
+                        : "bg-primary-600 text-white shadow-primary-500/20 hover:bg-primary-700"
+                    }`}
                   >
+                    <SearchIcon className="h-3.5 w-3.5" />
                     Analyser
                   </button>
                 </div>
@@ -2398,32 +2477,50 @@ export default function App({
                 value={rawInput}
                 onChange={(e) => setRawInput(e.target.value)}
                 placeholder="Collez ici la trame du patient et la grille de correction..."
-                className={`w-full h-64 p-4 rounded-xl border resize-none text-sm leading-relaxed transition-all duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 ${inputBg}`}
+                className={`w-full h-80 p-4 rounded-xl border resize-none text-sm leading-relaxed transition-all duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 ${inputBg}`}
               />
 
-              {parseError ? (
+              {parseError && (
                 <div className="mt-3 p-3 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 text-sm">
                   {parseError}
                 </div>
-              ) : (
-                <p className={`mt-3 text-xs ${mutedText}`}>
-                  Le parser détecte automatiquement les sections patient et grille.
-                </p>
               )}
             </div>
 
             {/* Patient Info */}
-            <div className={`flex-1 rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
+            <div className={`flex-1 rounded-2xl border ${cardBg} p-6 shadow-soft`}>
               <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
                 <UserIcon className="w-4 h-4 text-primary-500" />
                 Informations patient
+                <div className="group relative">
+                  <button
+                    type="button"
+                    className={`flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
+                      darkMode
+                        ? "border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                        : "border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-700"
+                    }`}
+                    aria-label="Informations sur le patient"
+                  >
+                    <InfoIcon className="h-3.5 w-3.5" />
+                  </button>
+                  <div
+                    className={`pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 rounded-2xl border px-4 py-3 text-sm font-normal leading-relaxed opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
+                      darkMode
+                        ? "border-slate-700 bg-slate-900 text-slate-200"
+                        : "border-slate-200 bg-white text-slate-700"
+                    }`}
+                  >
+                    Extraites automatiquement du texte de la station : nom, âge, sexe et contexte clinique du patient simulé.
+                  </div>
+                </div>
               </h2>
 
               <div className="grid grid-cols-2 gap-2">
                 {displayedPatientInfo.map((item) => (
                   <div
                     key={`${item.label}-${item.value}`}
-                    className={`p-2 rounded-xl ${subCardBg} ${darkMode ? "" : "border"} transition-opacity ${
+                    className={`p-2 rounded-xl ${subCardBg} border transition-opacity ${
                       patientInfo.length === 0 ? "opacity-60" : ""
                     }`}
                   >
@@ -2443,7 +2540,7 @@ export default function App({
           {/* Main Panel */}
           <div className="space-y-6">
             {/* Session Controls */}
-            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
+            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
               <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                 <div className="flex min-w-0 items-center gap-4">
                   <div className={`w-3 h-3 rounded-full ${getStatusColor()} ${conversationPhase !== "idle" ? "animate-pulse" : ""}`} />
@@ -2456,7 +2553,7 @@ export default function App({
                   </span>
                 </div>
 
-                <div className="flex flex-nowrap items-center gap-3 lg:shrink-0">
+                <div className="flex flex-wrap items-center gap-3 lg:shrink-0">
                   <button
                     onClick={startDiscussion}
                     disabled={!canStart}
@@ -2496,7 +2593,8 @@ export default function App({
                   </button>
 
                   <button
-                    onClick={stopDiscussion}
+                    type="button"
+                    onClick={requestStopDiscussion}
                     disabled={!canEnd}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
                       canEnd
@@ -2543,7 +2641,7 @@ export default function App({
                     }`}
                   >
                     <ResetIcon className="w-4 h-4" />
-                    Reset
+                    Réinitialiser
                   </button>
                 </div>
               </div>
@@ -2551,7 +2649,7 @@ export default function App({
 
             {/* Discussion Area */}
             <div className={`grid min-h-0 grid-cols-1 gap-6 lg:grid-cols-[320px_1fr] ${discussionPanelHeightClass}`}>
-              <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft lg:h-full`}>
+              <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft lg:h-full`}>
                 <div className="flex items-center gap-2">
                   <ClockIcon className={`h-4 w-4 ${mutedText}`} />
                   <span className="text-sm font-semibold">Outils de session</span>
@@ -2625,7 +2723,8 @@ export default function App({
                     />
                     {Array.from({ length: 36 }, (_, i) => {
                       const angle = (360 / 36) * i;
-                      const displayPeak = isMicMuted ? 0 : micPeak;
+                      const rawPeak = isMicMuted ? 0 : micPeak;
+                      const displayPeak = Math.sqrt(Math.min(rawPeak, 1));
                       const active = !isMicMuted && i < Math.max(3, Math.round(displayPeak * 36));
                       const barHeight = active ? 12 + displayPeak * 18 : 6;
 
@@ -2709,7 +2808,7 @@ export default function App({
                       </span>
                     </div>
 
-                    <div className={`mt-4 rounded-xl ${darkMode ? "" : "border"} ${subCardBg} p-3`}>
+                    <div className={`mt-4 rounded-xl border ${subCardBg} p-3`}>
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
@@ -2755,7 +2854,7 @@ export default function App({
                           type="button"
                           onClick={() => setIsVoiceDrawerOpen(true)}
                           disabled={!parsedReady}
-                          className={`shrink-0 rounded-xl ${darkMode ? "" : "border"} px-3 py-1.5 text-sm font-medium transition-all ${
+                          className={`shrink-0 rounded-xl border px-3 py-1.5 text-sm font-medium transition-all ${
                             parsedReady
                               ? darkMode
                                 ? "border-transparent bg-slate-800 text-slate-100 hover:bg-slate-700"
@@ -2772,7 +2871,7 @@ export default function App({
               </div>
 
               {/* Transcript */}
-              <div className={`flex ${transcriptPanelHeightClass} min-h-0 flex-col overflow-hidden rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft lg:h-full`}>
+              <div className={`flex ${transcriptPanelHeightClass} min-h-0 flex-col overflow-hidden rounded-2xl border ${cardBg} p-6 shadow-soft lg:h-full`}>
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <h3 className="text-lg font-semibold">Transcription en direct</h3>
                   <button
@@ -2784,14 +2883,15 @@ export default function App({
                       )
                     }
                     disabled={!canCopyTranscript}
-                    className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                    title="Copier le transcript"
+                    aria-label="Copier le transcript"
+                    className={`rounded-lg p-2 transition-colors ${
                       darkMode
-                        ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
-                        : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
+                        ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                     } ${!canCopyTranscript ? "cursor-not-allowed opacity-60" : ""}`}
                   >
                     <CopyIcon className="w-4 h-4" />
-                    Copy transcript
                   </button>
                 </div>
                 <div
@@ -3033,7 +3133,7 @@ export default function App({
         darkMode={darkMode}
         title={sessionGuardDialog?.title ?? ""}
         body={sessionGuardDialog?.body ?? ""}
-        confirmLabel={sessionGuardDialog?.action === "clear" ? "Effacer" : "Réinitialiser"}
+        confirmLabel={sessionGuardDialog?.action === "clear" ? "Oui, effacer" : sessionGuardDialog?.action === "stop" ? "Oui, terminer" : "Oui, réinitialiser"}
         cancelLabel="Annuler"
         tone="danger"
         onCancel={() => setSessionGuardDialog(null)}

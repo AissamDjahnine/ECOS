@@ -22,7 +22,7 @@ describe("EvaluationReport score palette", () => {
       <EvaluationReport
         evaluation={evaluation}
         darkMode={false}
-        feedbackDetailLabel="standard"
+
         elapsedSeconds={31}
       />,
     );
@@ -35,7 +35,7 @@ describe("EvaluationReport score palette", () => {
       <EvaluationReport
         evaluation={evaluation}
         darkMode
-        feedbackDetailLabel="standard"
+
         elapsedSeconds={31}
       />,
     );
@@ -51,7 +51,7 @@ describe("EvaluationReport score palette", () => {
       <EvaluationReport
         evaluation={evaluation}
         darkMode={false}
-        feedbackDetailLabel="standard"
+
         elapsedSeconds={31}
       />,
     );
@@ -64,7 +64,7 @@ describe("EvaluationReport score palette", () => {
       <EvaluationReport
         evaluation={evaluation}
         darkMode
-        feedbackDetailLabel="standard"
+
         elapsedSeconds={31}
       />,
     );
@@ -80,7 +80,7 @@ describe("EvaluationReport score palette", () => {
       <EvaluationReport
         evaluation={evaluation}
         darkMode={false}
-        feedbackDetailLabel="standard"
+
         elapsedSeconds={31}
       />,
     );
@@ -93,7 +93,7 @@ describe("EvaluationReport score palette", () => {
       <EvaluationReport
         evaluation={evaluation}
         darkMode
-        feedbackDetailLabel="standard"
+
         elapsedSeconds={31}
       />,
     );

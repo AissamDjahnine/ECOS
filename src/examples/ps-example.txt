@@ -1,0 +1,206 @@
+SDD 101 (3) : Pour le PS
+Script patient
+Trame du patient / professionnel standardisé
+
+NOM
+	
+
+Lalo
+
+Prénoms
+	
+
+Thomas
+
+Sexe
+	
+
+Masculin
+
+Âge
+	
+
+27 ans
+
+Poids
+	
+
+80 kg
+
+Taille
+	
+
+1m85
+
+Statut marital
+	
+
+Célibataire
+
+Enfants
+	
+
+0
+
+Contexte socioprofessionnel
+	
+
+Graphiste
+
+Vit en ville, en colocation
+
+Consommation de toxiques
+	
+
+0
+
+Allergies
+	
+
+0
+
+Antécédents personnels
+	
+
+0
+
+Antécédents familiaux
+	
+
+0
+
+Traitements
+	
+
+0
+
+Autres éléments de contexte non sensibles
+(ex. : Histoire de la maladie, histoire sociale)
+	
+
+Vous consultez pour un écoulement au niveau de l'urètre apparu il y a 3 jours.
+Acting
+
+Etat d’esprit / comportement
+	
+
+Inquiet, et gêné. Pudique.
+
+Phrase de démarrage
+	
+
+Bonjour Docteur, je viens aujourd'hui car j'ai du liquide bizarre qui coule dans mon caleçon, au niveau de mon urètre je crois, depuis quelques jours.
+Informations protégées
+
+Rubrique
+	
+
+Questions attendues de l’étudiant (laisser vide si une formulation précise n’est pas attendue)
+	
+
+Réponse à donner
+
+Histoire de la maladie
+	
+
+Si l'étudiant demande "depuis combien de temps" ou "quand avez-vous remarqué cela"
+	
+
+Vous répondez : "depuis 3 jours environ"
+
+Antécédents
+	
+
+Si l'étudiant demande si vous avez déjà eu des infections sexuellement transmissibles
+	
+
+Vous répondez que non et que vous avez fait un dépistage IST il y a 6 mois, qui était négatif pour le VIH, la syphilis et la gonorrhée.
+
+Histoire de la maladie / symptômes
+	
+
+Si l'étudiant demande si vous avez des douleurs associées au niveau du scrotum
+	
+
+Vous répondez que non
+	Si l'étudiant demande si vous avez des douleurs associées au niveau du méat urinaire 	Vous répondez que oui
+	Si l'étudiant demande si vous avez eu de la fièvre et/ou des frissons 	Vous répondez que non
+	Si l'étudiant se renseigne sur la couleur et/ou la consistance de l'écoulement 	Vous répondez qu'il s'agit d'un liquide jaune épais
+	Si l'étudiant se renseigne sur l'horaire des symptomes 	Vous répondez que c'est surtout abondant le matin
+	Si l'étudiant recherche des brûlures mictionnelles et/ou une pollakiurie, et/ou une dysurie, et/ou des mictions impérieuses, et/ou des douleurs lombaires 	Vous répondez que vous n'en avez pas
+	Si l'étudiant recherche une éruption cutanée et/ou une atteinte articulaire 	Vous répondez que vous n'en avez pas
+	Si l'étudiant demande si vous avez récemment pris des antibiotiques 	Vous répondez que non
+	Si l'étudiant demande si l'écoulement survient en dehors des signes de miction 	Vous répondez que oui
+	Si l'étudiant demande s’il existe des lésion / ulcérations de la peau ou des muqueuses des organes génitaux externes 	Vous répondez que non
+	Si l'étudiant demande s'il existe un prurit anal, un écoulement rectal, ou des saignements anorectaux 	Vous répondez que non
+
+Traitements
+	
+
+Si l'étudiant demande si vous prenez des traitements au long cours ou ponctuellement
+	
+
+Vous répondez que non
+
+Éléments de l’interrogatoire
+	
+
+Si l'étudiant demande si vos vaccins sont à jour
+	
+
+Vous répondez que vous êtes vacciné contre l'hépatite B
+	Si l'étudiant demande si vous êtes vacciné contre l'hépatite A ou le papillomavirus 	Vous répondez que non
+	Si l'étudiant demande si vous avez des pratiques sexuelles à risque 	Vous répondez : c'est-à-dire ?
+	Si l'étudiant demande si vous avez eu des relations sexuelles récentes non protégées 	Vous répondez que vous avez eu un rapport non protégé, mais que votre partenaire disait ne pas avoir d'IST
+	Si l'étudiant demande si vous avez eu un changement récent de partenaire sexuel 	Vous répondez que vous avez eu un rapport sexuel avec un nouveau partenaire rencontré sur Grindr
+	Si l'étudiant demande si vous avez des partenaires sexuels multiples 	Vous répondez que oui
+	Si l'étudiant demande si vous avez des relations avec des hommes ou des femmes 	Vous répondez que vous êtes homosexuel
+	Si l'étudiant demande si vous avez des relations avec des pratiques sexuelles traumatiques 	Vous répondez que vous avez des rapports anaux
+
+Examen clinique
+	
+
+Si l'étudiant demande si vous avez un prurit du méat urinaire associé
+	
+
+Vous répondez que oui
+
+
+Grille de correction
+	Critères ciblés 	Observé = 1
+Non-observé = 0
+1 	
+
+Recherche des facteurs de risque sexuels - relations sexuelles récentes non protégées, changement récent de partenaire sexuel, partenaires sexuels multiples, relations homosexuelles, pratiques sexuelles traumatiques, antécédent d’IST. (FAIT SI ≥ 3/6).
+	
+2 	Fait préciser la couleur de l’écoulement. 	
+3 	Fait préciser si l’écoulement a lieu en dehors des phases de miction. 	
+4 	Recherche un prurit du méat urinaire associé. 	
+5 	Demande s’il existe une douleur du scrotum associée. 	
+6 	
+
+Demande s’il existe - des brûlures à la miction, des frissons, de la fièvre. (FAIT SI ≥ 2/3).
+	
+7 	
+
+Recherche des signes fonctionnels urinaires - pollakiurie, dysurie, mictions impérieuses, douleurs lombaires. (FAIT SI ≥ 2/4).
+	
+8 	Demande s’il existe des lésions ou ulcérations de la peau ou des muqueuses des organes génitaux externes. 	
+9 	
+
+Recherche des signes anorectaux - prurit anal, écoulement rectal, saignements anorectaux. (FAIT SI ≥ 1/3).
+	
+10 	Recherche une conjonctivite ou une arthrite. 	
+11 	Recherche si le patient a remarqué la présence d’adénopathies inguinales. 	
+12 	Évoque une urétrite. 	
+13 	Évoque une infection sexuellement transmissible. 	
+14 	Évoque une infection à Gonocoque. 	
+15 	
+
+Justifie le diagnostic - contexte évocateur, écoulement purulent, absence d’infection urinaire. (FAIT SI ≥ 2/3)
+	
+Critères d'évaluation génériques
+
+    Aptitude à questionner.
+    Aptitude à structurer/mener l'entrevue.
+

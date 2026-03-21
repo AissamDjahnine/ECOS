@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 type ConfirmDialogProps = {
   isOpen: boolean;
   darkMode: boolean;
@@ -31,6 +33,21 @@ export function ConfirmDialog({
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    cancelRef.current?.focus();
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        onCancel();
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onCancel]);
+
   if (!isOpen) {
     return null;
   }
@@ -45,7 +62,13 @@ export function ConfirmDialog({
       : "bg-primary-600 text-white hover:bg-primary-700";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="confirm-dialog-title"
+      aria-describedby="confirm-dialog-body"
+    >
       <div className={`w-full max-w-lg rounded-3xl border p-6 shadow-2xl sm:p-7 ${panelClass}`}>
         <div className="flex items-start gap-4 sm:gap-5">
           <div
@@ -62,8 +85,8 @@ export function ConfirmDialog({
             <AlertTriangleIcon className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="text-lg font-bold sm:text-xl">{title}</h3>
-            <p className={`mt-2 text-sm leading-relaxed sm:text-[0.95rem] ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
+            <h3 id="confirm-dialog-title" className="text-lg font-bold sm:text-xl">{title}</h3>
+            <p id="confirm-dialog-body" className={`mt-2 text-sm leading-relaxed sm:text-[0.95rem] ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
               {body}
             </p>
           </div>
@@ -71,6 +94,7 @@ export function ConfirmDialog({
 
         <div className="mt-6 flex items-center justify-end gap-3">
           <button
+            ref={cancelRef}
             type="button"
             onClick={onCancel}
             className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-all ${
