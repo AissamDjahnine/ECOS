@@ -662,6 +662,7 @@ export default function SansPsPage({
   const [status, setStatus] = useState("Session sans PS prête");
   const [sessionPhase, setSessionPhase] = useState<SessionPhase>("idle");
   const [isConnecting, setIsConnecting] = useState(false);
+  const isConnectingRef = useRef(false);
   const [isDiscussing, setIsDiscussing] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [hasEndedDiscussion, setHasEndedDiscussion] = useState(false);
@@ -1194,6 +1195,8 @@ export default function SansPsPage({
   }
 
   async function startSessionInternal() {
+    if (isConnectingRef.current) return;
+    isConnectingRef.current = true;
     try {
       currentSessionIdRef.current = crypto.randomUUID();
       setIsConnecting(true);
@@ -1460,6 +1463,7 @@ export default function SansPsPage({
       ]);
     } finally {
       setIsConnecting(false);
+      isConnectingRef.current = false;
     }
   }
 

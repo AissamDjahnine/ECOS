@@ -694,6 +694,7 @@ export default function App({
   const [parseError, setParseError] = useState("");
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [isConnecting, setIsConnecting] = useState(false);
+  const isConnectingRef = useRef(false);
   const [isDiscussing, setIsDiscussing] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [hasEndedDiscussion, setHasEndedDiscussion] = useState(false);
@@ -1222,6 +1223,8 @@ export default function App({
   }
 
   async function startDiscussionInternal() {
+    if (isConnectingRef.current) return;
+    isConnectingRef.current = true;
     try {
       const sessionVoiceName =
         voiceSelectionMode === "auto"
@@ -1611,6 +1614,7 @@ export default function App({
       ]);
     } finally {
       setIsConnecting(false);
+      isConnectingRef.current = false;
     }
   }
 
