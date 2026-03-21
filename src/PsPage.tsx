@@ -456,17 +456,6 @@ function HeartIcon({
   );
 }
 
-function formatFeedbackDetailLabel(level: AppSettings["feedbackDetailLevel"]) {
-  switch (level) {
-    case "brief":
-      return "Brief";
-    case "detailed":
-      return "Detailed";
-    default:
-      return "Standard";
-  }
-}
-
 function buildTranscriptCopy(
   transcript: TranscriptEntry[],
   showSystemMessages: boolean,
@@ -697,6 +686,7 @@ export default function App({
   const isConnectingRef = useRef(false);
   const [isDiscussing, setIsDiscussing] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const isPausedRef = useRef(false);
   const [hasEndedDiscussion, setHasEndedDiscussion] = useState(false);
   const [status, setStatus] = useState("Mode PS/PSS prêt");
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
@@ -987,17 +977,18 @@ export default function App({
   }
 
   function toggleMicMute() {
-    setIsMicMuted((current) => {
-      const next = !current;
-      isMicMutedRef.current = next;
+    const wasMuted = isMicMutedRef.current;
+    const next = !wasMuted;
+    isMicMutedRef.current = next;
+    setIsMicMuted(next);
 
-      if (next) {
-        setMicLevel(0);
-        setMicPeak(0);
-      }
-
-      return next;
-    });
+    if (next) {
+      setMicLevel(0);
+      setMicPeak(0);
+      // Muting acts like detected silence: finalize draft and let AI respond
+      setShowStudentDraftIndicator(false);
+      finalizeStudentDraft();
+    }
   }
 
   function handleParse() {
@@ -1177,6 +1168,7 @@ export default function App({
       setMicPeak(0);
       setIsDiscussing(false);
       setIsPaused(true);
+      isPausedRef.current = true;
       setConversationPhase("paused");
       setStatus("Discussion en pause");
       setShowStudentDraftIndicator(false);
@@ -1195,6 +1187,7 @@ export default function App({
     setIsMicMuted(false);
     setIsDiscussing(true);
     setIsPaused(false);
+    isPausedRef.current = false;
     setConversationPhase("listening");
     setStatus("Discussion reprise");
     setTranscript((current) => [
@@ -1244,6 +1237,7 @@ export default function App({
       setMicLevel(0);
       setMicPeak(0);
       setIsPaused(false);
+      isPausedRef.current = false;
 
       shouldSendAudioRef.current = true;
       inputTranscriptRef.current = "";
@@ -1410,7 +1404,7 @@ export default function App({
                   googleApiKey: settings.googleApiKey || undefined,
                   ...liveUsageDelta,
                 }),
-              });
+              }).catch(() => {});
             }
 
             const serverContent = liveMessage.serverContent;
@@ -1425,9 +1419,14 @@ export default function App({
                 inputTranscriptRef.current,
                 inputTranscription.text,
               );
-              setConversationPhase("student-speaking");
-              setStatus("Étudiant en train de parler");
-              setShowStudentDraftIndicator(true);
+              if (isMicMutedRef.current) {
+                // Buffered transcription arrived after mute — finalize immediately
+                await finalizeStudentDraft();
+              } else {
+                setConversationPhase("student-speaking");
+                setStatus("Étudiant en train de parler");
+                setShowStudentDraftIndicator(true);
+              }
             }
 
             const outputTranscription =
@@ -1548,7 +1547,7 @@ export default function App({
       sessionRef.current = session;
 
       const microphone = await startMicrophoneStream(
-        async (chunk) => {
+        (chunk, rawPcm) => {
           if (
             !shouldSendAudioRef.current ||
             isPausedRef.current ||
@@ -1559,9 +1558,7 @@ export default function App({
 
           studentTurnAudioChunksRef.current.push(chunk);
 
-          const arrayBuffer = await chunk.arrayBuffer();
-          const uint8 = new Uint8Array(arrayBuffer);
-          const base64Audio = uint8ToBase64(uint8);
+          const base64Audio = uint8ToBase64(rawPcm);
 
           session.sendRealtimeInput?.({
             audio: {
@@ -1596,6 +1593,7 @@ export default function App({
 
       setIsDiscussing(true);
       setIsPaused(false);
+      isPausedRef.current = false;
       setConversationPhase("listening");
       setStatus("Session Live ouverte, en attente de l'étudiant");
     } catch (error) {
@@ -1693,6 +1691,7 @@ export default function App({
       setShowStudentDraftIndicator(false);
       setIsDiscussing(false);
       setIsPaused(false);
+      isPausedRef.current = false;
       setHasEndedDiscussion(true);
       setConversationPhase("idle");
       setStatus("Discussion terminée. Transcription prête pour évaluation.");
@@ -1741,8 +1740,8 @@ export default function App({
       await micRef.current?.stop();
       sessionRef.current?.close();
       await playerRef.current?.close();
-    } catch {
-      //
+    } catch (err) {
+      console.warn("Erreur lors du nettoyage de session :", err);
     } finally {
       micRef.current = null;
       sessionRef.current = null;
@@ -1763,6 +1762,7 @@ export default function App({
       setIsConnecting(false);
       setIsDiscussing(false);
       setIsPaused(false);
+      isPausedRef.current = false;
       setConversationPhase("idle");
       setStatus(parsedReady ? "Cas préparé" : "Mode PS/PSS prêt");
       setRemainingSeconds(settings.defaultTimerSeconds);
@@ -1928,7 +1928,7 @@ export default function App({
     void evaluateDiscussion();
   }
 
-  function exportPdf() {
+  function exportPdf(): boolean {
     const popup = window.open("", "_blank", "width=1200,height=900");
     if (!popup) {
       onShowToast(
@@ -1936,7 +1936,7 @@ export default function App({
         "Autorisez les popups pour ouvrir l’aperçu d’impression.",
         "error",
       );
-      return;
+      return false;
     }
 
     popup.document.open();
@@ -1956,6 +1956,7 @@ export default function App({
       "L’aperçu d’impression du compte rendu est ouvert.",
       "success",
     );
+    return true;
   }
 
   function downloadRecordedAudio() {
@@ -2032,8 +2033,9 @@ export default function App({
       settings.autoExportPdfAfterEvaluation &&
       autoExportedEvaluationRef.current !== evaluationKey
     ) {
-      autoExportedEvaluationRef.current = evaluationKey;
-      exportPdf();
+      if (exportPdf()) {
+        autoExportedEvaluationRef.current = evaluationKey;
+      }
     }
   }, [evaluation, settings.autoExportPdfAfterEvaluation]);
 
@@ -2396,9 +2398,6 @@ export default function App({
             <EvaluationReport
               evaluation={evaluation}
               darkMode={darkMode}
-              feedbackDetailLabel={formatFeedbackDetailLabel(
-                lastEvaluatedFeedbackDetailLevel ?? settings.feedbackDetailLevel,
-              )}
               elapsedSeconds={lastSessionElapsedSeconds}
             />
           </div>
@@ -2719,7 +2718,8 @@ export default function App({
                     />
                     {Array.from({ length: 36 }, (_, i) => {
                       const angle = (360 / 36) * i;
-                      const displayPeak = isMicMuted ? 0 : micPeak;
+                      const rawPeak = isMicMuted ? 0 : micPeak;
+                      const displayPeak = Math.sqrt(Math.min(rawPeak, 1));
                       const active = !isMicMuted && i < Math.max(3, Math.round(displayPeak * 36));
                       const barHeight = active ? 12 + displayPeak * 18 : 6;
 
