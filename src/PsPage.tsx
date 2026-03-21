@@ -2586,6 +2586,11 @@ export default function App({
                 <div className="mt-5 border-t border-slate-200/70 pt-5 dark:border-slate-700/60">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-2">
+                      {isMicMuted ? (
+                        <MicOffIcon className={`h-4 w-4 ${mutedText}`} />
+                      ) : (
+                        <MicIcon className={`h-4 w-4 ${mutedText}`} />
+                      )}
                       <span className={`text-sm font-medium ${mutedText}`}>Microphone</span>
                     </div>
                     <div className="flex items-center gap-2">

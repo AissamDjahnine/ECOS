@@ -2389,50 +2389,44 @@ export default function SansPsPage({
                   <div className="mt-5 border-t border-slate-200/70 pt-5 dark:border-slate-700/60">
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
-                        <h3 className="text-sm font-semibold">Voix du patient</h3>
-                        <p className={`mt-1 text-xs ${mutedText}`}>
-                          Disponible uniquement en mode PS / PSS.
-                        </p>
+                        <h3 className={`text-sm font-semibold ${mutedText}`}>Voix du patient</h3>
                       </div>
-                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
+                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
                         darkMode
-                          ? "bg-slate-800 text-slate-300"
-                          : "bg-slate-100 text-slate-500"
+                          ? "bg-slate-800 text-slate-400"
+                          : "bg-slate-100 text-slate-400"
                       }`}>
                         Désactivée
                       </span>
                     </div>
-
-                    <div className={`mt-4 rounded-xl ${darkMode ? "" : "border"} ${subCardBg} p-3 opacity-75`}>
+                    <div className={`mt-4 rounded-xl opacity-40 ${darkMode ? "" : "border"} ${subCardBg} p-3`}>
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
-                              darkMode
-                                ? "bg-slate-800 text-slate-300"
-                                : "bg-slate-100 text-slate-500"
+                              darkMode ? "bg-slate-800 text-slate-300" : "bg-slate-100 text-slate-500"
                             }`}>
                               <VoiceFemaleIcon className="h-3.5 w-3.5" />
                             </span>
                             <div className="min-w-0">
-                              <div className="truncate text-sm font-semibold leading-tight">
-                                Voix disponible en mode PS / PSS
-                              </div>
-                              <div className={`mt-1 flex flex-wrap items-center gap-1.5 text-[11px] ${mutedText}`}>
+                              <div className="truncate text-sm font-semibold leading-tight">—</div>
+                              <div className={`mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] ${mutedText}`}>
                                 <span className={`rounded-full px-2 py-0.5 ${
                                   darkMode ? "bg-slate-800 text-slate-300" : "bg-slate-100 text-slate-600"
-                                }`}>
-                                  Sélection désactivée
-                                </span>
+                                }`}>Voix féminine</span>
+                                <span className="opacity-70">Voix active</span>
                               </div>
                             </div>
                           </div>
                         </div>
-
                         <button
                           type="button"
                           disabled
-                          className="shrink-0 cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-400 dark:border-transparent dark:bg-slate-800 dark:text-slate-500"
+                          className={`shrink-0 cursor-not-allowed rounded-xl px-3 py-1.5 text-sm font-medium ${
+                            darkMode
+                              ? "border-transparent bg-slate-800 text-slate-500"
+                              : "border border-slate-200 bg-slate-100 text-slate-400"
+                          }`}
                         >
                           Modifier
                         </button>
