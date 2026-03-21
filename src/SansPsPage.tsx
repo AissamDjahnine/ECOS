@@ -381,17 +381,6 @@ function buildStudentTranscriptPlainText(
   return transcriptToPlainText(studentEntries);
 }
 
-function formatFeedbackDetailLabel(level: AppSettings["feedbackDetailLevel"]) {
-  switch (level) {
-    case "brief":
-      return "Brief";
-    case "detailed":
-      return "Detailed";
-    default:
-      return "Standard";
-  }
-}
-
 function buildTranscriptCopy(
   transcript: TranscriptEntry[],
   showSystemMessages: boolean,
@@ -814,7 +803,8 @@ export default function SansPsPage({
       settings.showLiveTranscript ||
       hasEndedDiscussion ||
       showStudentDraftIndicator ||
-      hasCommittedStudentTranscript
+      hasCommittedStudentTranscript ||
+      (isMicMuted && isDiscussing)
     ) {
       return withVisibleRoles;
     }
@@ -823,6 +813,8 @@ export default function SansPsPage({
   }, [
     hasCommittedStudentTranscript,
     hasEndedDiscussion,
+    isMicMuted,
+    isDiscussing,
     showStudentDraftIndicator,
     studentDraftText,
     settings.showLiveTranscript,
@@ -1078,8 +1070,8 @@ export default function SansPsPage({
       shouldSendAudioRef.current = false;
       await micRef.current?.stop();
       sessionRef.current?.close();
-    } catch {
-      //
+    } catch (err) {
+      console.warn("Erreur lors du nettoyage de session :", err);
     } finally {
       micRef.current = null;
       sessionRef.current = null;
@@ -1301,6 +1293,7 @@ export default function SansPsPage({
             const liveMessage = message as SansPsLiveMessage;
             const serverContent = liveMessage.serverContent;
 
+
             const liveUsage = extractLiveUsageCounts(liveMessage.usageMetadata);
             const previousUsage = lastLiveUsageTotalsRef.current;
             const liveUsageDelta = {
@@ -1336,7 +1329,7 @@ export default function SansPsPage({
                   googleApiKey: settings.googleApiKey || undefined,
                   ...liveUsageDelta,
                 }),
-              });
+              }).catch(() => {});
             }
 
             const inputTranscription =
@@ -1353,44 +1346,42 @@ export default function SansPsPage({
                 inputTranscription.text,
               );
               setStudentDraftText(inputTranscriptRef.current);
-              if (isPausedRef.current) {
+              if (isMicMutedRef.current) {
+                // Buffered transcription arrived after mute — flush immediately
+                flushStudentDraft();
+              } else if (isPausedRef.current) {
                 setSessionPhase("paused");
                 setStatus("Finalisation de la pause");
+                setShowStudentDraftIndicator(true);
+                if (pendingManualTurnEndRef.current) {
+                  scheduleTurnEndFallbackFlush("Pause");
+                }
               } else {
                 setSessionPhase("student-speaking");
                 setStatus("Session en cours");
-              }
-              setShowStudentDraftIndicator(true);
-              if (pendingManualTurnEndRef.current) {
-                scheduleTurnEndFallbackFlush(isPausedRef.current ? "Pause" : "Mute");
+                setShowStudentDraftIndicator(true);
+                if (pendingManualTurnEndRef.current) {
+                  scheduleTurnEndFallbackFlush("Mute");
+                }
               }
             }
 
             if (serverContent?.generationComplete) {
             }
 
-            if (serverContent?.waitingForInput) {
-              shouldSendAudioRef.current = true;
-              clearTurnEndFallbackTimer();
-              pendingManualTurnEndRef.current = false;
-              flushStudentDraft();
-              if (isPausedRef.current) {
-                setSessionPhase("paused");
-                setStatus("Session en pause");
-              } else {
-                setSessionPhase("idle");
-                setStatus("En attente de l'étudiant");
+            if (serverContent?.waitingForInput || serverContent?.turnComplete) {
+              if (!isMicMutedRef.current) {
+                shouldSendAudioRef.current = true;
               }
-            }
-
-            if (serverContent?.turnComplete) {
-              shouldSendAudioRef.current = true;
               clearTurnEndFallbackTimer();
               pendingManualTurnEndRef.current = false;
               flushStudentDraft();
               if (isPausedRef.current) {
                 setSessionPhase("paused");
                 setStatus("Session en pause");
+              } else if (isMicMutedRef.current) {
+                setSessionPhase("idle");
+                setStatus("Microphone coupé");
               } else {
                 setSessionPhase("idle");
                 setStatus("En attente de l'étudiant");
@@ -1422,14 +1413,12 @@ export default function SansPsPage({
       sessionRef.current = session;
 
       const microphone = await startMicrophoneStream(
-        async (chunk) => {
+        (_chunk, rawPcm) => {
           if (!shouldSendAudioRef.current || isPausedRef.current || isMicMutedRef.current) {
             return;
           }
 
-          const arrayBuffer = await chunk.arrayBuffer();
-          const uint8 = new Uint8Array(arrayBuffer);
-          const base64Audio = uint8ToBase64(uint8);
+          const base64Audio = uint8ToBase64(rawPcm);
 
           audioChunkCountRef.current += 1;
           const now = Date.now();
@@ -1725,7 +1714,7 @@ export default function SansPsPage({
     });
   }
 
-  function exportPdf() {
+  function exportPdf(): boolean {
     const popup = window.open("", "_blank", "width=1200,height=900");
     if (!popup) {
       onShowToast(
@@ -1733,7 +1722,7 @@ export default function SansPsPage({
         "Autorisez les popups pour ouvrir l’aperçu d’impression.",
         "error",
       );
-      return;
+      return false;
     }
 
     popup.document.open();
@@ -1755,6 +1744,7 @@ export default function SansPsPage({
       "L’aperçu d’impression du compte rendu est ouvert.",
       "success",
     );
+    return true;
   }
 
   function downloadRecordedAudio() {
@@ -1834,8 +1824,9 @@ export default function SansPsPage({
       settings.autoExportPdfAfterEvaluation &&
       autoExportedEvaluationRef.current !== evaluationKey
     ) {
-      autoExportedEvaluationRef.current = evaluationKey;
-      exportPdf();
+      if (exportPdf()) {
+        autoExportedEvaluationRef.current = evaluationKey;
+      }
     }
   }, [evaluation, settings.autoExportPdfAfterEvaluation]);
 
@@ -2136,9 +2127,6 @@ export default function SansPsPage({
             <EvaluationReport
               evaluation={evaluation}
               darkMode={darkMode}
-              feedbackDetailLabel={formatFeedbackDetailLabel(
-                lastEvaluatedFeedbackDetailLevel ?? settings.feedbackDetailLevel,
-              )}
               elapsedSeconds={lastSessionElapsedSeconds}
             />
           </div>
@@ -2447,7 +2435,8 @@ export default function SansPsPage({
                     />
                     {Array.from({ length: 36 }, (_, i) => {
                       const angle = (360 / 36) * i;
-                      const displayPeak = isMicMuted ? 0 : micPeak;
+                      const rawPeak = isMicMuted ? 0 : micPeak;
+                      const displayPeak = Math.sqrt(Math.min(rawPeak, 1));
                       const active =
                         !isMicMuted && i < Math.max(3, Math.round(displayPeak * 36));
                       const barHeight = active ? 12 + displayPeak * 18 : 6;
