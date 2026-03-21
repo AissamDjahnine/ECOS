@@ -2304,6 +2304,7 @@ export default function App({
                   <div className="flex flex-wrap items-center gap-2">
                     {canRerunEvaluation && (
                       <button
+                        type="button"
                         onClick={handleRerunEvaluation}
                         className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-primary-700"
                       >
@@ -2356,6 +2357,7 @@ export default function App({
                       Copier l&apos;évaluation
                     </button>
                     <button
+                      type="button"
                       onClick={exportPdf}
                       className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-800 px-3.5 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600"
                     >
@@ -2435,6 +2437,7 @@ export default function App({
                     <TrashIcon className="h-4 w-4" />
                   </button>
                   <button
+                    type="button"
                     onClick={handleParse}
                     disabled={isDiscussing || isPaused || isEvaluating || isConnecting}
                     className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium shadow-sm transition-colors md:px-4 md:text-sm ${
