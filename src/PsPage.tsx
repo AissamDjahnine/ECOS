@@ -405,6 +405,25 @@ function VoiceFemaleIcon({ className }: { className?: string }) {
   );
 }
 
+function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 6h18" />
+      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+    </svg>
+  );
+}
+
+function SearchIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+  );
+}
+
 function InfoIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2397,7 +2416,9 @@ export default function App({
                   <button
                     onClick={requestClearText}
                     disabled={!canClearText}
-                    className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors md:px-4 md:text-sm ${
+                    title="Effacer"
+                    aria-label="Effacer"
+                    className={`rounded-lg p-2 transition-colors ${
                       canClearText
                         ? darkMode
                           ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
@@ -2405,12 +2426,13 @@ export default function App({
                         : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
                     }`}
                   >
-                    Effacer
+                    <TrashIcon className="h-4 w-4" />
                   </button>
                   <button
                     onClick={handleParse}
-                    className="rounded-lg bg-primary-600 px-3 py-2 text-xs font-medium text-white transition-colors shadow-sm shadow-primary-500/20 hover:bg-primary-700 md:px-4 md:text-sm"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-2 text-xs font-medium text-white transition-colors shadow-sm shadow-primary-500/20 hover:bg-primary-700 md:px-4 md:text-sm"
                   >
+                    <SearchIcon className="h-3.5 w-3.5" />
                     Analyser
                   </button>
                 </div>
