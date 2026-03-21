@@ -68,6 +68,18 @@ function scorePalette(ratio: number) {
   };
 }
 
+function scoreTone(ratio: number) {
+  if (ratio >= 0.75) {
+    return "emerald" as const;
+  }
+
+  if (ratio >= 0.45) {
+    return "amber" as const;
+  }
+
+  return "rose" as const;
+}
+
 function reportSummaryMessage(ratio: number) {
   if (ratio >= 0.75) {
     return "La station est globalement bien maîtrisée, avec une démonstration solide de la majorité des critères attendus.";
@@ -238,7 +250,7 @@ function formatClock(totalSeconds: number) {
 
 export function EvaluationReport({
   evaluation,
-  darkMode: _darkMode,
+  darkMode,
   feedbackDetailLabel: _feedbackDetailLabel,
   elapsedSeconds = 0,
 }: EvaluationReportProps) {
@@ -248,58 +260,148 @@ export function EvaluationReport({
   const commentary =
     evaluation.commentary?.trim() || reportSummaryMessage(scoreState.ratio);
   const palette = scorePalette(scoreState.ratio);
+  const tone = scoreTone(scoreState.ratio);
   const improvements = buildImprovementThemes(evaluation.details);
   const recommendations = buildRecommendations(evaluation);
   const validationSummary = buildValidationSummary(observedCount, totalCount);
   const ringAngle = Math.max(0, Math.min(360, scoreState.ratio * 360));
   const isValidated = observedCount >= totalCount / 2;
+  const verdictTintClass = darkMode
+    ? tone === "emerald"
+      ? "bg-emerald-500/14"
+      : tone === "amber"
+        ? "bg-amber-500/14"
+        : "bg-rose-500/14"
+    : tone === "emerald"
+      ? "bg-emerald-100/70"
+      : tone === "amber"
+        ? "bg-amber-100/75"
+        : "bg-rose-100/70";
+  const verdictGlowClass = darkMode
+    ? tone === "emerald"
+      ? "bg-emerald-500/10"
+      : tone === "amber"
+        ? "bg-amber-500/10"
+        : "bg-rose-500/10"
+    : tone === "emerald"
+      ? "bg-emerald-100/70"
+      : tone === "amber"
+        ? "bg-amber-100/80"
+        : "bg-rose-100/70";
+  const pageSectionClass = darkMode
+    ? "rounded-[32px] bg-slate-900/72 p-6 shadow-[0_18px_54px_rgba(2,6,23,0.36)] ring-1 ring-inset ring-white/5 backdrop-blur-xl"
+    : "rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm";
+  const titleClass = darkMode ? "text-slate-50" : "text-slate-900";
+  const bodyClass = darkMode ? "text-slate-300" : "text-slate-700";
+  const mutedClass = darkMode ? "text-slate-400" : "text-slate-500";
+  const verdictPanelClass = darkMode
+    ? "rounded-[32px] bg-[linear-gradient(135deg,rgba(15,23,42,0.92),rgba(10,17,32,0.98))] p-6 shadow-[0_22px_68px_rgba(2,6,23,0.42)] ring-1 ring-inset ring-white/5"
+    : "rounded-[32px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)] p-6 shadow-[0_18px_45px_rgba(15,23,42,0.06)]";
+  const verdictAsideClass = darkMode
+    ? "bg-[radial-gradient(circle_at_top,rgba(244,63,94,0.08),transparent_55%),linear-gradient(180deg,rgba(15,23,42,0.9),rgba(8,15,30,0.95))]"
+    : "border-slate-200 bg-[radial-gradient(circle_at_top,rgba(251,113,133,0.10),transparent_55%),linear-gradient(180deg,#fffdfd_0%,#fff8f8_100%)]";
+  const verdictMetricClass = darkMode
+    ? "rounded-2xl bg-slate-950/54 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
+    : "rounded-2xl border border-slate-200 bg-slate-50/72 px-4 py-4";
+  const tableWrapClass = darkMode
+    ? "overflow-x-auto rounded-[28px] bg-slate-950/72"
+    : "overflow-x-auto rounded-[28px] border border-slate-200 bg-white";
+  const tableHeadClass = darkMode ? "bg-slate-900/95" : "bg-slate-100";
+  const tableBodyClass = darkMode ? "bg-slate-950/68" : "bg-white";
+  const tableRowClass = darkMode ? "border-t border-white/10 align-top" : "border-t border-slate-200 align-top";
+  const narrativePanelClass = darkMode
+    ? "rounded-[32px] bg-[linear-gradient(180deg,rgba(18,25,42,0.96),rgba(15,23,42,0.98))] p-6 shadow-[0_20px_64px_rgba(2,6,23,0.36)] ring-1 ring-inset ring-white/5"
+    : "rounded-[32px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfe_100%)] p-6 shadow-sm";
+  const narrativeBodyClass = darkMode
+    ? "rounded-[26px] bg-slate-950/38 p-5"
+    : "rounded-[26px] border border-slate-200 bg-slate-50/72 p-5";
+  const themeCardClass = darkMode
+    ? "rounded-[24px] bg-slate-900/48 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+    : "rounded-[24px] border border-slate-200 bg-white p-4";
+  const planPanelClass = darkMode
+    ? "rounded-[32px] bg-[linear-gradient(180deg,rgba(18,25,42,0.96),rgba(15,23,42,0.985))] p-6 shadow-[0_20px_64px_rgba(2,6,23,0.38)] ring-1 ring-inset ring-white/5"
+    : "rounded-[32px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfe_100%)] p-6 shadow-sm";
+  const planItemClass = darkMode
+    ? "rounded-2xl bg-slate-900/48 px-4 py-4"
+    : "rounded-2xl border border-slate-200 bg-white px-4 py-4";
+
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+      <section className={verdictPanelClass}>
+        <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
           <div
-            className={`relative flex items-center justify-center rounded-[28px] border px-6 py-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 hover:-translate-y-1 ${
-              isValidated
-                ? "border-primary-100 bg-primary-50/35"
-                : "border-rose-100 bg-rose-50/35"
-            }`}
+            className={`relative flex items-center justify-center rounded-[28px] border px-6 py-8 ${
+              tone === "emerald"
+                ? darkMode
+                  ? "border-transparent"
+                  : "border-emerald-100"
+                : tone === "amber"
+                  ? darkMode
+                    ? "border-transparent"
+                    : "border-amber-100"
+                  : darkMode
+                    ? "border-transparent"
+                    : "border-rose-100"
+            } ${verdictAsideClass}`}
           >
             <div
               className={`absolute left-10 top-10 h-28 w-28 rounded-full blur-3xl ${
-                isValidated ? "bg-primary-200/40" : "bg-rose-200/40"
+                tone === "emerald"
+                  ? darkMode
+                    ? "bg-emerald-500/15"
+                    : "bg-emerald-200/40"
+                  : tone === "amber"
+                    ? darkMode
+                      ? "bg-amber-500/15"
+                      : "bg-amber-200/40"
+                  : darkMode
+                    ? "bg-rose-500/15"
+                    : "bg-rose-200/40"
               }`}
             />
             <div
               className={`absolute bottom-10 right-8 h-24 w-24 rounded-full blur-3xl ${
-                isValidated ? "bg-sky-200/25" : "bg-amber-200/20"
+                tone === "emerald"
+                  ? darkMode
+                    ? "bg-sky-500/12"
+                    : "bg-sky-200/25"
+                  : tone === "amber"
+                    ? darkMode
+                      ? "bg-rose-400/12"
+                      : "bg-rose-200/20"
+                    : darkMode
+                      ? "bg-amber-400/12"
+                      : "bg-amber-200/20"
               }`}
             />
             <div
               className={`absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl ${
-                isValidated ? "bg-white/70" : "bg-white/60"
+                darkMode
+                  ? "bg-white/10"
+                  : isValidated
+                    ? "bg-white/70"
+                    : "bg-white/60"
               }`}
             />
             <div className="text-center">
               <div
+                data-testid="score-ring"
                 className="mx-auto flex h-44 w-44 items-center justify-center rounded-full"
                 style={{
                   background: `conic-gradient(from 180deg, transparent 0deg, transparent ${
                     360 - ringAngle
-                  }deg, ${scoreState.ratio >= 0.75 ? "#22c55e" : scoreState.ratio >= 0.5 ? "#f59e0b" : "#ef4444"} ${
+                  }deg, ${tone === "emerald" ? "#22c55e" : tone === "amber" ? "#f59e0b" : "#ef4444"} ${
                     360 - ringAngle
-                  }deg, ${scoreState.ratio >= 0.75 ? "#059669" : scoreState.ratio >= 0.5 ? "#d97706" : "#dc2626"} 360deg)`,
+                  }deg, ${tone === "emerald" ? "#059669" : tone === "amber" ? "#d97706" : "#dc2626"} 360deg)`,
                 }}
               >
                 <div
-                  className={`relative flex h-[132px] w-[132px] flex-col items-center justify-center rounded-full ring-1 ring-inset ring-white/50 ${
-                    isValidated ? "bg-primary-50/70" : "bg-rose-50/70"
-                  }`}
+                  data-testid="score-core"
+                  className={`relative flex h-[132px] w-[132px] flex-col items-center justify-center rounded-full ring-1 ring-inset ${
+                    darkMode ? "ring-white/0" : "ring-white/50"
+                  } ${verdictTintClass}`}
                 >
-                  <div
-                    className={`absolute inset-5 rounded-full blur-2xl ${
-                      isValidated ? "bg-primary-100/70" : "bg-rose-100/70"
-                    }`}
-                  />
+                  <div className={`absolute inset-5 rounded-full blur-2xl ${verdictGlowClass}`} />
                   <div className="flex items-end gap-1">
                     <span
                       className="relative text-5xl font-black tracking-tighter"
@@ -307,14 +409,14 @@ export function EvaluationReport({
                     >
                       {scoreState.value}
                     </span>
-                    <span className="relative pb-1 text-2xl font-black tracking-tighter text-slate-300">
+                    <span className={`relative pb-1 text-2xl font-black tracking-tighter ${darkMode ? "text-slate-500" : "text-slate-300"}`}>
                       /{scoreState.max}
                     </span>
                   </div>
                 </div>
               </div>
               <span
-                className={`mt-5 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold uppercase tracking-[0.16em] ring-1 ring-inset ring-white/50 ${validationSummary.badgeClass}`}
+                className={`mt-5 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold uppercase tracking-[0.16em] ${darkMode ? "" : "ring-1 ring-inset ring-white/50"} ${validationSummary.badgeClass}`}
               >
                 <span
                   className={`h-2 w-2 animate-pulse rounded-full ${
@@ -323,98 +425,128 @@ export function EvaluationReport({
                 />
                 {validationSummary.badge}
               </span>
-              <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400">
+              <p className={`mt-3 text-[10px] font-semibold uppercase tracking-[0.15em] ${mutedClass}`}>
                 Note finale
               </p>
             </div>
           </div>
 
-          <div className="min-w-0 border-l border-slate-200 pl-0 xl:pl-10">
-            <h3 className="mt-4 text-4xl font-bold tracking-tight text-slate-800">
-              {validationSummary.title}
-            </h3>
-            <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">
-              {validationSummary.body}
-            </p>
+          <div className={`min-w-0 xl:border-l xl:pl-10 ${darkMode ? "xl:border-white/10" : "xl:border-slate-200"}`}>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="max-w-3xl">
+                <p className={`text-xs font-semibold uppercase tracking-[0.22em] ${mutedClass}`}>
+                  Rapport examinateur
+                </p>
+                <h3 className={`mt-3 text-4xl font-bold tracking-tight ${titleClass}`}>
+                  {validationSummary.title}
+                </h3>
+                <p className={`mt-4 text-lg leading-8 ${bodyClass}`}>
+                  {validationSummary.body}
+                </p>
+              </div>
+              <div className={`inline-flex w-fit items-center rounded-full border px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] ${
+                darkMode
+                  ? "border-white/0 bg-white/[0.04] text-slate-300"
+                  : "border-slate-200 bg-slate-50 text-slate-600"
+              }`}>
+                {observedCount} / {totalCount} critères observés
+              </div>
+            </div>
 
             <div className="mt-8 grid gap-4 md:grid-cols-3">
-              <div className="flex items-center gap-4 rounded-2xl bg-white px-4 py-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-inset ring-white/50 transition-all duration-300 hover:-translate-y-1">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-white/50">
+              <div className={`flex items-center gap-4 ${verdictMetricClass}`}>
+                <div className={`flex h-14 w-14 items-center justify-center rounded-2xl border text-emerald-600 ${darkMode ? "border-emerald-400/25 bg-emerald-500/10 ring-1 ring-inset ring-white/10" : "border-emerald-200 bg-emerald-50 ring-1 ring-inset ring-white/50"}`}>
                   <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M7 12.5 10 15.5 17 8.5" strokeLinecap="round" strokeLinejoin="round" />
                     <path d="M7 4.5h7l3 3v12H7z" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </div>
                 <div className="flex flex-col justify-center">
-                  <p className="mb-1.5 text-[10px] font-semibold uppercase leading-none tracking-[0.15em] text-slate-400">Observé</p>
-                  <p className="text-4xl font-bold leading-none tracking-tight text-slate-800">{observedCount}</p>
+                  <p className={`mb-1.5 text-[10px] font-semibold uppercase leading-none tracking-[0.18em] ${mutedClass}`}>Observé</p>
+                  <p className={`text-4xl font-bold leading-none tracking-tight ${titleClass}`}>{observedCount}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 rounded-2xl bg-white px-4 py-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-inset ring-white/50 transition-all duration-300 hover:-translate-y-1">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 ring-1 ring-inset ring-white/50">
+              <div className={`flex items-center gap-4 ${verdictMetricClass}`}>
+                <div className={`flex h-14 w-14 items-center justify-center rounded-2xl border text-rose-600 ${darkMode ? "border-rose-400/25 bg-rose-500/10 ring-1 ring-inset ring-white/10" : "border-rose-200 bg-rose-50 ring-1 ring-inset ring-white/50"}`}>
                   <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M8 8l8 8M16 8l-8 8" strokeLinecap="round" />
                     <path d="M7 4.5h7l3 3v12H7z" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </div>
                 <div className="flex flex-col justify-center">
-                  <p className="mb-1.5 text-[10px] font-semibold uppercase leading-none tracking-[0.15em] text-slate-400">Non observé</p>
-                  <p className="text-4xl font-bold leading-none tracking-tight text-slate-800">{totalCount - observedCount}</p>
+                  <p className={`mb-1.5 text-[10px] font-semibold uppercase leading-none tracking-[0.18em] ${mutedClass}`}>Non observé</p>
+                  <p className={`text-4xl font-bold leading-none tracking-tight ${titleClass}`}>{totalCount - observedCount}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 rounded-2xl bg-white px-4 py-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-inset ring-white/50 transition-all duration-300 hover:-translate-y-1">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 text-sky-600 ring-1 ring-inset ring-white/50">
+              <div className={`flex items-center gap-4 ${verdictMetricClass}`}>
+                <div className={`flex h-14 w-14 items-center justify-center rounded-2xl border text-sky-600 ${darkMode ? "border-sky-400/25 bg-sky-500/10 ring-1 ring-inset ring-white/10" : "border-sky-200 bg-sky-50 ring-1 ring-inset ring-white/50"}`}>
                   <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <circle cx="12" cy="12" r="8" />
                     <path d="M12 7v5l3 2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </div>
                 <div className="flex flex-col justify-center">
-                  <p className="mb-1.5 text-[10px] font-semibold uppercase leading-none tracking-[0.15em] text-slate-400">Temps</p>
-                  <p className="text-4xl font-bold leading-none tracking-tight text-slate-800">{formatClock(elapsedSeconds)}</p>
+                  <p className={`mb-1.5 text-[10px] font-semibold uppercase leading-none tracking-[0.18em] ${mutedClass}`}>Temps</p>
+                  <p className={`text-4xl font-bold leading-none tracking-tight ${titleClass}`}>{formatClock(elapsedSeconds)}</p>
                 </div>
               </div>
+            </div>
+
+            <div className={`mt-8 rounded-[24px] border px-5 py-4 ${
+              darkMode
+                ? "border-white/0 bg-white/[0.04]"
+                : "border-slate-200 bg-slate-50/80"
+            }`}>
+              <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${mutedClass}`}>
+                Lecture globale
+              </p>
+              <p className={`mt-2 text-base leading-7 ${bodyClass}`}>
+                {reportSummaryMessage(scoreState.ratio)}
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className={pageSectionClass}>
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">
+            <h3 className={`text-lg font-semibold ${titleClass}`}>
               Grille détaillée
             </h3>
+            <p className={`mt-1 text-sm ${mutedClass}`}>
+              Lecture critère par critère de la performance observée.
+            </p>
           </div>
-          <div className="inline-flex w-fit items-center rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600">
+          <div className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-sm font-medium ${darkMode ? "bg-slate-800 text-slate-300" : "bg-slate-100 text-slate-600"}`}>
             {evaluation.details.length} critères
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-2xl border border-slate-200">
+        <div className={tableWrapClass}>
           <table className="min-w-full border-collapse">
-            <thead className="bg-slate-100">
+            <thead className={tableHeadClass}>
               <tr className="text-left">
-                <th className="px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <th className={`px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em] ${mutedClass}`}>
                   Critère
                 </th>
-                <th className="w-[170px] px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <th className={`w-[170px] px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em] ${mutedClass}`}>
                   Statut
                 </th>
-                <th className="px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <th className={`px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em] ${mutedClass}`}>
                   Observation étudiant
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white">
+            <tbody className={tableBodyClass}>
               {evaluation.details.map((detail, index) => (
                 <tr
                   key={`${detail.criterion}-${index}`}
-                  className="border-t border-slate-200 align-top"
+                  className={tableRowClass}
                 >
-                  <td className="px-5 py-4 text-sm font-semibold leading-7 text-slate-900">
+                  <td className={`px-5 py-4 text-sm font-semibold leading-7 ${titleClass}`}>
                     {detail.criterion}
                   </td>
                   <td className="w-[170px] px-5 py-4">
@@ -428,7 +560,7 @@ export function EvaluationReport({
                       {detail.observed ? "Observé" : "Non observé"}
                     </span>
                   </td>
-                  <td className="px-5 py-4 text-sm leading-7 text-slate-700">
+                  <td className={`px-5 py-4 text-sm leading-7 ${bodyClass}`}>
                     {detail.feedback}
                   </td>
                 </tr>
@@ -438,30 +570,46 @@ export function EvaluationReport({
         </div>
       </section>
 
-      <section className="rounded-3xl border border-primary-200 bg-primary-50/70 p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-slate-900">
-          Commentaire pédagogique
-        </h3>
-        <div className="mt-4 space-y-4">
-          <div className="rounded-2xl border border-primary-100 bg-white/90 p-5">
-            <p className="max-w-4xl text-sm leading-8 text-slate-700">
+      <section className={narrativePanelClass}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${mutedClass}`}>
+              Conclusion pédagogique
+            </p>
+            <h3 className={`mt-2 text-2xl font-bold tracking-tight ${titleClass}`}>
+              Commentaire examinateur
+            </h3>
+          </div>
+          <div className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${
+            darkMode
+              ? "border-white/0 bg-white/[0.04] text-slate-300"
+              : "border-slate-200 bg-white text-slate-600"
+          }`}>
+            Synthèse narrative
+          </div>
+        </div>
+
+        <div className="mt-5 space-y-4">
+          <div className={narrativeBodyClass}>
+            <p className={`max-w-4xl text-sm leading-8 ${bodyClass}`}>
               {commentary}
             </p>
           </div>
 
-          <div className="grid gap-3 xl:grid-cols-3">
+          <div className="grid gap-3 lg:grid-cols-3">
             {improvements.map((theme) => (
-              <div
-                key={theme.title}
-                className="rounded-2xl border border-primary-100 bg-white/90 p-4"
-              >
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+              <div key={theme.title} className={themeCardClass}>
+                <p
+                  className={`text-xs font-semibold uppercase tracking-[0.18em] ${
+                    mutedClass
+                  }`}
+                >
                   Axe prioritaire
                 </p>
-                <p className="mt-2 text-sm font-semibold text-slate-900">
+                <p className={`mt-3 text-base font-semibold ${titleClass}`}>
                   {theme.title}
                 </p>
-                <p className="mt-2 text-sm leading-7 text-slate-700">
+                <p className={`mt-2 text-sm leading-7 ${bodyClass}`}>
                   {theme.description}
                 </p>
               </div>
@@ -470,17 +618,37 @@ export function EvaluationReport({
         </div>
       </section>
 
-      <section className="rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-slate-900">
-          Recommandations
-        </h3>
-        <ul className="mt-4 space-y-3 text-sm leading-7 text-slate-700">
+      <section className={planPanelClass}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${mutedClass}`}>
+              Plan d'amélioration
+            </p>
+            <h3 className={`mt-2 text-2xl font-bold tracking-tight ${titleClass}`}>
+              Recommandations
+            </h3>
+            <p className={`mt-1 text-sm ${mutedClass}`}>
+              Deux axes concrets pour retravailler la station au prochain passage.
+            </p>
+          </div>
+          <span className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${
+            darkMode
+              ? "border-white/0 bg-white/[0.04] text-slate-300"
+              : "border-slate-200 bg-white text-slate-600"
+          }`}>
+            Plan suivant
+          </span>
+        </div>
+
+        <ul className="mt-5 space-y-3">
           {recommendations.map((recommendation, index) => (
-            <li
-              key={`${recommendation}-${index}`}
-              className="ml-5 list-disc"
-            >
-              {recommendation}
+            <li key={`${recommendation}-${index}`} className={planItemClass}>
+              <div className="flex gap-3">
+                <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${darkMode ? "bg-slate-300/80" : "bg-amber-500"}`} />
+                <p className={`text-sm leading-7 ${bodyClass}`}>
+                  {recommendation}
+                </p>
+              </div>
             </li>
           ))}
         </ul>

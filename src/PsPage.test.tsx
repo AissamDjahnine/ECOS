@@ -22,6 +22,7 @@ const {
   mockPreviewPlay,
   mockPreviewPause,
   liveCallbacksRef,
+  liveSessionRef,
 } = vi.hoisted(() => ({
   mockLiveConnect: vi.fn(),
   mockRequestMicrophoneStream: vi.fn(),
@@ -32,6 +33,14 @@ const {
   mockPreviewPause: vi.fn(),
   liveCallbacksRef: {
     current: null as Record<string, ((...args: unknown[]) => unknown) | undefined> | null,
+  },
+  liveSessionRef: {
+    current: null as
+      | {
+          close: ReturnType<typeof vi.fn>;
+          sendRealtimeInput: ReturnType<typeof vi.fn>;
+        }
+      | null,
   },
 }));
 
@@ -149,11 +158,12 @@ describe("PsPage", () => {
     liveCallbacksRef.current = null;
     mockLiveConnect.mockImplementation(async ({ callbacks }) => {
       liveCallbacksRef.current = callbacks;
-      callbacks?.onopen?.();
-      return {
+      liveSessionRef.current = {
         close: vi.fn(),
         sendRealtimeInput: vi.fn(),
       };
+      callbacks?.onopen?.();
+      return liveSessionRef.current;
     });
     mockRequestMicrophoneStream.mockResolvedValue({
       getTracks: () => [],
@@ -743,5 +753,43 @@ describe("PsPage", () => {
       expect(screen.getByText("Bonjour Docteur")).toBeInTheDocument();
     });
     expect(hasFetchCall(fetchMock, "/api/transcribe-turn")).toBe(false);
+  });
+
+  it("mutes on pause, sends audioStreamEnd, and unmutes on resume", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <PsPage
+        currentMode="ps"
+        onNavigate={vi.fn()}
+        settings={DEFAULT_SETTINGS}
+        onOpenDashboard={vi.fn()}
+        onOpenSettings={vi.fn()}
+        darkMode={false}
+        onDarkModeChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(
+      screen.getByPlaceholderText(
+        /collez ici la trame du patient et la grille de correction/i,
+      ),
+      { target: { value: validCase } },
+    );
+    await user.click(screen.getByRole("button", { name: "Analyser" }));
+    await user.click(screen.getByRole("button", { name: "Démarrer" }));
+
+    await user.click(screen.getByRole("button", { name: "Pause" }));
+
+    expect(liveSessionRef.current?.sendRealtimeInput).toHaveBeenCalledWith({
+      audioStreamEnd: true,
+    });
+    expect(screen.getByText("Coupé")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reprendre" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Reprendre" }));
+
+    expect(screen.getByText("Actif")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pause" })).toBeInTheDocument();
   });
 });

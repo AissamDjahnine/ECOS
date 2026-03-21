@@ -88,6 +88,21 @@ function buildTranscriptBlock(transcript: TranscriptEntry[]) {
     .join("");
 }
 
+function buildPlainTranscriptBlock(title: string, text: string) {
+  const normalized = text.trim();
+
+  if (!normalized) {
+    return "";
+  }
+
+  return `
+    <div class="transcript-plain-block">
+      <div class="transcript-plain-label">${escapeHtml(title)}</div>
+      <div class="transcript-plain-text">${escapeHtml(normalized)}</div>
+    </div>
+  `;
+}
+
 function buildEvaluationBlock(evaluation: EvaluationResult | null) {
   if (!evaluation) {
     return '<p class="empty-copy">Aucune évaluation disponible.</p>';
@@ -169,6 +184,8 @@ function buildPdfDocumentBase({
   transcript,
   evaluation,
   feedbackDetailLevel,
+  correctedTranscript,
+  rawTranscriptText,
 }: {
   documentTitle: string;
   title: string;
@@ -178,6 +195,8 @@ function buildPdfDocumentBase({
   transcript: TranscriptEntry[];
   evaluation: EvaluationResult | null;
   feedbackDetailLevel: AppSettings["feedbackDetailLevel"];
+  correctedTranscript?: string | null;
+  rawTranscriptText?: string | null;
 }) {
   return `
     <html>
@@ -330,6 +349,29 @@ function buildPdfDocumentBase({
           .transcript-text {
             font-size: 14px;
             line-height: 1.6;
+            color: #0f172a;
+            white-space: pre-wrap;
+          }
+          .transcript-plain-block {
+            padding: 14px 16px;
+            border-radius: 16px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+          }
+          .transcript-plain-block + .transcript-plain-block {
+            margin-top: 12px;
+          }
+          .transcript-plain-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-bottom: 8px;
+          }
+          .transcript-plain-text {
+            font-size: 14px;
+            line-height: 1.7;
             color: #0f172a;
             white-space: pre-wrap;
           }
@@ -497,7 +539,14 @@ function buildPdfDocumentBase({
 
           <section class="section">
             <h2>Transcription</h2>
-            ${buildTranscriptBlock(transcript)}
+            ${
+              correctedTranscript?.trim()
+                ? `
+                  ${buildPlainTranscriptBlock("Correction IA", correctedTranscript)}
+                  ${buildPlainTranscriptBlock("Transcript source brut", rawTranscriptText ?? "")}
+                `
+                : buildTranscriptBlock(transcript)
+            }
           </section>
 
           <section class="section">
@@ -533,6 +582,8 @@ export function buildSansPsPdfDocument(
   transcript: TranscriptEntry[],
   evaluation: EvaluationResult | null,
   feedbackDetailLevel: AppSettings["feedbackDetailLevel"],
+  correctedTranscript?: string | null,
+  rawTranscriptText?: string | null,
 ) {
   return buildPdfDocumentBase({
     documentTitle: "ECOS-AI - Sans-PS - Compte rendu",
@@ -543,5 +594,7 @@ export function buildSansPsPdfDocument(
     transcript,
     evaluation,
     feedbackDetailLevel,
+    correctedTranscript,
+    rawTranscriptText,
   });
 }

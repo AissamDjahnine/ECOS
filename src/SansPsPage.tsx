@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityHandling,
+  EndSensitivity,
+  GoogleGenAI,
+  Modality,
+  StartSensitivity,
+  TurnCoverage,
+  type LiveServerMessage,
+} from "@google/genai";
+import {
   requestMicrophoneStream,
   startMicrophoneStream,
   type AudioStreamer,
@@ -18,6 +27,60 @@ import type {
 } from "./types";
 
 type SessionPhase = "idle" | "student-speaking" | "paused";
+
+type TranscriptDebugUnderstanding = {
+  sourceText: string;
+  understoodText: string;
+  confidence: "low" | "medium" | "high";
+  ambiguities: string[];
+  timestamp: string;
+};
+
+const liveModel =
+  import.meta.env.VITE_GEMINI_LIVE_MODEL ??
+  "gemini-2.5-flash-native-audio-preview-12-2025";
+
+type RealtimeAudioInput = {
+  data: string;
+  mimeType: string;
+};
+
+type LiveSession = {
+  close: () => void;
+  sendRealtimeInput?: (payload: {
+    audio?: RealtimeAudioInput;
+    audioStreamEnd?: boolean;
+  }) => void;
+  sendClientContent?: (params?: { turnComplete?: boolean }) => void;
+};
+
+type SansPsLiveMessage = LiveServerMessage & {
+  usageMetadata?: {
+    totalInputTokens?: number;
+    totalOutputTokens?: number;
+    totalTokens?: number;
+    total_input_tokens?: number;
+    total_output_tokens?: number;
+    total_tokens?: number;
+    inputTokensByModality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+    outputTokensByModality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+    input_tokens_by_modality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+    output_tokens_by_modality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+  };
+  inputTranscription?: { text?: string };
+  serverContent?: {
+    inputTranscription?: { text?: string };
+    modelTurn?: {
+      parts?: Array<{
+        inlineData?: { data?: string; mimeType?: string };
+      }>;
+    };
+    interrupted?: boolean;
+    generationComplete?: boolean;
+    turnComplete?: boolean;
+    waitingForInput?: boolean;
+  };
+};
 
 const EVALUATION_PROGRESS_MESSAGES = [
   "Transcription du monologue...",
@@ -83,6 +146,239 @@ function uint8ToBase64(uint8: Uint8Array) {
   }
 
   return btoa(binary);
+}
+
+function sumModalityTokens(
+  entries:
+    | Array<{ modality?: string; tokens?: number; tokenCount?: number }>
+    | undefined,
+  target: "text" | "audio",
+) {
+  return (entries ?? []).reduce((total, entry) => {
+    const modality = entry.modality?.toLowerCase() ?? "";
+    if (!modality.includes(target)) {
+      return total;
+    }
+
+    return total + (entry.tokens ?? entry.tokenCount ?? 0);
+  }, 0);
+}
+
+function extractLiveUsageCounts(usageMetadata?: {
+  totalInputTokens?: number;
+  totalOutputTokens?: number;
+  totalTokens?: number;
+  total_input_tokens?: number;
+  total_output_tokens?: number;
+  total_tokens?: number;
+  inputTokensByModality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+  outputTokensByModality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+  input_tokens_by_modality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+  output_tokens_by_modality?: Array<{ modality?: string; tokens?: number; tokenCount?: number }>;
+}) {
+  const inputEntries =
+    usageMetadata?.inputTokensByModality ?? usageMetadata?.input_tokens_by_modality;
+  const outputEntries =
+    usageMetadata?.outputTokensByModality ?? usageMetadata?.output_tokens_by_modality;
+  const inputTextTokens = sumModalityTokens(inputEntries, "text");
+  const inputAudioTokens = sumModalityTokens(inputEntries, "audio");
+  const outputTextTokens = sumModalityTokens(outputEntries, "text");
+  const outputAudioTokens = sumModalityTokens(outputEntries, "audio");
+  const totalInputTokens =
+    usageMetadata?.totalInputTokens ?? usageMetadata?.total_input_tokens ?? inputTextTokens + inputAudioTokens;
+  const totalOutputTokens =
+    usageMetadata?.totalOutputTokens ?? usageMetadata?.total_output_tokens ?? outputTextTokens + outputAudioTokens;
+
+  return {
+    inputTextTokens,
+    inputAudioTokens,
+    outputTextTokens,
+    outputAudioTokens,
+    totalInputTokens,
+    totalOutputTokens,
+    totalTokens:
+      usageMetadata?.totalTokens ??
+      usageMetadata?.total_tokens ??
+      totalInputTokens + totalOutputTokens,
+  };
+}
+
+function upsertTranscriptEntryById(
+  current: TranscriptEntry[],
+  entryId: string,
+  role: TranscriptEntry["role"],
+  text: string,
+) {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return current;
+  }
+
+  const canonicalize = (value: string) =>
+    value
+      .trim()
+      .replace(/\s+/g, " ")
+      .replace(/[.,;:!?،؛۔]+$/g, "")
+      .toLowerCase();
+
+  const incomingCanonical = canonicalize(trimmed);
+
+  const index = current.findIndex((entry) => entry.id === entryId);
+
+  if (index === -1) {
+    const lastEntry = current.at(-1);
+    if (lastEntry?.role === role) {
+      const lastCanonical = canonicalize(lastEntry.text);
+      if (
+        lastCanonical === incomingCanonical ||
+        incomingCanonical.startsWith(lastCanonical) ||
+        lastCanonical.startsWith(incomingCanonical)
+      ) {
+        const updated = [...current];
+        updated[updated.length - 1] = {
+          ...lastEntry,
+          text: trimmed.length >= lastEntry.text.trim().length ? trimmed : lastEntry.text,
+          timestamp: createTimestamp(),
+        };
+        return updated;
+      }
+    }
+
+    return [
+      ...current,
+      {
+        id: entryId,
+        role,
+        text: trimmed,
+        timestamp: createTimestamp(),
+      },
+    ];
+  }
+
+  const existing = current[index];
+  if (canonicalize(existing.text) === incomingCanonical) {
+    return current;
+  }
+
+  const updated = [...current];
+  updated[index] = {
+    ...existing,
+    text: trimmed,
+    timestamp: createTimestamp(),
+  };
+
+  return updated;
+}
+
+function upsertTranscriptEntryAtEndById(
+  current: TranscriptEntry[],
+  entryId: string,
+  role: TranscriptEntry["role"],
+  text: string,
+) {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return current;
+  }
+
+  const existing = current.find((entry) => entry.id === entryId);
+  const nextText =
+    existing && existing.role === role
+      ? appendTranscriptChunk(existing.text, trimmed)
+      : trimmed;
+  const withoutEntry = current.filter((entry) => entry.id !== entryId);
+  return [
+    ...withoutEntry,
+    {
+      id: entryId,
+      role,
+      text: nextText,
+      timestamp: createTimestamp(),
+    },
+  ];
+}
+
+function appendTranscriptChunk(currentText: string, incomingChunk: string) {
+  const chunk = incomingChunk.trim();
+  if (!chunk) {
+    return currentText;
+  }
+
+  const current = currentText.trim();
+  if (!current) {
+    return chunk;
+  }
+
+  if (current === chunk || current.endsWith(chunk)) {
+    return current;
+  }
+
+  if (chunk.startsWith(current)) {
+    return chunk;
+  }
+
+  const maxOverlap = Math.min(current.length, chunk.length);
+  for (let overlap = maxOverlap; overlap > 0; overlap -= 1) {
+    const currentSuffix = current.slice(-overlap).toLowerCase();
+    const chunkPrefix = chunk.slice(0, overlap).toLowerCase();
+
+    if (currentSuffix === chunkPrefix) {
+      return current + chunk.slice(overlap);
+    }
+  }
+
+  const noLeadingSpaceBefore = new Set([
+    ".",
+    ",",
+    ";",
+    ":",
+    "!",
+    "?",
+    ")",
+    "]",
+    "}",
+    "'",
+    "'",
+  ]);
+
+  if (noLeadingSpaceBefore.has(chunk)) {
+    return `${current}${chunk}`;
+  }
+
+  if (current.endsWith("'") || current.endsWith("'")) {
+    return `${current}${chunk}`;
+  }
+
+  return `${current} ${chunk}`;
+}
+
+function buildStudentTranscriptPlainText(
+  entries: TranscriptEntry[],
+  pendingText = "",
+) {
+  const studentEntries = entries
+    .filter((entry) => entry.role === "student" && entry.text.trim().length > 0)
+    .map((entry) => ({
+      role: entry.role,
+      text: entry.text.trim(),
+    }));
+
+  if (pendingText.trim()) {
+    if (studentEntries.length > 0) {
+      const last = studentEntries[studentEntries.length - 1];
+      studentEntries[studentEntries.length - 1] = {
+        ...last,
+        text: appendTranscriptChunk(last.text, pendingText),
+      };
+    } else {
+      studentEntries.push({
+        role: "student",
+        text: pendingText.trim(),
+      });
+    }
+  }
+
+  return transcriptToPlainText(studentEntries);
 }
 
 function formatFeedbackDetailLabel(level: AppSettings["feedbackDetailLevel"]) {
@@ -164,6 +460,18 @@ function CopyIcon({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+function SparklesIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3l1.9 4.8L19 9.7l-5.1 1.9L12 16.5l-1.9-4.9L5 9.7l5.1-1.9L12 3z" />
+      <path d="M19 3v4" />
+      <path d="M21 5h-4" />
+      <path d="M4 14v3" />
+      <path d="M5.5 15.5H2.5" />
     </svg>
   );
 }
@@ -322,7 +630,7 @@ export default function SansPsPage({
   const [gradingGrid, setGradingGrid] = useState("");
   const [parseError, setParseError] = useState("");
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
-  const [status, setStatus] = useState("Mode sans PS prêt");
+  const [status, setStatus] = useState("Session sans PS prête");
   const [sessionPhase, setSessionPhase] = useState<SessionPhase>("idle");
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDiscussing, setIsDiscussing] = useState(false);
@@ -338,7 +646,15 @@ export default function SansPsPage({
   const [remainingSeconds, setRemainingSeconds] = useState(
     settings.defaultTimerSeconds,
   );
+  const [lastSessionElapsedSeconds, setLastSessionElapsedSeconds] = useState(0);
   const [showStudentDraftIndicator, setShowStudentDraftIndicator] =
+    useState(false);
+  const [studentDraftText, setStudentDraftText] = useState("");
+  const [debugEvents, setDebugEvents] = useState<string[]>([]);
+  const [aiCorrection, setAiCorrection] =
+    useState<TranscriptDebugUnderstanding | null>(null);
+  const [isCorrectingTranscript, setIsCorrectingTranscript] = useState(false);
+  const [useAiCorrectedTranscript, setUseAiCorrectedTranscript] =
     useState(false);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
@@ -358,18 +674,36 @@ export default function SansPsPage({
 
   const transcriptRef = useRef<HTMLDivElement | null>(null);
   const micRef = useRef<AudioStreamer | null>(null);
+  const sessionRef = useRef<LiveSession | null>(null);
   const recordedAudioUrlRef = useRef<string | null>(null);
   const autoEvaluateHandledRef = useRef(false);
   const autoExportedEvaluationRef = useRef<string | null>(null);
-  const silenceTimerRef = useRef<number | null>(null);
-  const currentTurnChunksRef = useRef<Blob[]>([]);
-  const isSpeechActiveRef = useRef(false);
-  const isFinalizingTurnRef = useRef(false);
-  const shouldCaptureAudioRef = useRef(true);
+  const shouldSendAudioRef = useRef(true);
   const isMicMutedRef = useRef(false);
+  const isPausedRef = useRef(false);
+  const pendingManualTurnEndRef = useRef(false);
+  const turnEndFallbackTimerRef = useRef<number | null>(null);
   const currentSessionIdRef = useRef<string | null>(null);
+  const inputTranscriptRef = useRef("");
+  const monologueEntryIdRef = useRef<string | null>(null);
+  const audioChunkCountRef = useRef(0);
+  const lastAudioDebugAtRef = useRef(0);
+  const lastLiveUsageTotalsRef = useRef({
+    inputTextTokens: 0,
+    inputAudioTokens: 0,
+    outputTextTokens: 0,
+    outputAudioTokens: 0,
+    totalTokens: 0,
+  });
 
   const gridReady = Boolean(gradingGrid);
+  const hasCommittedStudentTranscript = transcript.some(
+    (entry) => entry.role === "student" && entry.text.trim().length > 0,
+  );
+  const hasStudentTranscript =
+    hasCommittedStudentTranscript ||
+    inputTranscriptRef.current.trim().length > 0 ||
+    studentDraftText.trim().length > 0;
   const canStart =
     gridReady &&
     !isConnecting &&
@@ -383,7 +717,7 @@ export default function SansPsPage({
     !isDiscussing &&
     !isPaused &&
     !isEvaluating &&
-    transcript.some((entry) => entry.role === "student") &&
+    hasStudentTranscript &&
     Boolean(gradingGrid);
   const canResetSession =
     !isConnecting &&
@@ -416,43 +750,76 @@ export default function SansPsPage({
     : "bg-gradient-to-br from-slate-50 via-white to-slate-100";
   const textClass = darkMode ? "text-slate-100" : "text-slate-900";
   const cardBg = darkMode
-    ? "bg-slate-900/72 border-white/10 ring-1 ring-inset ring-white/5 shadow-[0_12px_40px_rgba(2,6,23,0.38)] backdrop-blur-xl"
+    ? "bg-slate-900/72 shadow-[0_12px_40px_rgba(2,6,23,0.38)] backdrop-blur-xl"
     : "bg-white/90 border-slate-200/60";
   const subCardBg = darkMode
-    ? "bg-slate-800/55 border-white/8 ring-1 ring-inset ring-white/5"
+    ? "bg-slate-800/55"
     : "bg-slate-50/80 border-slate-200/50";
   const inputBg = darkMode
-    ? "bg-slate-950/80 border-white/10 text-slate-100 placeholder-slate-500 ring-1 ring-inset ring-white/5"
+    ? "bg-slate-950/80 border-transparent text-slate-100 placeholder-slate-500"
     : "bg-white border-slate-200 text-slate-900 placeholder-slate-400";
   const mutedText = darkMode ? "text-slate-300/90" : "text-slate-500";
-  const subtleBg = darkMode ? "bg-slate-800/45 ring-1 ring-inset ring-white/5" : "bg-slate-100/60";
+  const subtleBg = darkMode ? "bg-slate-800/45" : "bg-slate-100/60";
   const transcriptForDisplay = useMemo(() => {
     const withVisibleRoles = settings.showSystemMessages
       ? transcript
       : transcript.filter((entry) => entry.role !== "system");
 
-    if (settings.showLiveTranscript || hasEndedDiscussion) {
+    if (showStudentDraftIndicator && studentDraftText.trim()) {
+      const lastStudentIndex = [...withVisibleRoles]
+        .map((entry) => entry.role)
+        .lastIndexOf("student");
+
+      if (lastStudentIndex >= 0) {
+        const next = [...withVisibleRoles];
+        const existing = next[lastStudentIndex];
+        next[lastStudentIndex] = {
+          ...existing,
+          text: appendTranscriptChunk(existing.text, studentDraftText),
+        };
+        return next;
+      }
+    }
+
+    if (
+      settings.showLiveTranscript ||
+      hasEndedDiscussion ||
+      showStudentDraftIndicator ||
+      hasCommittedStudentTranscript
+    ) {
       return withVisibleRoles;
     }
 
     return [];
   }, [
+    hasCommittedStudentTranscript,
     hasEndedDiscussion,
+    showStudentDraftIndicator,
     settings.showLiveTranscript,
     settings.showSystemMessages,
     transcript,
   ]);
   const showLiveTranscriptContent =
-    settings.showLiveTranscript || hasEndedDiscussion;
+    settings.showLiveTranscript || hasEndedDiscussion || showStudentDraftIndicator;
   const showDraftIndicatorForDisplay =
-    showStudentDraftIndicator && showLiveTranscriptContent;
+    showStudentDraftIndicator &&
+    showLiveTranscriptContent &&
+    !hasCommittedStudentTranscript;
   const transcriptCopyText = useMemo(
     () => buildTranscriptCopy(transcript, settings.showSystemMessages),
     [settings.showSystemMessages, transcript],
   );
   const canCopyTranscript =
-    (settings.showLiveTranscript || hasEndedDiscussion) &&
+    (settings.showLiveTranscript || hasEndedDiscussion || hasCommittedStudentTranscript) &&
     transcriptCopyText.trim().length > 0;
+  const rawStudentTranscriptText = useMemo(
+    () => buildStudentTranscriptPlainText(transcript, studentDraftText),
+    [studentDraftText, transcript],
+  );
+  const evaluationTranscriptText =
+    useAiCorrectedTranscript && aiCorrection?.understoodText?.trim()
+      ? aiCorrection.understoodText.trim()
+      : rawStudentTranscriptText;
   const transcriptPanelHeightClass = hasEndedDiscussion
     ? "h-[460px]"
     : "h-[560px]";
@@ -480,7 +847,7 @@ export default function SansPsPage({
   const statusLabel = useMemo(() => {
     switch (sessionPhase) {
       case "student-speaking":
-        return "Monologue";
+        return "Discussion";
       case "paused":
         return "En pause";
       default:
@@ -488,86 +855,17 @@ export default function SansPsPage({
     }
   }, [sessionPhase]);
 
-  async function transcribeAudioChunks(audioChunks: Blob[]) {
-    if (audioChunks.length === 0) {
-      return "";
-    }
-
-    const audioBlob = new Blob(audioChunks, {
-      type: "audio/pcm;rate=16000",
-    });
-    const arrayBuffer = await audioBlob.arrayBuffer();
-    const base64Audio = uint8ToBase64(new Uint8Array(arrayBuffer));
-
-    const response = await fetch("/api/transcribe-turn", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        audioBase64: base64Audio,
-        mimeType: "audio/pcm;rate=16000",
-        googleApiKey: settings.googleApiKey || undefined,
-        sessionId: currentSessionIdRef.current || undefined,
-      }),
+  function pushDebugEvent(message: string) {
+    const timestamp = new Date().toLocaleTimeString("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
     });
 
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
-
-    const result = (await response.json()) as { text?: string };
-    return result.text?.trim() ?? "";
-  }
-
-  function clearSilenceTimer() {
-    if (silenceTimerRef.current) {
-      window.clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
-  }
-
-  async function finalizeStudentTurn() {
-    if (isFinalizingTurnRef.current) {
-      return;
-    }
-
-    const audioChunks = [...currentTurnChunksRef.current];
-    if (audioChunks.length === 0) {
-      isSpeechActiveRef.current = false;
-      setShowStudentDraftIndicator(false);
-      return;
-    }
-
-    isFinalizingTurnRef.current = true;
-    currentTurnChunksRef.current = [];
-    isSpeechActiveRef.current = false;
-    setShowStudentDraftIndicator(false);
-
-    try {
-      const text = await transcribeAudioChunks(audioChunks);
-      if (!text) {
-        return;
-      }
-
-      setTranscript((current) => [
-        ...current,
-        {
-          id: crypto.randomUUID(),
-          role: "student",
-          text,
-          timestamp: createTimestamp(),
-        },
-      ]);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Erreur inconnue";
-      setTranscript((current) => [
-        ...current,
-        createTranscriptEntry("system", `Erreur de transcription : ${message}`),
-      ]);
-    } finally {
-      isFinalizingTurnRef.current = false;
-    }
+    setDebugEvents((current) => [
+      ...current.slice(-11),
+      `${timestamp}  ${message}`,
+    ]);
   }
 
   function handleParse() {
@@ -583,21 +881,34 @@ export default function SansPsPage({
       setParseError(
         "Impossible d'identifier une grille de correction exploitable dans ce texte.",
       );
-      setStatus("Mode sans PS prêt");
+      setStatus("Session sans PS prête");
       return;
     }
 
     setParseError("");
-    setStatus("Grille prête pour monologue");
+    setStatus("Grille prête pour évaluation");
   }
 
   function resetRecordingState() {
-    currentTurnChunksRef.current = [];
-    isSpeechActiveRef.current = false;
-    isFinalizingTurnRef.current = false;
-    shouldCaptureAudioRef.current = true;
-    clearSilenceTimer();
+    shouldSendAudioRef.current = true;
+    pendingManualTurnEndRef.current = false;
+    if (turnEndFallbackTimerRef.current !== null) {
+      window.clearTimeout(turnEndFallbackTimerRef.current);
+      turnEndFallbackTimerRef.current = null;
+    }
+    inputTranscriptRef.current = "";
+    monologueEntryIdRef.current = null;
+    audioChunkCountRef.current = 0;
+    lastAudioDebugAtRef.current = 0;
+    lastLiveUsageTotalsRef.current = {
+      inputTextTokens: 0,
+      inputAudioTokens: 0,
+      outputTextTokens: 0,
+      outputAudioTokens: 0,
+      totalTokens: 0,
+    };
     setShowStudentDraftIndicator(false);
+    setStudentDraftText("");
     setMicLevel(0);
     setMicPeak(0);
 
@@ -607,6 +918,118 @@ export default function SansPsPage({
     }
 
     setRecordedAudioUrl(null);
+    setLastSessionElapsedSeconds(0);
+    setAiCorrection(null);
+    setIsCorrectingTranscript(false);
+    setUseAiCorrectedTranscript(false);
+  }
+
+  async function requestTranscriptUnderstanding(text: string) {
+    if (!text.trim()) {
+      return;
+    }
+
+    try {
+      setIsCorrectingTranscript(true);
+      const response = await fetch("/api/transcript-debug", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          transcriptSegment: text,
+          googleApiKey: settings.googleApiKey || undefined,
+          sessionId: currentSessionIdRef.current || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const payload = (await response.json()) as {
+        understoodText: string;
+        confidence: "low" | "medium" | "high";
+        ambiguities: string[];
+      };
+
+      setAiCorrection({
+        sourceText: text,
+        understoodText: payload.understoodText,
+        confidence: payload.confidence,
+        ambiguities: payload.ambiguities,
+        timestamp: createTimestamp(),
+      });
+      setUseAiCorrectedTranscript(true);
+      pushDebugEvent(`Correction IA (${payload.confidence}) reçue`);
+      onShowToast(
+        "Correction IA prête",
+        "La correction IA sera utilisée pour l'évaluation tant qu'elle reste activée.",
+        "success",
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Erreur de compréhension debug inconnue";
+      pushDebugEvent(`Échec compréhension IA: ${message}`);
+      onShowToast("Échec correction IA", message, "error");
+    } finally {
+      setIsCorrectingTranscript(false);
+    }
+  }
+
+  function flushStudentDraft() {
+    const text = inputTranscriptRef.current.trim();
+    if (!text) {
+      setShowStudentDraftIndicator(false);
+      setStudentDraftText("");
+      return;
+    }
+
+    const entryId = monologueEntryIdRef.current ?? crypto.randomUUID();
+    monologueEntryIdRef.current = entryId;
+    setTranscript((current) =>
+      upsertTranscriptEntryAtEndById(current, entryId, "student", text),
+    );
+    inputTranscriptRef.current = "";
+    setShowStudentDraftIndicator(false);
+    setStudentDraftText("");
+  }
+
+  function clearTurnEndFallbackTimer() {
+    if (turnEndFallbackTimerRef.current !== null) {
+      window.clearTimeout(turnEndFallbackTimerRef.current);
+      turnEndFallbackTimerRef.current = null;
+    }
+  }
+
+  function scheduleTurnEndFallbackFlush(reason: string) {
+    clearTurnEndFallbackTimer();
+    turnEndFallbackTimerRef.current = window.setTimeout(() => {
+      turnEndFallbackTimerRef.current = null;
+      if (!pendingManualTurnEndRef.current) {
+        return;
+      }
+
+      pushDebugEvent(`${reason}: flush de secours du draft`);
+      flushStudentDraft();
+      pendingManualTurnEndRef.current = false;
+      if (isPausedRef.current) {
+        setSessionPhase("paused");
+        setStatus("Session en pause");
+      } else {
+        setSessionPhase("idle");
+        setStatus("En attente de l'étudiant");
+      }
+    }, 1600);
+  }
+
+  function requestTurnCompletion(reason: string) {
+    pendingManualTurnEndRef.current = true;
+    sessionRef.current?.sendRealtimeInput?.({ audioStreamEnd: true });
+    pushDebugEvent(`${reason}: audioStreamEnd envoyé`);
+    scheduleTurnEndFallbackFlush(reason);
   }
 
   async function copyTextToClipboard(text: string, successMessage: string) {
@@ -636,18 +1059,18 @@ export default function SansPsPage({
 
   async function resetSessionState() {
     try {
-      shouldCaptureAudioRef.current = false;
-      clearSilenceTimer();
+      shouldSendAudioRef.current = false;
       await micRef.current?.stop();
+      sessionRef.current?.close();
     } catch {
       //
     } finally {
       micRef.current = null;
-      clearSilenceTimer();
-      currentTurnChunksRef.current = [];
-      isSpeechActiveRef.current = false;
-      isFinalizingTurnRef.current = false;
-      shouldCaptureAudioRef.current = true;
+      sessionRef.current = null;
+      currentSessionIdRef.current = null;
+      shouldSendAudioRef.current = true;
+      inputTranscriptRef.current = "";
+      monologueEntryIdRef.current = null;
       autoEvaluateHandledRef.current = false;
       autoExportedEvaluationRef.current = null;
       setTranscript([]);
@@ -660,7 +1083,7 @@ export default function SansPsPage({
       setIsDiscussing(false);
       setIsPaused(false);
       setSessionPhase("idle");
-      setStatus(gradingGrid ? "Grille prête pour monologue" : "Mode sans PS prêt");
+      setStatus(gradingGrid ? "Grille prête pour évaluation" : "Session sans PS prête");
       setRemainingSeconds(settings.defaultTimerSeconds);
       setShowStudentDraftIndicator(false);
       setMicLevel(0);
@@ -689,7 +1112,7 @@ export default function SansPsPage({
     setParseError("");
     setShowEvaluationReport(false);
     setShowReportAudioPlayer(false);
-    setStatus("Mode sans PS prêt");
+    setStatus("Session sans PS prête");
     onShowToast(
       "Zone vidée",
       "Le texte collé et les résultats associés ont été supprimés.",
@@ -762,32 +1185,260 @@ export default function SansPsPage({
       setIsConnecting(true);
       setEvaluation(null);
       setHasEndedDiscussion(false);
-      setStatus("Préparation du monologue");
+      setStatus("Préparation de la session");
       setRemainingSeconds(sessionDurationSeconds);
       setTranscript([
         createTranscriptEntry(
           "system",
-          "Monologue démarré. Présentez votre raisonnement et votre conduite à tenir.",
+          "Session démarrée. Présentez votre raisonnement et votre conduite à tenir.",
         ),
       ]);
+      setDebugEvents([]);
+      pushDebugEvent("Session Sans PS initialisée");
       setIsPaused(false);
+      isPausedRef.current = false;
       setIsMicMuted(false);
       isMicMutedRef.current = false;
       resetRecordingState();
+      lastLiveUsageTotalsRef.current = {
+        inputTextTokens: 0,
+        inputAudioTokens: 0,
+        outputTextTokens: 0,
+        outputAudioTokens: 0,
+        totalTokens: 0,
+      };
+      const mediaStream = await requestMicrophoneStream();
 
-      const stream = await requestMicrophoneStream();
+      const tokenResponse = await fetch("/api/live-token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mode: "silent",
+          googleApiKey: settings.googleApiKey || undefined,
+          sessionId: currentSessionIdRef.current,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        throw new Error(await tokenResponse.text());
+      }
+
+      const tokenPayload = (await tokenResponse.json()) as {
+        token: string;
+        model: string;
+      };
+      pushDebugEvent(
+        `Jeton Live reçu (mode=silent, model=${tokenPayload.model || liveModel})`,
+      );
+
+      setStatus("Ouverture de la session Live");
+
+      const ai = new GoogleGenAI({
+        apiKey: tokenPayload.token,
+        httpOptions: {
+          apiVersion: "v1alpha",
+        },
+      });
+
+      const session = (await ai.live.connect({
+        model: tokenPayload.model || liveModel,
+        config: {
+          responseModalities: [Modality.AUDIO],
+          inputAudioTranscription: {},
+          outputAudioTranscription: {},
+          realtimeInputConfig: {
+            automaticActivityDetection: {
+              startOfSpeechSensitivity:
+                StartSensitivity.START_SENSITIVITY_HIGH,
+              endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
+              prefixPaddingMs: 320,
+              silenceDurationMs: 1800,
+            },
+            activityHandling: ActivityHandling.START_OF_ACTIVITY_INTERRUPTS,
+            turnCoverage: TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY,
+          },
+        },
+        callbacks: {
+          onopen: () => {
+            shouldSendAudioRef.current = true;
+            setStatus("Session Live ouverte, en attente de l'étudiant");
+            setSessionPhase("idle");
+            pushDebugEvent("Connexion Live ouverte");
+          },
+
+          onmessage: (message: LiveServerMessage) => {
+            const liveMessage = message as SansPsLiveMessage;
+            const serverContent = liveMessage.serverContent;
+
+            const liveUsage = extractLiveUsageCounts(liveMessage.usageMetadata);
+            const previousUsage = lastLiveUsageTotalsRef.current;
+            const liveUsageDelta = {
+              inputTextTokens: Math.max(0, liveUsage.inputTextTokens - previousUsage.inputTextTokens),
+              inputAudioTokens: Math.max(0, liveUsage.inputAudioTokens - previousUsage.inputAudioTokens),
+              outputTextTokens: Math.max(0, liveUsage.outputTextTokens - previousUsage.outputTextTokens),
+              outputAudioTokens: Math.max(0, liveUsage.outputAudioTokens - previousUsage.outputAudioTokens),
+              totalTokens: Math.max(0, liveUsage.totalTokens - previousUsage.totalTokens),
+            };
+
+            if (
+              currentSessionIdRef.current &&
+              (liveUsageDelta.inputTextTokens > 0 ||
+                liveUsageDelta.inputAudioTokens > 0 ||
+                liveUsageDelta.outputTextTokens > 0 ||
+                liveUsageDelta.outputAudioTokens > 0)
+            ) {
+              lastLiveUsageTotalsRef.current = {
+                inputTextTokens: liveUsage.inputTextTokens,
+                inputAudioTokens: liveUsage.inputAudioTokens,
+                outputTextTokens: liveUsage.outputTextTokens,
+                outputAudioTokens: liveUsage.outputAudioTokens,
+                totalTokens: liveUsage.totalTokens,
+              };
+
+              void fetch("/api/usage/live", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  sessionId: currentSessionIdRef.current,
+                  googleApiKey: settings.googleApiKey || undefined,
+                  ...liveUsageDelta,
+                }),
+              });
+            }
+
+            const inputTranscription =
+              liveMessage.inputTranscription ??
+              serverContent?.inputTranscription;
+
+            pushDebugEvent(
+              [
+                "Live msg",
+                inputTranscription?.text?.trim()
+                  ? `inputTx=${inputTranscription.text.trim().length}c`
+                  : "inputTx=0",
+                serverContent?.generationComplete ? "generationComplete" : null,
+                serverContent?.turnComplete ? "turnComplete" : null,
+                serverContent?.waitingForInput
+                  ? "waitingForInput"
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" | "),
+            );
+
+            if (inputTranscription?.text) {
+              if (isPausedRef.current && !pendingManualTurnEndRef.current) {
+                pushDebugEvent("Transcription ignorée pendant la pause");
+                return;
+              }
+              pushDebugEvent(
+                `Transcription reçue: ${inputTranscription.text.slice(0, 80)}`,
+              );
+              inputTranscriptRef.current = appendTranscriptChunk(
+                inputTranscriptRef.current,
+                inputTranscription.text,
+              );
+              setStudentDraftText(inputTranscriptRef.current);
+              if (isPausedRef.current) {
+                setSessionPhase("paused");
+                setStatus("Finalisation de la pause");
+              } else {
+                setSessionPhase("student-speaking");
+                setStatus("Session en cours");
+              }
+              setShowStudentDraftIndicator(true);
+              if (pendingManualTurnEndRef.current) {
+                scheduleTurnEndFallbackFlush(isPausedRef.current ? "Pause" : "Mute");
+              }
+            }
+
+            if (serverContent?.generationComplete) {
+              pushDebugEvent("generationComplete ignoré en mode Sans PS");
+            }
+
+            if (serverContent?.waitingForInput) {
+              shouldSendAudioRef.current = true;
+              clearTurnEndFallbackTimer();
+              pendingManualTurnEndRef.current = false;
+              pushDebugEvent("waitingForInput détecté, flush du draft");
+              flushStudentDraft();
+              if (isPausedRef.current) {
+                setSessionPhase("paused");
+                setStatus("Session en pause");
+              } else {
+                setSessionPhase("idle");
+                setStatus("En attente de l'étudiant");
+              }
+            }
+
+            if (serverContent?.turnComplete) {
+              shouldSendAudioRef.current = true;
+              clearTurnEndFallbackTimer();
+              pendingManualTurnEndRef.current = false;
+              pushDebugEvent("turnComplete détecté, flush du draft");
+              flushStudentDraft();
+              if (isPausedRef.current) {
+                setSessionPhase("paused");
+                setStatus("Session en pause");
+              } else {
+                setSessionPhase("idle");
+                setStatus("En attente de l'étudiant");
+              }
+            }
+          },
+
+          onerror: (error) => {
+            shouldSendAudioRef.current = true;
+            clearTurnEndFallbackTimer();
+            pendingManualTurnEndRef.current = false;
+            setStatus(`Erreur Live : ${error.message}`);
+            setSessionPhase("idle");
+            setShowStudentDraftIndicator(false);
+            setStudentDraftText("");
+            pushDebugEvent(`Erreur Live: ${error.message}`);
+          },
+
+          onclose: () => {
+            shouldSendAudioRef.current = true;
+            clearTurnEndFallbackTimer();
+            pendingManualTurnEndRef.current = false;
+            setSessionPhase("idle");
+            setShowStudentDraftIndicator(false);
+            setStudentDraftText("");
+            pushDebugEvent("Connexion Live fermée");
+          },
+        },
+      })) as LiveSession;
+
+      sessionRef.current = session;
+
       const microphone = await startMicrophoneStream(
         async (chunk) => {
-          if (
-            !shouldCaptureAudioRef.current ||
-            isPaused ||
-            isMicMutedRef.current ||
-            !isSpeechActiveRef.current
-          ) {
+          if (!shouldSendAudioRef.current || isPaused || isMicMutedRef.current) {
             return;
           }
 
-          currentTurnChunksRef.current.push(chunk);
+          const arrayBuffer = await chunk.arrayBuffer();
+          const uint8 = new Uint8Array(arrayBuffer);
+          const base64Audio = uint8ToBase64(uint8);
+
+          audioChunkCountRef.current += 1;
+          const now = Date.now();
+          if (now - lastAudioDebugAtRef.current > 1500) {
+            lastAudioDebugAtRef.current = now;
+            pushDebugEvent(`Audio envoyé (${audioChunkCountRef.current} chunks)`);
+          }
+
+          session.sendRealtimeInput?.({
+            audio: {
+              data: base64Audio,
+              mimeType: "audio/pcm;rate=16000",
+            },
+          });
         },
         (sample: MicrophoneLevelSample) => {
           if (isMicMutedRef.current) {
@@ -800,35 +1451,19 @@ export default function SansPsPage({
           setMicPeak(sample.peak);
 
           const isSpeaking = sample.rms >= 0.02 || sample.peak >= 0.06;
-
-          if (isSpeaking) {
-            clearSilenceTimer();
-            isSpeechActiveRef.current = true;
-            setShowStudentDraftIndicator(true);
+          if (isSpeaking && !isPaused && shouldSendAudioRef.current) {
             setSessionPhase("student-speaking");
-            setStatus("Monologue en cours");
-            return;
-          }
-
-          if (
-            isSpeechActiveRef.current &&
-            !silenceTimerRef.current &&
-            !isPaused &&
-            shouldCaptureAudioRef.current
-          ) {
-            silenceTimerRef.current = window.setTimeout(() => {
-              silenceTimerRef.current = null;
-              void finalizeStudentTurn();
-            }, 1200);
+            setStatus("Session en cours");
+            setShowStudentDraftIndicator(true);
           }
         },
-        stream,
+        mediaStream,
       );
 
       micRef.current = microphone;
       setIsDiscussing(true);
-      setSessionPhase("student-speaking");
-      setStatus("Monologue en cours");
+      setSessionPhase("idle");
+      setStatus("Session Live ouverte, en attente de l'étudiant");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erreur inconnue";
       setStatus(`Impossible de démarrer : ${message}`);
@@ -883,50 +1518,69 @@ export default function SansPsPage({
     }
 
     if (!isPaused) {
-      shouldCaptureAudioRef.current = false;
+      requestTurnCompletion("Pause");
+      shouldSendAudioRef.current = false;
+      isMicMutedRef.current = true;
+      isPausedRef.current = true;
+      setIsMicMuted(true);
+      setMicLevel(0);
+      setMicPeak(0);
       setIsDiscussing(false);
       setIsPaused(true);
       setSessionPhase("paused");
-      setStatus("Monologue en pause");
-      clearSilenceTimer();
-      await finalizeStudentTurn();
+      setStatus("Finalisation de la pause");
       setTranscript((current) => [
         ...current,
-        createTranscriptEntry("system", "Monologue mis en pause."),
+        createTranscriptEntry("system", "Session mise en pause."),
       ]);
       return;
     }
 
-    shouldCaptureAudioRef.current = true;
+    shouldSendAudioRef.current = true;
+    isMicMutedRef.current = false;
+    isPausedRef.current = false;
+    setIsMicMuted(false);
+    pushDebugEvent("Session reprise");
     setIsDiscussing(true);
     setIsPaused(false);
-    setSessionPhase("student-speaking");
-    setStatus("Monologue repris");
+    setSessionPhase("idle");
+    setStatus("Session reprise");
     setTranscript((current) => [
       ...current,
-      createTranscriptEntry("system", "Monologue repris."),
+      createTranscriptEntry("system", "Session reprise."),
     ]);
   }
 
   async function stopSession() {
-    setStatus("Finalisation du monologue");
+    setStatus("Finalisation de la session");
     let finished = false;
     let elapsedSummary = "";
 
     try {
+      const elapsedSeconds = sessionDurationSeconds - remainingSeconds;
       elapsedSummary = formatElapsedDiscussion(
-        sessionDurationSeconds - remainingSeconds,
+        elapsedSeconds,
       );
-      shouldCaptureAudioRef.current = false;
-      clearSilenceTimer();
-      await finalizeStudentTurn();
-
+      setLastSessionElapsedSeconds(elapsedSeconds);
+      shouldSendAudioRef.current = false;
+      clearTurnEndFallbackTimer();
+      pendingManualTurnEndRef.current = false;
+      flushStudentDraft();
+      requestTurnCompletion("Terminer");
       const recordedBlob = await micRef.current?.stop();
       if (recordedBlob) {
         const nextUrl = URL.createObjectURL(recordedBlob);
         recordedAudioUrlRef.current = nextUrl;
         setRecordedAudioUrl(nextUrl);
       }
+
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 1400);
+      });
+
+      flushStudentDraft();
+
+      sessionRef.current?.close();
 
       finished = true;
     } catch (error) {
@@ -937,23 +1591,26 @@ export default function SansPsPage({
       ]);
     } finally {
       micRef.current = null;
-      clearSilenceTimer();
-      currentTurnChunksRef.current = [];
-      isSpeechActiveRef.current = false;
-      isFinalizingTurnRef.current = false;
+      sessionRef.current = null;
+      currentSessionIdRef.current = null;
+      shouldSendAudioRef.current = true;
+      clearTurnEndFallbackTimer();
+      pendingManualTurnEndRef.current = false;
+      inputTranscriptRef.current = "";
       setShowStudentDraftIndicator(false);
       setIsDiscussing(false);
       setIsPaused(false);
+      isPausedRef.current = false;
       setHasEndedDiscussion(true);
       setSessionPhase("idle");
-      setStatus("Monologue terminé. Transcription prête pour évaluation.");
+      setStatus("Session terminée. Transcription prête pour évaluation.");
       setMicLevel(0);
       setMicPeak(0);
 
       if (finished) {
         onShowToast(
-          "Monologue terminé",
-          `Vous avez fini en ${elapsedSummary}.`,
+          "Session terminée",
+          `Vous avez terminé en ${elapsedSummary}.`,
           "success",
         );
       }
@@ -965,24 +1622,13 @@ export default function SansPsPage({
       setIsEvaluating(true);
       setStatus("Évaluation de la transcription");
 
-      const cleanedTranscript = transcriptToPlainText(
-        transcript
-          .filter(
-            (entry) => entry.role === "student" && entry.text.trim().length > 0,
-          )
-          .map((entry) => ({
-            role: entry.role,
-            text: entry.text.trim(),
-          })),
-      );
-
       const response = await fetch("/api/evaluate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          transcript: cleanedTranscript,
+          transcript: evaluationTranscriptText,
           gradingGrid,
           feedbackDetailLevel: settings.feedbackDetailLevel,
           googleApiKey: settings.googleApiKey || undefined,
@@ -1022,14 +1668,52 @@ export default function SansPsPage({
     void evaluateDiscussion();
   }
 
+  function handleAiCorrectionClick() {
+    if (isCorrectingTranscript) {
+      return;
+    }
+
+    if (aiCorrection?.understoodText?.trim()) {
+      setUseAiCorrectedTranscript((current) => {
+        const next = !current;
+        onShowToast(
+          next ? "Correction IA activée" : "Transcript brut activé",
+          next
+            ? "L'évaluation utilisera la correction IA."
+            : "L'évaluation utilisera le transcript brut.",
+          "info",
+        );
+        return next;
+      });
+      return;
+    }
+
+    if (!hasEndedDiscussion || !rawStudentTranscriptText.trim()) {
+      return;
+    }
+
+    setStatus("Analyse de la correction IA");
+    void requestTranscriptUnderstanding(rawStudentTranscriptText);
+  }
+
   function toggleMicMute() {
     setIsMicMuted((current) => {
       const next = !current;
       isMicMutedRef.current = next;
 
       if (next) {
+        requestTurnCompletion("Mute");
+        setSessionPhase("idle");
+        setStatus("Transcription en attente");
+        shouldSendAudioRef.current = false;
         setMicLevel(0);
         setMicPeak(0);
+      } else {
+        shouldSendAudioRef.current = true;
+        pushDebugEvent("Micro réactivé");
+        if (isDiscussing && !isPaused) {
+          setStatus("Session en cours");
+        }
       }
 
       return next;
@@ -1054,6 +1738,8 @@ export default function SansPsPage({
         transcript,
         evaluation,
         lastEvaluatedFeedbackDetailLevel ?? settings.feedbackDetailLevel,
+        useAiCorrectedTranscript ? aiCorrection?.understoodText ?? null : null,
+        rawStudentTranscriptText,
       ),
     );
     popup.document.close();
@@ -1223,9 +1909,12 @@ export default function SansPsPage({
 
   useEffect(() => {
     return () => {
-      shouldCaptureAudioRef.current = false;
-      clearSilenceTimer();
+      shouldSendAudioRef.current = false;
+      clearTurnEndFallbackTimer();
+      pendingManualTurnEndRef.current = false;
+      isPausedRef.current = false;
       void micRef.current?.stop();
+      sessionRef.current?.close();
       if (recordedAudioUrlRef.current) {
         URL.revokeObjectURL(recordedAudioUrlRef.current);
       }
@@ -1233,7 +1922,7 @@ export default function SansPsPage({
   }, []);
 
   return (
-    <div className={`min-h-screen ${theme} ${bgClass} ${textClass} transition-colors duration-300`}>
+    <div className={`flex min-h-screen flex-col ${theme} ${bgClass} ${textClass} transition-colors duration-300`}>
       <header className="sticky top-0 z-40 border-b border-slate-200/20 backdrop-blur-xl dark:border-slate-700/20">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
@@ -1249,7 +1938,7 @@ export default function SansPsPage({
           <div className="flex items-center gap-3">
             <div className={`flex items-center rounded-xl border p-1 ${
               darkMode
-                ? "border-slate-700 bg-slate-800"
+                ? "border-transparent bg-slate-800"
                 : "border-slate-200 bg-white"
             }`}>
               <button
@@ -1295,7 +1984,7 @@ export default function SansPsPage({
               onClick={onOpenDashboard}
               className={`rounded-xl border p-2.5 transition-all duration-200 ${
                 darkMode
-                  ? "border-white/10 bg-slate-800/70 ring-1 ring-inset ring-white/5 hover:bg-slate-700/80"
+                  ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
                   : "border-slate-200 bg-white hover:bg-slate-50"
               }`}
               aria-label="Open dashboard"
@@ -1307,7 +1996,7 @@ export default function SansPsPage({
               onClick={() => onDarkModeChange(!darkMode)}
               className={`rounded-xl border p-2.5 transition-all duration-200 ${
                 darkMode
-                  ? "border-white/10 bg-slate-800/70 ring-1 ring-inset ring-white/5 hover:bg-slate-700/80"
+                  ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
                   : "border-slate-200 bg-white hover:bg-slate-50"
               }`}
               aria-label="Basculer le mode sombre"
@@ -1324,7 +2013,7 @@ export default function SansPsPage({
               onClick={onOpenSettings}
               className={`rounded-xl border p-2.5 transition-all duration-200 ${
                 darkMode
-                  ? "border-white/10 bg-slate-800/70 ring-1 ring-inset ring-white/5 hover:bg-slate-700/80"
+                  ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
                   : "border-slate-200 bg-white hover:bg-slate-50"
               }`}
               aria-label="Open settings"
@@ -1336,9 +2025,9 @@ export default function SansPsPage({
       </header>
 
       {showEvaluationReport && evaluation ? (
-        <main className="mx-auto max-w-[1280px] px-6 py-8">
+        <main className="mx-auto w-full max-w-[1280px] flex-1 px-6 py-8">
           <div className="space-y-6">
-            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
                 <div className="min-w-0">
                   <button
@@ -1349,7 +2038,7 @@ export default function SansPsPage({
                     }}
                     className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all ${
                       darkMode
-                        ? "border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700"
+                        ? "border-transparent bg-slate-800 text-slate-100 hover:bg-slate-700"
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
@@ -1357,7 +2046,7 @@ export default function SansPsPage({
                   </button>
                   <h1 className="mt-4 text-3xl font-bold tracking-tight">Résultats de l&apos;évaluation</h1>
                   <p className={`mt-2 text-sm ${mutedText}`}>
-                    Rapport détaillé du monologue avec synthèse pédagogique et recommandations.
+                    Rapport détaillé de la station avec synthèse pédagogique et recommandations.
                   </p>
                 </div>
                 <div className="flex w-full flex-col gap-3 xl:w-auto xl:min-w-[440px] xl:max-w-[860px] xl:items-end">
@@ -1377,7 +2066,7 @@ export default function SansPsPage({
                           onClick={() => setShowReportAudioPlayer((current) => !current)}
                           className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
                             darkMode
-                              ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
+                              ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
                               : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
                           }`}
                         >
@@ -1389,7 +2078,7 @@ export default function SansPsPage({
                           onClick={downloadRecordedAudio}
                           className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
                             darkMode
-                              ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
+                              ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
                               : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
                           }`}
                         >
@@ -1408,7 +2097,7 @@ export default function SansPsPage({
                       }
                       className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
                         darkMode
-                          ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
+                          ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
                           : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
                       }`}
                     >
@@ -1440,15 +2129,15 @@ export default function SansPsPage({
               feedbackDetailLabel={formatFeedbackDetailLabel(
                 lastEvaluatedFeedbackDetailLevel ?? settings.feedbackDetailLevel,
               )}
-              elapsedSeconds={sessionDurationSeconds - remainingSeconds}
+              elapsedSeconds={lastSessionElapsedSeconds}
             />
           </div>
         </main>
       ) : (
-      <main className="mx-auto max-w-[1600px] px-6 py-8">
+      <main className="mx-auto w-full max-w-[1600px] flex-1 px-6 py-8">
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[470px_1fr]">
           <div className="space-y-6">
-            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
               <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
                 <h2 className="flex min-w-0 items-center gap-2 whitespace-nowrap text-base font-semibold md:text-lg">
                   <FileTextIcon className="h-5 w-5 shrink-0 text-primary-500" />
@@ -1490,34 +2179,34 @@ export default function SansPsPage({
                 </div>
               ) : (
                 <p className={`mt-3 text-xs ${mutedText}`}>
-                  Aucun patient n&apos;est simulé. Seule la grille sert à l&apos;évaluation finale.
+                  Aucun patient n&apos;est simulé. La grille sert de référence pour l&apos;évaluation finale.
                 </p>
               )}
             </div>
 
-            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
               <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
                 <ActivityIcon className="h-5 w-5 text-primary-500" />
                 Consigne
               </h2>
-              <div className={`rounded-xl border ${subCardBg} p-4`}>
+              <div className={`rounded-xl ${darkMode ? "" : "border"} ${subCardBg} p-4`}>
                 <p className="text-sm font-medium">
                   Présentez votre raisonnement à voix haute comme devant un examinateur.
                 </p>
                 <p className={`mt-2 text-sm leading-relaxed ${mutedText}`}>
-                  Le mode sans PS écoute uniquement l&apos;étudiant, segmente la parole sur les silences, transcrit le monologue au fil de la station, puis compare le texte final à la grille.
+                  Le mode sans PS reprend la logique de la station sans patient interactif : l&apos;étudiant parle librement, la session est transcrite, puis le contenu final est comparé à la grille après `Terminer`.
                 </p>
               </div>
             </div>
           </div>
 
           <div className="space-y-6">
-            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
               <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                 <div className="flex min-w-0 items-center gap-4">
                   <div className={`h-3 w-3 rounded-full ${statusColor} ${sessionPhase !== "idle" ? "animate-pulse" : ""}`} />
                   <div className="min-w-0">
-                    <h2 className="text-lg font-semibold">Session Monologue</h2>
+                    <h2 className="text-lg font-semibold">Session de discussion</h2>
                     <p className={`text-sm ${mutedText}`}>{status}</p>
                   </div>
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${subtleBg}`}>
@@ -1532,10 +2221,10 @@ export default function SansPsPage({
                     className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all duration-200 ${
                       canStart
                         ? darkMode
-                          ? "bg-primary-500 text-white shadow-lg shadow-primary-500/20 ring-1 ring-inset ring-white/10 hover:bg-primary-400"
+                          ? "bg-primary-500 text-white shadow-lg shadow-primary-500/20 hover:bg-primary-400"
                           : "bg-primary-600 text-white shadow-lg shadow-primary-500/20 hover:bg-primary-700"
                         : darkMode
-                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500 ring-1 ring-inset ring-white/5"
+                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
                           : "cursor-not-allowed bg-slate-200 text-slate-400"
                     }`}
                   >
@@ -1549,10 +2238,10 @@ export default function SansPsPage({
                     className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all duration-200 ${
                       canPause || isPaused
                         ? darkMode
-                          ? "bg-slate-800/85 text-slate-100 ring-1 ring-inset ring-white/5 hover:bg-slate-700/90"
+                          ? "bg-slate-800/85 text-slate-100 hover:bg-slate-700/90"
                           : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
                         : darkMode
-                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500 ring-1 ring-inset ring-white/5"
+                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
                           : "cursor-not-allowed bg-slate-200 text-slate-400"
                     }`}
                   >
@@ -1570,10 +2259,10 @@ export default function SansPsPage({
                     className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all duration-200 ${
                       canEnd
                         ? darkMode
-                          ? "bg-slate-800/85 text-slate-100 ring-1 ring-inset ring-white/5 hover:bg-slate-700/90"
+                          ? "bg-slate-800/85 text-slate-100 hover:bg-slate-700/90"
                           : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
                         : darkMode
-                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500 ring-1 ring-inset ring-white/5"
+                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
                           : "cursor-not-allowed bg-slate-200 text-slate-400"
                     }`}
                   >
@@ -1587,10 +2276,10 @@ export default function SansPsPage({
                     className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all duration-200 ${
                       canJudge
                         ? darkMode
-                          ? "bg-slate-800/85 text-slate-100 ring-1 ring-inset ring-white/5 hover:bg-slate-700/90"
+                          ? "bg-slate-800/85 text-slate-100 hover:bg-slate-700/90"
                           : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
                         : darkMode
-                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500 ring-1 ring-inset ring-white/5"
+                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
                           : "cursor-not-allowed bg-slate-200 text-slate-400"
                     }`}
                   >
@@ -1604,10 +2293,10 @@ export default function SansPsPage({
                     className={`flex min-w-[112px] items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all duration-200 ${
                       canResetSession
                         ? darkMode
-                          ? "bg-slate-800/85 text-slate-100 ring-1 ring-inset ring-white/5 hover:bg-slate-700/90"
+                          ? "bg-slate-800/85 text-slate-100 hover:bg-slate-700/90"
                           : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
                         : darkMode
-                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500 ring-1 ring-inset ring-white/5"
+                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
                           : "cursor-not-allowed bg-slate-200 text-slate-400"
                     }`}
                   >
@@ -1619,13 +2308,13 @@ export default function SansPsPage({
             </div>
 
             <div className={`grid min-h-0 items-start grid-cols-1 gap-6 lg:grid-cols-[320px_1fr] ${discussionPanelHeightClass}`}>
-              <div className={`self-start rounded-2xl border ${cardBg} p-6 shadow-soft lg:h-full`}>
+              <div className={`self-start rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft lg:h-full`}>
                 <div className="flex items-center gap-2">
                   <ClockIcon className={`h-4 w-4 ${mutedText}`} />
                   <span className="text-sm font-semibold">Outils de session</span>
                 </div>
 
-                <div className="mt-5 rounded-2xl border border-slate-200/70 p-5 dark:border-slate-700/60">
+                <div className={`mt-5 rounded-2xl p-5 ${darkMode ? "bg-slate-950/36" : "border border-slate-200/70"}`}>
                   <div className="flex items-center gap-2">
                     <ClockIcon className={`h-4 w-4 ${mutedText}`} />
                     <span className={`text-sm font-medium ${mutedText}`}>Temps restant</span>
@@ -1730,10 +2419,10 @@ export default function SansPsPage({
                       className={`absolute inset-0 z-10 m-auto flex h-16 w-16 items-center justify-center rounded-full transition-all ${
                         isMicMuted
                           ? darkMode
-                            ? "border border-rose-800 bg-slate-900"
+                            ? "border-transparent bg-slate-900"
                             : "border border-rose-200 bg-white"
                           : darkMode
-                            ? "border border-slate-700 bg-slate-800 hover:bg-slate-700"
+                            ? "border-transparent bg-slate-800 hover:bg-slate-700"
                             : "border border-slate-200 bg-white hover:bg-slate-50"
                       }`}
                     >
@@ -1762,7 +2451,7 @@ export default function SansPsPage({
                       </span>
                     </div>
 
-                    <div className={`mt-4 rounded-xl border ${subCardBg} p-3 opacity-75`}>
+                    <div className={`mt-4 rounded-xl ${darkMode ? "" : "border"} ${subCardBg} p-3 opacity-75`}>
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
@@ -1791,7 +2480,7 @@ export default function SansPsPage({
                         <button
                           type="button"
                           disabled
-                          className="shrink-0 cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500"
+                          className="shrink-0 cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-400 dark:border-transparent dark:bg-slate-800 dark:text-slate-500"
                         >
                           Modifier
                         </button>
@@ -1801,27 +2490,62 @@ export default function SansPsPage({
                 </div>
               </div>
 
-              <div className={`flex ${transcriptPanelHeightClass} min-h-0 flex-col overflow-hidden rounded-2xl border ${cardBg} p-6 shadow-soft lg:h-full`}>
+              <div className={`flex ${transcriptPanelHeightClass} min-h-0 flex-col overflow-hidden rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft lg:h-full`}>
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <h3 className="text-lg font-semibold">Transcription du monologue</h3>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void copyTextToClipboard(
-                        transcriptCopyText,
-                        "La transcription a été copiée.",
-                      )
-                    }
-                    disabled={!canCopyTranscript}
-                    className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
-                      darkMode
-                        ? "border-slate-700 bg-slate-100 text-slate-900 hover:bg-white"
-                        : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
-                    } ${!canCopyTranscript ? "cursor-not-allowed opacity-60" : ""}`}
-                  >
-                    <CopyIcon className="h-4 w-4" />
-                    Copy transcript
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleAiCorrectionClick}
+                      disabled={
+                        isCorrectingTranscript ||
+                        !hasEndedDiscussion ||
+                        !rawStudentTranscriptText.trim()
+                      }
+                      className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                        useAiCorrectedTranscript && aiCorrection
+                          ? darkMode
+                            ? "border-transparent bg-primary-400 text-slate-950 hover:bg-primary-300"
+                            : "border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100"
+                          : darkMode
+                            ? "border-transparent bg-slate-800 text-slate-100 hover:bg-slate-700"
+                            : "border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-50"
+                      } ${
+                        isCorrectingTranscript ||
+                        !hasEndedDiscussion ||
+                        !rawStudentTranscriptText.trim()
+                          ? "cursor-not-allowed opacity-60"
+                          : ""
+                      }`}
+                    >
+                      <SparklesIcon className={`h-4 w-4 ${isCorrectingTranscript ? "animate-pulse" : ""}`} />
+                      {isCorrectingTranscript
+                        ? "Correction en cours…"
+                        : aiCorrection
+                          ? useAiCorrectedTranscript
+                            ? "Correction IA active"
+                            : "Corriger le transcript avec l'IA"
+                          : "Corriger le transcript avec l'IA"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void copyTextToClipboard(
+                          transcriptCopyText,
+                          "La transcription a été copiée.",
+                        )
+                      }
+                      disabled={!canCopyTranscript}
+                      className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                        darkMode
+                          ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
+                          : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
+                      } ${!canCopyTranscript ? "cursor-not-allowed opacity-60" : ""}`}
+                    >
+                      <CopyIcon className="h-4 w-4" />
+                      Copy transcript
+                    </button>
+                  </div>
                 </div>
                 <div
                   ref={transcriptRef}
@@ -1880,27 +2604,22 @@ export default function SansPsPage({
                             </div>
                           ) : (
                             <div className="flex w-full justify-start">
-                              <div className="inline-flex w-fit max-w-[78%] items-start gap-3">
-                                <div className={`${darkMode ? "bg-slate-800 text-slate-300" : "bg-indigo-100 text-slate-500"} mt-5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full`}>
-                                  <UserIcon className="h-4 w-4" />
+                              <div className="w-full max-w-[84%]">
+                                <div className={`mb-1.5 flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                                  darkMode ? "text-slate-400" : "text-slate-500"
+                                }`}>
+                                  <span>STUDENT</span>
+                                  <span className={darkMode ? "text-slate-500" : "text-slate-400"}>
+                                    {entry.timestamp}
+                                  </span>
                                 </div>
-                                <div className="flex min-w-0 flex-col items-start">
-                                  <div className={`mb-1.5 flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
-                                    darkMode ? "text-slate-400" : "text-slate-500"
-                                  }`}>
-                                    <span>STUDENT</span>
-                                    <span className={darkMode ? "text-slate-500" : "text-slate-400"}>
-                                      {entry.timestamp}
-                                    </span>
-                                  </div>
-                                  <div className={`inline-block w-fit max-w-full rounded-[22px] px-4 py-3 text-left shadow-sm ${
-                                    darkMode
-                                      ? "border border-slate-700 bg-slate-900 text-slate-100"
-                                      : "border border-slate-200 bg-white text-slate-700"
-                                  }`}>
-                                    <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                                      {entry.text}
-                                    </div>
+                                <div className={`rounded-2xl px-4 py-3 text-left shadow-sm ${
+                                  darkMode
+                                    ? "border border-slate-700 bg-slate-900/95 text-slate-100"
+                                    : "border border-slate-200 bg-white text-slate-700"
+                                }`}>
+                                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                                    {entry.text}
                                   </div>
                                 </div>
                               </div>
@@ -1912,24 +2631,25 @@ export default function SansPsPage({
                       {showDraftIndicatorForDisplay && (
                         <div className="animate-fade-in">
                           <div className="flex w-full justify-start">
-                            <div className="inline-flex w-fit max-w-[78%] items-start gap-3">
-                              <div className={`${darkMode ? "bg-slate-800 text-slate-300" : "bg-indigo-100 text-slate-500"} mt-5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full`}>
-                                <UserIcon className="h-4 w-4" />
+                            <div className="w-full max-w-[84%]">
+                              <div className={`mb-1.5 flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                                darkMode ? "text-slate-400" : "text-slate-500"
+                              }`}>
+                                <span>STUDENT</span>
+                                <span className={darkMode ? "text-slate-500" : "text-slate-400"}>
+                                  {createTimestamp()}
+                                </span>
                               </div>
-                              <div className="flex min-w-0 flex-col items-start">
-                                <div className={`mb-1.5 flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
-                                  darkMode ? "text-slate-400" : "text-slate-500"
-                                }`}>
-                                  <span>STUDENT</span>
-                                  <span className={darkMode ? "text-slate-500" : "text-slate-400"}>
-                                    {createTimestamp()}
-                                  </span>
-                                </div>
-                                <div className={`inline-block w-fit max-w-full rounded-[22px] px-4 py-3 shadow-sm ${
-                                  darkMode
-                                    ? "border border-slate-700 bg-slate-900 text-slate-100"
-                                    : "border border-slate-200 bg-white text-slate-700"
-                                }`}>
+                              <div className={`rounded-2xl px-4 py-3 shadow-sm ${
+                                darkMode
+                                  ? "border border-slate-700 bg-slate-900/95 text-slate-100"
+                                  : "border border-slate-200 bg-white text-slate-700"
+                              }`}>
+                                {studentDraftText.trim() ? (
+                                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                                    {studentDraftText}
+                                  </div>
+                                ) : (
                                   <div className="flex items-center gap-2 text-sm">
                                     <span>En train de parler</span>
                                     <span className="flex gap-1">
@@ -1938,12 +2658,117 @@ export default function SansPsPage({
                                       <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-500 [animation-delay:300ms]" />
                                     </span>
                                   </div>
-                                </div>
+                                )}
                               </div>
                             </div>
                           </div>
                         </div>
                       )}
+                    </div>
+                  )}
+                </div>
+                {aiCorrection && (
+                  <div
+                    className={`mt-4 rounded-xl border px-4 py-3 text-xs ${
+                      darkMode
+                        ? "border-slate-700 bg-slate-950/60 text-slate-300"
+                        : "border-slate-200 bg-slate-50 text-slate-600"
+                    }`}
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <span className="font-semibold uppercase tracking-[0.18em]">
+                        Correction IA
+                      </span>
+                      <span className={mutedText}>
+                        {useAiCorrectedTranscript
+                          ? "Utilisée pour l'évaluation"
+                          : "Non utilisée pour l'évaluation"}
+                      </span>
+                    </div>
+                    <div
+                      className={`rounded-xl px-3 py-3 ${
+                        darkMode ? "bg-slate-900/80" : "bg-white"
+                      }`}
+                    >
+                      <div className="mb-1 flex items-center justify-between gap-3">
+                        <span className="font-semibold uppercase tracking-[0.16em]">
+                          Transcript {aiCorrection.timestamp}
+                        </span>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+                            aiCorrection.confidence === "high"
+                              ? darkMode
+                                ? "bg-emerald-950/70 text-emerald-300"
+                                : "bg-emerald-100 text-emerald-700"
+                              : aiCorrection.confidence === "medium"
+                                ? darkMode
+                                  ? "bg-amber-950/70 text-amber-300"
+                                  : "bg-amber-100 text-amber-700"
+                                : darkMode
+                                  ? "bg-rose-950/70 text-rose-300"
+                                  : "bg-rose-100 text-rose-700"
+                          }`}
+                        >
+                          {aiCorrection.confidence}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        <div>
+                          <div className={`mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${mutedText}`}>
+                            Brut transcrit
+                          </div>
+                          <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                            {aiCorrection.sourceText}
+                          </div>
+                        </div>
+                        <div>
+                          <div className={`mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${mutedText}`}>
+                            Correction IA
+                          </div>
+                          <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                            {aiCorrection.understoodText}
+                          </div>
+                        </div>
+                        {aiCorrection.ambiguities.length > 0 && (
+                          <div>
+                            <div className={`mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${mutedText}`}>
+                              Points ambigus
+                            </div>
+                            <div className="text-sm leading-relaxed">
+                              {aiCorrection.ambiguities.join(", ")}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div
+                  className={`mt-4 rounded-xl border px-4 py-3 text-xs ${
+                    darkMode
+                      ? "border-slate-700 bg-slate-950/60 text-slate-300"
+                      : "border-slate-200 bg-slate-50 text-slate-600"
+                  }`}
+                >
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <span className="font-semibold uppercase tracking-[0.18em]">
+                      Debug Live
+                    </span>
+                    <span className={mutedText}>
+                      {debugEvents.length > 0 ? `${debugEvents.length} événements` : "Aucun événement"}
+                    </span>
+                  </div>
+                  {debugEvents.length === 0 ? (
+                    <p className={mutedText}>
+                      Les messages debug de la session Sans PS apparaîtront ici.
+                    </p>
+                  ) : (
+                    <div className="space-y-1 font-mono">
+                      {debugEvents.map((event, index) => (
+                        <div key={`${event}-${index}`} className="break-words">
+                          {event}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -1953,6 +2778,19 @@ export default function SansPsPage({
           </div>
         </div>
       </main>
+      )}
+
+      {!showEvaluationReport && (
+        <div className={`mt-auto w-full px-8 pb-8 pt-6 text-center text-xs leading-relaxed ${mutedText}`}>
+          <div className="mx-auto max-w-4xl">
+            <span className="block">
+              Echo-IA utilise une technologie d&apos;intelligence artificielle de pointe pour la transcription.
+            </span>
+            <span className="block">
+              Bien que performant, des erreurs peuvent subsister. Nous vous recommandons de vérifier les points critiques à l&apos;aide de l&apos;audio original intégré.
+            </span>
+          </div>
+        </div>
       )}
 
       {isEvaluating && (
