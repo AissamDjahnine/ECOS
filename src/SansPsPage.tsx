@@ -1753,16 +1753,19 @@ export default function SansPsPage({
       !settings.autoEvaluateAfterEnd ||
       autoEvaluateHandledRef.current ||
       isEvaluating ||
+      isCorrectingTranscript ||
       evaluation
     ) {
       return;
     }
 
     autoEvaluateHandledRef.current = true;
-    handleEvaluateClick();
+    const timer = window.setTimeout(() => handleEvaluateClick(), 3000);
+    return () => window.clearTimeout(timer);
   }, [
     evaluation,
     hasEndedDiscussion,
+    isCorrectingTranscript,
     isEvaluating,
     remainingSeconds,
     settings.autoEvaluateAfterEnd,
@@ -2158,7 +2161,7 @@ export default function SansPsPage({
                 <div className="flex min-w-0 items-center gap-4">
                   <div className={`h-3 w-3 rounded-full ${statusColor} ${sessionPhase !== "idle" ? "animate-pulse" : ""}`} />
                   <div className="min-w-0">
-                    <h2 className="text-lg font-semibold">Session de discussion</h2>
+                    <h2 className="text-lg font-semibold">Session de monologue</h2>
                     <p className={`text-sm ${mutedText}`}>{status}</p>
                   </div>
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${subtleBg}`}>
@@ -2448,6 +2451,15 @@ export default function SansPsPage({
                         !hasEndedDiscussion ||
                         !rawStudentTranscriptText.trim()
                       }
+                      title={
+                        isCorrectingTranscript
+                          ? "Correction en cours…"
+                          : !hasEndedDiscussion
+                            ? "Disponible après la fin du monologue"
+                            : !rawStudentTranscriptText.trim()
+                              ? "Aucun transcript disponible"
+                              : undefined
+                      }
                       className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
                         useAiCorrectedTranscript && aiCorrection
                           ? darkMode
@@ -2467,10 +2479,8 @@ export default function SansPsPage({
                       <SparklesIcon className={`h-4 w-4 ${isCorrectingTranscript ? "animate-pulse" : ""}`} />
                       {isCorrectingTranscript
                         ? "Correction en cours…"
-                        : aiCorrection
-                          ? useAiCorrectedTranscript
-                            ? "Correction IA active"
-                            : "Corriger le transcript avec l'IA"
+                        : useAiCorrectedTranscript && aiCorrection
+                          ? "Revenir au transcript brut"
                           : "Corriger le transcript avec l'IA"}
                     </button>
                     <button
