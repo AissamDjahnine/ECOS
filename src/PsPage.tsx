@@ -9,6 +9,7 @@ import {
   type LiveServerMessage,
 } from "@google/genai";
 import { parseCaseInput, transcriptToPlainText } from "./lib/parser";
+import psExampleText from "./examples/ps-example.txt?raw";
 import { buildPsPdfDocument } from "./lib/pdf";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { EvaluationReport } from "./EvaluationReport";
@@ -401,6 +402,16 @@ function VoiceFemaleIcon({ className }: { className?: string }) {
       <circle cx="12" cy="8" r="5" />
       <path d="M12 13v8" />
       <path d="M9 18h6" />
+    </svg>
+  );
+}
+
+function BeakerIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4.5 3h15" />
+      <path d="M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3" />
+      <path d="M6 14h12" />
     </svg>
   );
 }
@@ -2437,6 +2448,22 @@ export default function App({
                   </div>
                 </h2>
                 <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRawInput(psExampleText)}
+                    disabled={isDiscussing || isPaused || isEvaluating || isConnecting}
+                    title="Charger un exemple"
+                    aria-label="Charger un exemple"
+                    className={`rounded-lg p-2 transition-colors ${
+                      isDiscussing || isPaused || isEvaluating || isConnecting
+                        ? "cursor-not-allowed bg-slate-200 text-slate-400 dark:bg-slate-700"
+                        : darkMode
+                          ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    <BeakerIcon className="h-4 w-4" />
+                  </button>
                   <button
                     onClick={requestClearText}
                     disabled={!canClearText}

@@ -15,6 +15,7 @@ import {
   type MicrophoneLevelSample,
 } from "./lib/audio";
 import { extractGradingGridOnly, transcriptToPlainText } from "./lib/parser";
+import sansPsExampleText from "./examples/sans-ps-example.txt?raw";
 import { buildSansPsPdfDocument } from "./lib/pdf";
 import { EvaluationReport } from "./EvaluationReport";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -580,6 +581,16 @@ function UserIcon({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M18 20a6 6 0 0 0-12 0" />
       <circle cx="12" cy="10" r="4" />
+    </svg>
+  );
+}
+
+function BeakerIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4.5 3h15" />
+      <path d="M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3" />
+      <path d="M6 14h12" />
     </svg>
   );
 }
@@ -2164,6 +2175,22 @@ export default function SansPsPage({
                   </div>
                 </h2>
                 <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRawInput(sansPsExampleText)}
+                    disabled={isDiscussing || isPaused || isEvaluating || isConnecting}
+                    title="Charger un exemple"
+                    aria-label="Charger un exemple"
+                    className={`rounded-lg p-2 transition-colors ${
+                      isDiscussing || isPaused || isEvaluating || isConnecting
+                        ? "cursor-not-allowed bg-slate-200 text-slate-400 dark:bg-slate-700"
+                        : darkMode
+                          ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    <BeakerIcon className="h-4 w-4" />
+                  </button>
                   <button
                     onClick={requestClearText}
                     disabled={!canClearText}
