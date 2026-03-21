@@ -27,6 +27,8 @@ export default function App() {
   useEffect(() => {
     const onPopState = () => {
       setMode(resolveMode(window.location.pathname));
+      setIsSettingsOpen(false);
+      setIsDashboardOpen(false);
     };
 
     window.addEventListener("popstate", onPopState);
@@ -87,6 +89,8 @@ export default function App() {
       window.history.pushState({}, "", nextPath);
     }
     setMode(nextMode);
+    setIsSettingsOpen(false);
+    setIsDashboardOpen(false);
   }
 
   return (
