@@ -247,6 +247,10 @@ function upsertTranscriptEntryById(
   return updated;
 }
 
+const NO_LEADING_SPACE_BEFORE = new Set([
+  ".", ",", ";", ":", "!", "?", ")", "]", "}", "'", "\u2019",
+]);
+
 function appendTranscriptChunk(currentText: string, incomingChunk: string) {
   const chunk = incomingChunk.trim();
   if (!chunk) {
@@ -276,21 +280,7 @@ function appendTranscriptChunk(currentText: string, incomingChunk: string) {
     }
   }
 
-  const noLeadingSpaceBefore = new Set([
-    ".",
-    ",",
-    ";",
-    ":",
-    "!",
-    "?",
-    ")",
-    "]",
-    "}",
-    "'",
-    "'",
-  ]);
-
-  if (noLeadingSpaceBefore.has(chunk)) {
+  if (NO_LEADING_SPACE_BEFORE.has(chunk)) {
     return `${current}${chunk}`;
   }
 
@@ -1141,18 +1131,6 @@ export default function App({
     setShowStudentDraftIndicator(false);
 
     const entryId = crypto.randomUUID();
-
-    if (fallbackText) {
-      setTranscript((current) => [
-        ...current,
-        {
-          id: entryId,
-          role: "student",
-          text: fallbackText,
-          timestamp: createTimestamp(),
-        },
-      ]);
-    }
 
     try {
       if (fallbackText) {

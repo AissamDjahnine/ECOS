@@ -48,7 +48,7 @@ export function RecordingPlayer({
     if (audioRef.current) {
       audioRef.current.playbackRate = playbackRate;
     }
-  }, [playbackRate, src]);
+  }, [playbackRate]);
 
   useEffect(() => {
     const audio = audioRef.current;

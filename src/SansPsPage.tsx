@@ -299,6 +299,10 @@ function upsertTranscriptEntryAtEndById(
   ];
 }
 
+const NO_LEADING_SPACE_BEFORE = new Set([
+  ".", ",", ";", ":", "!", "?", ")", "]", "}", "'", "\u2019",
+]);
+
 function appendTranscriptChunk(currentText: string, incomingChunk: string) {
   const chunk = incomingChunk.trim();
   if (!chunk) {
@@ -328,21 +332,7 @@ function appendTranscriptChunk(currentText: string, incomingChunk: string) {
     }
   }
 
-  const noLeadingSpaceBefore = new Set([
-    ".",
-    ",",
-    ";",
-    ":",
-    "!",
-    "?",
-    ")",
-    "]",
-    "}",
-    "'",
-    "'",
-  ]);
-
-  if (noLeadingSpaceBefore.has(chunk)) {
+  if (NO_LEADING_SPACE_BEFORE.has(chunk)) {
     return `${current}${chunk}`;
   }
 
@@ -576,15 +566,6 @@ function ClockIcon({ className }: { className?: string }) {
   );
 }
 
-function UserIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 20a6 6 0 0 0-12 0" />
-      <circle cx="12" cy="10" r="4" />
-    </svg>
-  );
-}
-
 function BeakerIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -715,8 +696,6 @@ export default function SansPsPage({
   const currentSessionIdRef = useRef<string | null>(null);
   const inputTranscriptRef = useRef("");
   const monologueEntryIdRef = useRef<string | null>(null);
-  const audioChunkCountRef = useRef(0);
-  const lastAudioDebugAtRef = useRef(0);
   const lastLiveUsageTotalsRef = useRef({
     inputTextTokens: 0,
     inputAudioTokens: 0,
@@ -921,8 +900,6 @@ export default function SansPsPage({
     }
     inputTranscriptRef.current = "";
     monologueEntryIdRef.current = null;
-    audioChunkCountRef.current = 0;
-    lastAudioDebugAtRef.current = 0;
     lastLiveUsageTotalsRef.current = {
       inputTextTokens: 0,
       inputAudioTokens: 0,
@@ -1377,8 +1354,6 @@ export default function SansPsPage({
               }
             }
 
-            if (serverContent?.generationComplete) {
-            }
 
             if (serverContent?.waitingForInput || serverContent?.turnComplete) {
               if (!isMicMutedRef.current) {
@@ -1430,12 +1405,6 @@ export default function SansPsPage({
           }
 
           const base64Audio = uint8ToBase64(rawPcm);
-
-          audioChunkCountRef.current += 1;
-          const now = Date.now();
-          if (now - lastAudioDebugAtRef.current > 1500) {
-            lastAudioDebugAtRef.current = now;
-          }
 
           session.sendRealtimeInput?.({
             audio: {
