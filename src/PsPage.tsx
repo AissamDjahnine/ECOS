@@ -2370,6 +2370,28 @@ export default function App({
                 <h2 className="flex min-w-0 items-center gap-2 whitespace-nowrap text-base font-semibold md:text-lg">
                   <FileTextIcon className="h-5 w-5 shrink-0 text-primary-500" />
                   <span>Configuration du cas</span>
+                  <div className="group relative">
+                    <button
+                      type="button"
+                      className={`flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
+                        darkMode
+                          ? "border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                          : "border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-700"
+                      }`}
+                      aria-label="Informations sur la configuration du cas"
+                    >
+                      <InfoIcon className="h-3.5 w-3.5" />
+                    </button>
+                    <div
+                      className={`pointer-events-none absolute left-0 top-full z-10 mt-2 w-72 rounded-2xl border px-3 py-2 text-sm font-normal leading-relaxed opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
+                        darkMode
+                          ? "border-slate-700 bg-slate-900 text-slate-200"
+                          : "border-slate-200 bg-white text-slate-700"
+                      }`}
+                    >
+                      Le parser détecte automatiquement les sections patient et grille à partir du texte au format Hypocampus.
+                    </div>
+                  </div>
                 </h2>
                 <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
                   <button
@@ -2401,14 +2423,10 @@ export default function App({
                 className={`w-full h-64 p-4 rounded-xl border resize-none text-sm leading-relaxed transition-all duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 ${inputBg}`}
               />
 
-              {parseError ? (
+              {parseError && (
                 <div className="mt-3 p-3 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 text-sm">
                   {parseError}
                 </div>
-              ) : (
-                <p className={`mt-3 text-xs ${mutedText}`}>
-                  Le parser détecte automatiquement les sections patient et grille.
-                </p>
               )}
             </div>
 

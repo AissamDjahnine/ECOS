@@ -1,6 +1,16 @@
 import type { CSSProperties } from "react";
 import type { EvaluationResult } from "./types";
 
+function InfoIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 16v-4" />
+      <path d="M12 8h.01" />
+    </svg>
+  );
+}
+
 function parseScore(score?: string) {
   if (!score) {
     return { value: 0, max: 15, ratio: 0 };
@@ -624,12 +634,31 @@ export function EvaluationReport({
             <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${mutedClass}`}>
               Plan d'amélioration
             </p>
-            <h3 className={`mt-2 text-2xl font-bold tracking-tight ${titleClass}`}>
+            <h3 className={`mt-2 flex items-center gap-2 text-2xl font-bold tracking-tight ${titleClass}`}>
               Recommandations
+              <div className="group relative">
+                <button
+                  type="button"
+                  className={`flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
+                    darkMode
+                      ? "border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                      : "border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-700"
+                  }`}
+                  aria-label="Informations sur les recommandations"
+                >
+                  <InfoIcon className="h-3.5 w-3.5" />
+                </button>
+                <div
+                  className={`pointer-events-none absolute left-0 top-full z-10 mt-2 w-72 rounded-2xl border px-3 py-2 text-sm font-normal leading-relaxed opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
+                    darkMode
+                      ? "border-slate-700 bg-slate-900 text-slate-200"
+                      : "border-slate-200 bg-white text-slate-700"
+                  }`}
+                >
+                  Deux axes concrets pour retravailler la station au prochain passage, générés à partir des critères non observés.
+                </div>
+              </div>
             </h3>
-            <p className={`mt-1 text-sm ${mutedClass}`}>
-              Deux axes concrets pour retravailler la station au prochain passage.
-            </p>
           </div>
           <span className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${
             darkMode

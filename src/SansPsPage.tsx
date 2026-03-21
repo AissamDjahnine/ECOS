@@ -595,6 +595,16 @@ function UserIcon({ className }: { className?: string }) {
   );
 }
 
+function InfoIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 16v-4" />
+      <path d="M12 8h.01" />
+    </svg>
+  );
+}
+
 function DownloadIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2097,6 +2107,28 @@ export default function SansPsPage({
                 <h2 className="flex min-w-0 items-center gap-2 whitespace-nowrap text-base font-semibold md:text-lg">
                   <FileTextIcon className="h-5 w-5 shrink-0 text-primary-500" />
                   <span>Configuration de station</span>
+                  <div className="group relative">
+                    <button
+                      type="button"
+                      className={`flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
+                        darkMode
+                          ? "border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                          : "border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-700"
+                      }`}
+                      aria-label="Informations sur la configuration de station"
+                    >
+                      <InfoIcon className="h-3.5 w-3.5" />
+                    </button>
+                    <div
+                      className={`pointer-events-none absolute left-0 top-full z-10 mt-2 w-72 rounded-2xl border px-3 py-2 text-sm font-normal leading-relaxed opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
+                        darkMode
+                          ? "border-slate-700 bg-slate-900 text-slate-200"
+                          : "border-slate-200 bg-white text-slate-700"
+                      }`}
+                    >
+                      Aucun patient n&apos;est simulé. La grille sert de référence pour l&apos;évaluation finale.
+                    </div>
+                  </div>
                 </h2>
                 <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
                   <button
@@ -2128,14 +2160,10 @@ export default function SansPsPage({
                 className={`h-80 w-full resize-none rounded-xl border p-4 text-sm leading-relaxed transition-all duration-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 ${inputBg}`}
               />
 
-              {parseError ? (
+              {parseError && (
                 <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-600 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-400">
                   {parseError}
                 </div>
-              ) : (
-                <p className={`mt-3 text-xs ${mutedText}`}>
-                  Aucun patient n&apos;est simulé. La grille sert de référence pour l&apos;évaluation finale.
-                </p>
               )}
             </div>
 
@@ -2143,14 +2171,47 @@ export default function SansPsPage({
               <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
                 <ActivityIcon className="h-5 w-5 text-primary-500" />
                 Consigne
+                <div className="group relative">
+                  <button
+                    type="button"
+                    className={`flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
+                      darkMode
+                        ? "border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                        : "border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-700"
+                    }`}
+                    aria-label="Informations sur le mode sans PS"
+                  >
+                    <InfoIcon className="h-3.5 w-3.5" />
+                  </button>
+                  <div
+                    className={`pointer-events-none absolute left-0 top-full z-10 mt-2 w-72 rounded-2xl border px-3 py-2 text-sm font-normal leading-relaxed opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
+                      darkMode
+                        ? "border-slate-700 bg-slate-900 text-slate-200"
+                        : "border-slate-200 bg-white text-slate-700"
+                    }`}
+                  >
+                    Le mode sans PS reprend la logique de la station sans patient interactif : vous parlez librement, votre monologue est transcrit, puis comparé à la grille après &laquo;&nbsp;Terminer&nbsp;&raquo;.
+                  </div>
+                </div>
               </h2>
               <div className={`rounded-xl ${darkMode ? "" : "border"} ${subCardBg} p-4`}>
                 <p className="text-sm font-medium">
                   Présentez votre raisonnement à voix haute comme devant un examinateur.
                 </p>
-                <p className={`mt-2 text-sm leading-relaxed ${mutedText}`}>
-                  Le mode sans PS reprend la logique de la station sans patient interactif : l&apos;étudiant parle librement, la session est transcrite, puis le contenu final est comparé à la grille après &laquo;&nbsp;Terminer&nbsp;&raquo;.
-                </p>
+                <ul className={`mt-3 space-y-1.5 text-sm ${mutedText}`}>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-0.5 text-primary-500">•</span>
+                    Structurez votre réponse : anamnèse, examen, hypothèses, plan.
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-0.5 text-primary-500">•</span>
+                    Parlez de manière claire et articulée pour une transcription optimale.
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-0.5 text-primary-500">•</span>
+                    Cliquez &laquo;&nbsp;Terminer&nbsp;&raquo; quand vous avez couvert tous les points.
+                  </li>
+                </ul>
               </div>
             </div>
           </div>
