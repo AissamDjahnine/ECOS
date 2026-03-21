@@ -427,7 +427,7 @@ export function SettingsDrawer({
               <SettingRow
                 darkMode={darkMode}
                 title="Afficher la transcription en direct"
-                description="Masque la transcription pendant la session, puis la réaffiche une fois terminée."
+                description="S'applique aux deux modes (PS/PSS et Sans PS). Masque la transcription pendant la session, puis la réaffiche une fois terminée."
                 layout="inline-toggle"
                 control={
                   <Toggle

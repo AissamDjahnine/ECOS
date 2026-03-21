@@ -2015,7 +2015,7 @@ export default function SansPsPage({
                   </p>
                 </div>
                 <div className="flex w-full flex-col gap-3 xl:w-auto xl:min-w-[440px] xl:max-w-[860px] xl:items-end">
-                  <div className="flex flex-nowrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {canRerunEvaluation && (
                       <button
                         onClick={handleRerunEvaluation}
@@ -2230,7 +2230,7 @@ export default function SansPsPage({
                   </span>
                 </div>
 
-                <div className="flex flex-nowrap items-center gap-3 lg:shrink-0">
+                <div className="flex flex-wrap items-center gap-3 lg:shrink-0">
                   <button
                     onClick={startSession}
                     disabled={!canStart}
