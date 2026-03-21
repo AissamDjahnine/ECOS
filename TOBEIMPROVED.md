@@ -2,15 +2,30 @@
 
 ## UI / UX / Behaviour
 
-- `Sans PS` : le bouton `Correct transcript with AI` reste en anglais dans une interface sinon entièrement francisée. C’est visible dans l’en-tête du bloc `Transcription du monologue`, et cela casse la cohérence produit. Proposition : renommer en `Corriger le transcript avec l’IA` ou `Correction IA`.
-- L’application mélange encore anglais et français sur plusieurs actions majeures : `Copy transcript`, `Clear`, `Reset`, `Play discussion audio`, `Download discussion audio`, `Copy evaluation`, `Export PDF`, `Correcting...`, `AI correction active`. Ce n’est plus un détail ponctuel mais un problème global de cohérence produit et de crédibilité UX.
-- Les labels d’accessibilité ne sont pas non plus entièrement francisés : `Open dashboard`, `Open settings`, etc. Le problème dépasse donc le visuel et touche aussi l’expérience lecteur d’écran.
-- `Sans PS` conserve aussi des wording hérités du mode dialogue : dans le report, les actions parlent encore de `discussion audio` alors que l’expérience est explicitement un `monologue`. Cela brouille la compréhension du mode et donne un sentiment de produit assemblé par couches.
-- Le disclaimer IA n’est pas cohérent entre les deux modes : en `PS/PSS`, il reste affiché sur l’écran de résultats, alors qu’en `Sans PS` il disparaît dès que `showEvaluationReport` passe à `true`. C’est justement sur le report que le rappel de prudence est le plus utile.
-- Le réglage `Afficher la transcription en direct` agit globalement sur `PS/PSS` et `Sans PS`, mais son wording ne l’explicite pas. En pratique, cela crée un effet de surprise : l’utilisateur peut croire avoir “cassé” la transcription d’un mode alors qu’il a seulement modifié un réglage partagé.
-- `Sans PS` : la source d’évaluation peut changer (`Transcript brut` vs `Correction IA`) sans mécanisme explicite d’obsolescence du report déjà généré. Le toast dit bien “l’évaluation utilisera…”, mais si un report existe déjà, rien ne signale clairement qu’il faut le relancer pour refléter cette nouvelle source.
-- `Sans PS` : si `Évaluer automatiquement en fin de session` est activé, l’évaluation part immédiatement à la fin du monologue, avant de laisser à l’utilisateur la possibilité d’activer `Correction IA`. Cela court-circuite la promesse fonctionnelle “l’IA corrigée comme source d’évaluation optionnelle”.
-- `Sans PS` : le bouton de `Correction IA` mélange état et action. Quand la correction est active, le libellé devient `AI correction active`, alors que le clic suivant va en réalité désactiver cette source. Il manque une séparation claire entre “statut courant” et “action disponible”.
-- `Sans PS` : le bouton de `Correction IA` est visible même quand il est structurellement indisponible (avant la fin de session / sans transcript exploitable), mais sans explication contextuelle. On voit un bouton grisé, sans comprendre clairement “pourquoi maintenant ce n’est pas possible”.
-- Plusieurs barres d’actions sont forcées en `flex-nowrap` (`session controls`, actions du report, boutons de transcript). Cela crée un risque de débordement ou d’écrasement sur des largeurs intermédiaires, alors que le produit manipule déjà beaucoup de contrôles simultanés.
-- Le mode sombre n’est pas persisté. Dans `App.tsx`, `darkMode` est gardé en state local simple, contrairement aux autres préférences stockées via `settings`. Un refresh ou un retour ultérieur fait donc perdre le choix de thème.
+- **[CRITIQUE]** `Sans PS` : le bloc `DEBUG LIVE` est visible par l'utilisateur final. C'est un artefact de développement qui n'a aucune place dans une interface produit. Il doit être supprimé ou conditionné à une variable d'environnement de debug.
+
+- **[CRITIQUE]** Le titre du drawer de réglages s'affiche `Settings` en anglais, alors que tout le contenu en dessous est en français. C'est la première chose que voit l'utilisateur à l'ouverture du panneau.
+
+- L'application mélange encore anglais et français sur plusieurs actions majeures : `Copy transcript` (PS/PSS et Sans PS), `Clear` (les deux modes), `Reset` (les deux modes), `Play discussion audio` (rapport PS/PSS), `Download discussion audio` (rapport PS/PSS), `Copy evaluation` (rapport les deux modes), `Export PDF` (rapport les deux modes). Ce n'est plus un détail ponctuel mais un problème global de cohérence produit et de crédibilité UX.
+
+- Les labels d'accessibilité ne sont pas entièrement francisés : `Open dashboard`, `Open settings`. Le problème dépasse le visuel et touche aussi l'expérience lecteur d'écran.
+
+- `Sans PS` : dans le panneau "Session de discussion", le titre reste `Session de discussion` alors que l'expérience est un monologue. Ce wording hérité du mode PS/PSS brouille la sémantique du mode.
+
+- `Sans PS` : le badge `DISABLED` sur la section "Voix du patient" est en anglais. Devrait être `Désactivée` pour rester cohérent avec l'interface.
+
+- Le mode sombre n'est pas persisté. Dans `App.tsx`, `darkMode` est gardé en state local simple, contrairement aux autres préférences stockées via `settings`. Un refresh ou une navigation inter-mode fait donc perdre le choix de thème.
+
+- Le disclaimer IA n'est pas cohérent entre les deux modes : en `PS/PSS`, il reste affiché sur l'écran de résultats, alors qu'en `Sans PS` il disparaît dès que `showEvaluationReport` passe à `true`. C'est justement sur le report que le rappel de prudence est le plus utile.
+
+- `Sans PS` : le bouton de `Correction IA` mélange état et action. Quand la correction est active, le libellé devient `Correction IA active`, alors que le clic suivant va en réalité désactiver cette source. Il manque une séparation claire entre "statut courant" et "action disponible".
+
+- `Sans PS` : le bouton de `Correction IA` est visible même quand il est structurellement indisponible (avant la fin de session / sans transcript exploitable), mais sans explication contextuelle. On voit un bouton grisé, sans comprendre clairement "pourquoi maintenant ce n'est pas possible".
+
+- `Sans PS` : la source d'évaluation peut changer (`Transcript brut` vs `Correction IA`) sans mécanisme explicite d'obsolescence du report déjà généré. Le toast dit bien "l'évaluation utilisera…", mais si un report existe déjà, rien ne signale clairement qu'il faut le relancer pour refléter cette nouvelle source.
+
+- Le réglage `Afficher la transcription en direct` agit globalement sur `PS/PSS` et `Sans PS`, mais son wording ne l'explicite pas. En pratique, cela crée un effet de surprise : l'utilisateur peut croire avoir "cassé" la transcription d'un mode alors qu'il a seulement modifié un réglage partagé.
+
+- Plusieurs barres d'actions sont forcées en `flex-nowrap` (`session controls`, actions du report, boutons de transcript). Cela crée un risque de débordement ou d'écrasement sur des largeurs intermédiaires.
+
+- `Sans PS` : si `Évaluer automatiquement en fin de session` est activé, l'évaluation part immédiatement à la fin du monologue, avant de laisser à l'utilisateur la possibilité d'activer `Correction IA`. Cela court-circuite la promesse fonctionnelle "l'IA corrigée comme source d'évaluation optionnelle".

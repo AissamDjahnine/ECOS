@@ -650,7 +650,6 @@ export default function SansPsPage({
   const [showStudentDraftIndicator, setShowStudentDraftIndicator] =
     useState(false);
   const [studentDraftText, setStudentDraftText] = useState("");
-  const [debugEvents, setDebugEvents] = useState<string[]>([]);
   const [aiCorrection, setAiCorrection] =
     useState<TranscriptDebugUnderstanding | null>(null);
   const [isCorrectingTranscript, setIsCorrectingTranscript] = useState(false);
@@ -805,10 +804,12 @@ export default function SansPsPage({
     showStudentDraftIndicator &&
     showLiveTranscriptContent &&
     !hasCommittedStudentTranscript;
-  const transcriptCopyText = useMemo(
-    () => buildTranscriptCopy(transcript, settings.showSystemMessages),
-    [settings.showSystemMessages, transcript],
-  );
+  const transcriptCopyText = useMemo(() => {
+    if (useAiCorrectedTranscript && aiCorrection?.understoodText?.trim()) {
+      return aiCorrection.understoodText.trim();
+    }
+    return buildTranscriptCopy(transcript, settings.showSystemMessages);
+  }, [aiCorrection, settings.showSystemMessages, transcript, useAiCorrectedTranscript]);
   const canCopyTranscript =
     (settings.showLiveTranscript || hasEndedDiscussion || hasCommittedStudentTranscript) &&
     transcriptCopyText.trim().length > 0;
@@ -855,18 +856,6 @@ export default function SansPsPage({
     }
   }, [sessionPhase]);
 
-  function pushDebugEvent(message: string) {
-    const timestamp = new Date().toLocaleTimeString("fr-FR", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-
-    setDebugEvents((current) => [
-      ...current.slice(-11),
-      `${timestamp}  ${message}`,
-    ]);
-  }
 
   function handleParse() {
     const nextGrid = extractGradingGridOnly(rawInput);
@@ -961,7 +950,6 @@ export default function SansPsPage({
         timestamp: createTimestamp(),
       });
       setUseAiCorrectedTranscript(true);
-      pushDebugEvent(`Correction IA (${payload.confidence}) reçue`);
       onShowToast(
         "Correction IA prête",
         "La correction IA sera utilisée pour l'évaluation tant qu'elle reste activée.",
@@ -972,7 +960,6 @@ export default function SansPsPage({
         error instanceof Error
           ? error.message
           : "Erreur de compréhension debug inconnue";
-      pushDebugEvent(`Échec compréhension IA: ${message}`);
       onShowToast("Échec correction IA", message, "error");
     } finally {
       setIsCorrectingTranscript(false);
@@ -1012,7 +999,6 @@ export default function SansPsPage({
         return;
       }
 
-      pushDebugEvent(`${reason}: flush de secours du draft`);
       flushStudentDraft();
       pendingManualTurnEndRef.current = false;
       if (isPausedRef.current) {
@@ -1028,7 +1014,6 @@ export default function SansPsPage({
   function requestTurnCompletion(reason: string) {
     pendingManualTurnEndRef.current = true;
     sessionRef.current?.sendRealtimeInput?.({ audioStreamEnd: true });
-    pushDebugEvent(`${reason}: audioStreamEnd envoyé`);
     scheduleTurnEndFallbackFlush(reason);
   }
 
@@ -1193,8 +1178,6 @@ export default function SansPsPage({
           "Session démarrée. Présentez votre raisonnement et votre conduite à tenir.",
         ),
       ]);
-      setDebugEvents([]);
-      pushDebugEvent("Session Sans PS initialisée");
       setIsPaused(false);
       isPausedRef.current = false;
       setIsMicMuted(false);
@@ -1229,9 +1212,6 @@ export default function SansPsPage({
         token: string;
         model: string;
       };
-      pushDebugEvent(
-        `Jeton Live reçu (mode=silent, model=${tokenPayload.model || liveModel})`,
-      );
 
       setStatus("Ouverture de la session Live");
 
@@ -1265,7 +1245,6 @@ export default function SansPsPage({
             shouldSendAudioRef.current = true;
             setStatus("Session Live ouverte, en attente de l'étudiant");
             setSessionPhase("idle");
-            pushDebugEvent("Connexion Live ouverte");
           },
 
           onmessage: (message: LiveServerMessage) => {
@@ -1314,30 +1293,11 @@ export default function SansPsPage({
               liveMessage.inputTranscription ??
               serverContent?.inputTranscription;
 
-            pushDebugEvent(
-              [
-                "Live msg",
-                inputTranscription?.text?.trim()
-                  ? `inputTx=${inputTranscription.text.trim().length}c`
-                  : "inputTx=0",
-                serverContent?.generationComplete ? "generationComplete" : null,
-                serverContent?.turnComplete ? "turnComplete" : null,
-                serverContent?.waitingForInput
-                  ? "waitingForInput"
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(" | "),
-            );
 
             if (inputTranscription?.text) {
               if (isPausedRef.current && !pendingManualTurnEndRef.current) {
-                pushDebugEvent("Transcription ignorée pendant la pause");
                 return;
               }
-              pushDebugEvent(
-                `Transcription reçue: ${inputTranscription.text.slice(0, 80)}`,
-              );
               inputTranscriptRef.current = appendTranscriptChunk(
                 inputTranscriptRef.current,
                 inputTranscription.text,
@@ -1357,14 +1317,12 @@ export default function SansPsPage({
             }
 
             if (serverContent?.generationComplete) {
-              pushDebugEvent("generationComplete ignoré en mode Sans PS");
             }
 
             if (serverContent?.waitingForInput) {
               shouldSendAudioRef.current = true;
               clearTurnEndFallbackTimer();
               pendingManualTurnEndRef.current = false;
-              pushDebugEvent("waitingForInput détecté, flush du draft");
               flushStudentDraft();
               if (isPausedRef.current) {
                 setSessionPhase("paused");
@@ -1379,7 +1337,6 @@ export default function SansPsPage({
               shouldSendAudioRef.current = true;
               clearTurnEndFallbackTimer();
               pendingManualTurnEndRef.current = false;
-              pushDebugEvent("turnComplete détecté, flush du draft");
               flushStudentDraft();
               if (isPausedRef.current) {
                 setSessionPhase("paused");
@@ -1399,7 +1356,6 @@ export default function SansPsPage({
             setSessionPhase("idle");
             setShowStudentDraftIndicator(false);
             setStudentDraftText("");
-            pushDebugEvent(`Erreur Live: ${error.message}`);
           },
 
           onclose: () => {
@@ -1409,7 +1365,6 @@ export default function SansPsPage({
             setSessionPhase("idle");
             setShowStudentDraftIndicator(false);
             setStudentDraftText("");
-            pushDebugEvent("Connexion Live fermée");
           },
         },
       })) as LiveSession;
@@ -1430,7 +1385,6 @@ export default function SansPsPage({
           const now = Date.now();
           if (now - lastAudioDebugAtRef.current > 1500) {
             lastAudioDebugAtRef.current = now;
-            pushDebugEvent(`Audio envoyé (${audioChunkCountRef.current} chunks)`);
           }
 
           session.sendRealtimeInput?.({
@@ -1540,7 +1494,6 @@ export default function SansPsPage({
     isMicMutedRef.current = false;
     isPausedRef.current = false;
     setIsMicMuted(false);
-    pushDebugEvent("Session reprise");
     setIsDiscussing(true);
     setIsPaused(false);
     setSessionPhase("idle");
@@ -1710,7 +1663,6 @@ export default function SansPsPage({
         setMicPeak(0);
       } else {
         shouldSendAudioRef.current = true;
-        pushDebugEvent("Micro réactivé");
         if (isDiscussing && !isPaused) {
           setStatus("Session en cours");
         }
@@ -2307,8 +2259,8 @@ export default function SansPsPage({
               </div>
             </div>
 
-            <div className={`grid min-h-0 items-start grid-cols-1 gap-6 lg:grid-cols-[320px_1fr] ${discussionPanelHeightClass}`}>
-              <div className={`self-start rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft lg:h-full`}>
+            <div className={`grid min-h-0 grid-cols-1 gap-6 lg:grid-cols-[320px_1fr] ${discussionPanelHeightClass}`}>
+              <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft lg:h-full overflow-hidden`}>
                 <div className="flex items-center gap-2">
                   <ClockIcon className={`h-4 w-4 ${mutedText}`} />
                   <span className="text-sm font-semibold">Outils de session</span>
@@ -2447,7 +2399,7 @@ export default function SansPsPage({
                           ? "bg-slate-800 text-slate-300"
                           : "bg-slate-100 text-slate-500"
                       }`}>
-                        Disabled
+                        Désactivée
                       </span>
                     </div>
 
@@ -2549,11 +2501,27 @@ export default function SansPsPage({
                 </div>
                 <div
                   ref={transcriptRef}
-                  className={`min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-smooth rounded-xl ${
+                  className={`min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-smooth rounded-xl transition-all duration-500 ${
                     darkMode ? "bg-slate-950/50" : "bg-slate-50/80"
-                  }`}
+                  } ${isCorrectingTranscript ? "animate-pulse" : ""}`}
                 >
-                  {transcriptForDisplay.length === 0 && !showDraftIndicatorForDisplay ? (
+                  {useAiCorrectedTranscript && aiCorrection ? (
+                    <div className="flex min-h-full flex-col p-4">
+                      <div className="mb-2 flex items-center gap-2">
+                        <SparklesIcon className={`h-3.5 w-3.5 ${darkMode ? "text-primary-400" : "text-primary-600"}`} />
+                        <span className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${darkMode ? "text-primary-400" : "text-primary-600"}`}>
+                          Correction IA active
+                        </span>
+                      </div>
+                      <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+                        darkMode
+                          ? "border border-slate-700 bg-slate-900/95 text-slate-100"
+                          : "border border-slate-200 bg-white text-slate-700"
+                      }`}>
+                        {aiCorrection.understoodText}
+                      </div>
+                    </div>
+                  ) : transcriptForDisplay.length === 0 && !showDraftIndicatorForDisplay ? (
                     <div className="flex h-full items-center justify-center rounded-xl p-4">
                       <div className="text-center">
                         <div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl ${subtleBg}`}>
@@ -2664,111 +2632,6 @@ export default function SansPsPage({
                           </div>
                         </div>
                       )}
-                    </div>
-                  )}
-                </div>
-                {aiCorrection && (
-                  <div
-                    className={`mt-4 rounded-xl border px-4 py-3 text-xs ${
-                      darkMode
-                        ? "border-slate-700 bg-slate-950/60 text-slate-300"
-                        : "border-slate-200 bg-slate-50 text-slate-600"
-                    }`}
-                  >
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <span className="font-semibold uppercase tracking-[0.18em]">
-                        Correction IA
-                      </span>
-                      <span className={mutedText}>
-                        {useAiCorrectedTranscript
-                          ? "Utilisée pour l'évaluation"
-                          : "Non utilisée pour l'évaluation"}
-                      </span>
-                    </div>
-                    <div
-                      className={`rounded-xl px-3 py-3 ${
-                        darkMode ? "bg-slate-900/80" : "bg-white"
-                      }`}
-                    >
-                      <div className="mb-1 flex items-center justify-between gap-3">
-                        <span className="font-semibold uppercase tracking-[0.16em]">
-                          Transcript {aiCorrection.timestamp}
-                        </span>
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ${
-                            aiCorrection.confidence === "high"
-                              ? darkMode
-                                ? "bg-emerald-950/70 text-emerald-300"
-                                : "bg-emerald-100 text-emerald-700"
-                              : aiCorrection.confidence === "medium"
-                                ? darkMode
-                                  ? "bg-amber-950/70 text-amber-300"
-                                  : "bg-amber-100 text-amber-700"
-                                : darkMode
-                                  ? "bg-rose-950/70 text-rose-300"
-                                  : "bg-rose-100 text-rose-700"
-                          }`}
-                        >
-                          {aiCorrection.confidence}
-                        </span>
-                      </div>
-                      <div className="space-y-2">
-                        <div>
-                          <div className={`mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${mutedText}`}>
-                            Brut transcrit
-                          </div>
-                          <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                            {aiCorrection.sourceText}
-                          </div>
-                        </div>
-                        <div>
-                          <div className={`mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${mutedText}`}>
-                            Correction IA
-                          </div>
-                          <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                            {aiCorrection.understoodText}
-                          </div>
-                        </div>
-                        {aiCorrection.ambiguities.length > 0 && (
-                          <div>
-                            <div className={`mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${mutedText}`}>
-                              Points ambigus
-                            </div>
-                            <div className="text-sm leading-relaxed">
-                              {aiCorrection.ambiguities.join(", ")}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div
-                  className={`mt-4 rounded-xl border px-4 py-3 text-xs ${
-                    darkMode
-                      ? "border-slate-700 bg-slate-950/60 text-slate-300"
-                      : "border-slate-200 bg-slate-50 text-slate-600"
-                  }`}
-                >
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <span className="font-semibold uppercase tracking-[0.18em]">
-                      Debug Live
-                    </span>
-                    <span className={mutedText}>
-                      {debugEvents.length > 0 ? `${debugEvents.length} événements` : "Aucun événement"}
-                    </span>
-                  </div>
-                  {debugEvents.length === 0 ? (
-                    <p className={mutedText}>
-                      Les messages debug de la session Sans PS apparaîtront ici.
-                    </p>
-                  ) : (
-                    <div className="space-y-1 font-mono">
-                      {debugEvents.map((event, index) => (
-                        <div key={`${event}-${index}`} className="break-words">
-                          {event}
-                        </div>
-                      ))}
                     </div>
                   )}
                 </div>
