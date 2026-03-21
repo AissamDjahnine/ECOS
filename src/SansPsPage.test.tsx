@@ -640,9 +640,9 @@ describe("SansPsPage", () => {
     );
     await user.click(screen.getByRole("button", { name: "Analyser" }));
 
-    // Before session: button shows French label and is disabled
+    // Before session: button shows icon and is disabled
     expect(
-      screen.getByRole("button", { name: /corriger le transcript avec l'ia/i }),
+      screen.getByRole("button", { name: /correction ia/i }),
     ).toBeDisabled();
   });
 

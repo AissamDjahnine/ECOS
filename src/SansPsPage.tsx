@@ -774,20 +774,20 @@ export default function SansPsPage({
 
   const theme = darkMode ? "dark" : "light";
   const bgClass = darkMode
-    ? "bg-[radial-gradient(circle_at_top,_rgba(45,212,191,0.10),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.08),_transparent_24%),linear-gradient(135deg,_#020617_0%,_#0b1120_48%,_#111827_100%)]"
+    ? "bg-[radial-gradient(circle_at_top,_rgba(45,212,191,0.06),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.04),_transparent_24%),linear-gradient(135deg,_#0f172a_0%,_#1e293b_100%)]"
     : "bg-gradient-to-br from-slate-50 via-white to-slate-100";
   const textClass = darkMode ? "text-slate-100" : "text-slate-900";
   const cardBg = darkMode
-    ? "bg-slate-900/72 shadow-[0_12px_40px_rgba(2,6,23,0.38)] backdrop-blur-xl"
+    ? "bg-slate-800/80 border-slate-700/60 shadow-lg backdrop-blur-xl"
     : "bg-white/90 border-slate-200/60";
   const subCardBg = darkMode
-    ? "bg-slate-800/55"
+    ? "bg-slate-900/70 border-slate-700/40"
     : "bg-slate-50/80 border-slate-200/50";
   const inputBg = darkMode
-    ? "bg-slate-950/80 border-transparent text-slate-100 placeholder-slate-500"
+    ? "bg-slate-900 border-slate-700 text-slate-100 placeholder-slate-400"
     : "bg-white border-slate-200 text-slate-900 placeholder-slate-400";
-  const mutedText = darkMode ? "text-slate-300/90" : "text-slate-500";
-  const subtleBg = darkMode ? "bg-slate-800/45" : "bg-slate-100/60";
+  const mutedText = darkMode ? "text-slate-400" : "text-slate-500";
+  const subtleBg = darkMode ? "bg-slate-700/50" : "bg-slate-100/60";
   const transcriptForDisplay = useMemo(() => {
     const withVisibleRoles = settings.showSystemMessages
       ? transcript
@@ -2011,7 +2011,7 @@ export default function SansPsPage({
       {showEvaluationReport && evaluation ? (
         <main className="mx-auto w-full max-w-[1280px] flex-1 px-6 py-8">
           <div className="space-y-6">
-            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
+            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
                 <div className="min-w-0">
                   <button
@@ -2121,11 +2121,11 @@ export default function SansPsPage({
       <main className="mx-auto w-full max-w-[1600px] flex-1 px-6 py-8">
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[470px_1fr]">
           <div className="flex flex-col gap-6">
-            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
-              <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-                <h2 className="flex min-w-0 items-center gap-2 whitespace-nowrap text-base font-semibold md:text-lg">
+            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+              <div className="mb-4 flex items-center justify-between gap-2">
+                <h2 className="flex items-center gap-2 text-lg font-semibold">
                   <FileTextIcon className="h-5 w-5 shrink-0 text-primary-500" />
-                  <span>Configuration de station</span>
+                  Configuration de station
                   <div className="group relative">
                     <button
                       type="button"
@@ -2139,7 +2139,7 @@ export default function SansPsPage({
                       <InfoIcon className="h-3.5 w-3.5" />
                     </button>
                     <div
-                      className={`pointer-events-none absolute left-0 top-full z-20 mt-2 w-72 rounded-2xl border px-3 py-2 text-sm font-normal leading-relaxed opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
+                      className={`pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 rounded-2xl border px-4 py-3 text-sm font-normal leading-relaxed opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
                         darkMode
                           ? "border-slate-700 bg-slate-900 text-slate-200"
                           : "border-slate-200 bg-white text-slate-700"
@@ -2189,7 +2189,7 @@ export default function SansPsPage({
               )}
             </div>
 
-            <div className={`flex-1 rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
+            <div className={`flex-1 rounded-2xl border ${cardBg} p-6 shadow-soft`}>
               <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
                 <ActivityIcon className="h-5 w-5 text-primary-500" />
                 Consigne
@@ -2206,7 +2206,7 @@ export default function SansPsPage({
                     <InfoIcon className="h-3.5 w-3.5" />
                   </button>
                   <div
-                    className={`pointer-events-none absolute left-0 top-full z-10 mt-2 w-72 rounded-2xl border px-3 py-2 text-sm font-normal leading-relaxed opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
+                    className={`pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 rounded-2xl border px-4 py-3 text-sm font-normal leading-relaxed opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
                       darkMode
                         ? "border-slate-700 bg-slate-900 text-slate-200"
                         : "border-slate-200 bg-white text-slate-700"
@@ -2216,7 +2216,7 @@ export default function SansPsPage({
                   </div>
                 </div>
               </h2>
-              <div className={`rounded-xl ${darkMode ? "" : "border"} ${subCardBg} p-4`}>
+              <div className={`rounded-xl border ${subCardBg} p-4`}>
                 <p className="text-sm font-medium">
                   Présentez votre raisonnement à voix haute comme devant un examinateur.
                 </p>
@@ -2239,7 +2239,7 @@ export default function SansPsPage({
           </div>
 
           <div className="space-y-6">
-            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
+            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
               <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                 <div className="flex min-w-0 items-center gap-4">
                   <div className={`h-3 w-3 rounded-full ${statusColor} ${sessionPhase !== "idle" ? "animate-pulse" : ""}`} />
@@ -2346,7 +2346,7 @@ export default function SansPsPage({
             </div>
 
             <div className={`grid min-h-0 grid-cols-1 gap-6 lg:grid-cols-[320px_1fr] ${discussionPanelHeightClass}`}>
-              <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft lg:h-full`}>
+              <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft lg:h-full`}>
                 <div className="flex items-center gap-2">
                   <ClockIcon className={`h-4 w-4 ${mutedText}`} />
                   <span className="text-sm font-semibold">Outils de session</span>
@@ -2485,7 +2485,7 @@ export default function SansPsPage({
                         Désactivée
                       </span>
                     </div>
-                    <div className={`mt-4 rounded-xl opacity-40 ${darkMode ? "" : "border"} ${subCardBg} p-3`}>
+                    <div className={`mt-4 rounded-xl opacity-40 border ${subCardBg} p-3`}>
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
@@ -2522,7 +2522,7 @@ export default function SansPsPage({
                 </div>
               </div>
 
-              <div className={`flex ${transcriptPanelHeightClass} min-h-0 flex-col overflow-hidden rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft lg:h-full`}>
+              <div className={`flex ${transcriptPanelHeightClass} min-h-0 flex-col overflow-hidden rounded-2xl border ${cardBg} p-6 shadow-soft lg:h-full`}>
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <h3 className="text-lg font-semibold">Transcription du monologue</h3>
                   <div className="flex items-center gap-2">
@@ -2540,20 +2540,23 @@ export default function SansPsPage({
                           ? "Correction en cours…"
                           : evaluation
                             ? "La source est verrouillée après l'évaluation"
-                            : !hasEndedDiscussion
-                              ? "Disponible après la fin du monologue"
-                              : !rawStudentTranscriptText.trim()
-                                ? "Aucun transcript disponible"
-                                : undefined
+                            : useAiCorrectedTranscript && aiCorrection
+                              ? "Corrigé par l'IA — cliquer pour revenir au brut"
+                              : !hasEndedDiscussion
+                                ? "Disponible après la fin du monologue"
+                                : !rawStudentTranscriptText.trim()
+                                  ? "Aucun transcript disponible"
+                                  : "Corriger le transcript avec l'IA"
                       }
-                      className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                      aria-label="Correction IA"
+                      className={`rounded-lg p-2 transition-colors ${
                         useAiCorrectedTranscript && aiCorrection
                           ? darkMode
-                            ? "border-transparent bg-primary-400 text-slate-950 hover:bg-primary-300"
-                            : "border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100"
+                            ? "bg-amber-400 text-slate-950 hover:bg-amber-300"
+                            : "bg-amber-50 text-amber-700 hover:bg-amber-100"
                           : darkMode
-                            ? "border-transparent bg-slate-800 text-slate-100 hover:bg-slate-700"
-                            : "border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-50"
+                            ? "bg-slate-800 text-amber-400 hover:bg-slate-700"
+                            : "bg-slate-100 text-amber-600 hover:bg-slate-200"
                       } ${
                         isCorrectingTranscript ||
                         !hasEndedDiscussion ||
@@ -2564,11 +2567,6 @@ export default function SansPsPage({
                       }`}
                     >
                       <SparklesIcon className={`h-4 w-4 ${isCorrectingTranscript ? "animate-pulse" : ""}`} />
-                      {isCorrectingTranscript
-                        ? "Correction en cours…"
-                        : useAiCorrectedTranscript && aiCorrection
-                          ? "Revenir au transcript brut"
-                          : "Corriger le transcript avec l'IA"}
                     </button>
                     <button
                       type="button"
@@ -2579,14 +2577,15 @@ export default function SansPsPage({
                         )
                       }
                       disabled={!canCopyTranscript}
-                      className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                      title="Copier le transcript"
+                      aria-label="Copier le transcript"
+                      className={`rounded-lg p-2 transition-colors ${
                         darkMode
-                          ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
-                          : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
+                          ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                       } ${!canCopyTranscript ? "cursor-not-allowed opacity-60" : ""}`}
                     >
                       <CopyIcon className="h-4 w-4" />
-                      Copier le transcript
                     </button>
                   </div>
                 </div>
