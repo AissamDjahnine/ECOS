@@ -154,6 +154,7 @@ describe("SansPsPage", () => {
     expect(screen.getByRole("button", { name: "PS / PSS" })).toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: "Terminer" }));
+    await user.click(screen.getByRole("button", { name: "Oui, terminer" }));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "PS / PSS" })).toBeEnabled();
@@ -192,6 +193,7 @@ describe("SansPsPage", () => {
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Terminer" }));
+    await user.click(screen.getByRole("button", { name: "Oui, terminer" }));
 
     await waitFor(() => {
       expect(

@@ -718,7 +718,7 @@ export default function App({
   );
   const [lastSessionElapsedSeconds, setLastSessionElapsedSeconds] = useState(0);
   const [sessionGuardDialog, setSessionGuardDialog] = useState<{
-    action: "reset" | "clear";
+    action: "reset" | "clear" | "stop";
     title: string;
     body: string;
   } | null>(null);
@@ -1551,7 +1551,7 @@ export default function App({
         async (chunk) => {
           if (
             !shouldSendAudioRef.current ||
-            isPaused ||
+            isPausedRef.current ||
             isMicMutedRef.current
           ) {
             return;
@@ -1811,6 +1811,18 @@ export default function App({
     );
   }
 
+  function requestStopDiscussion() {
+    if (!canEnd) {
+      return;
+    }
+
+    setSessionGuardDialog({
+      action: "stop",
+      title: "Terminer la session ?",
+      body: "La session en cours sera arrêtée. Vous pourrez ensuite évaluer la transcription.",
+    });
+  }
+
   function requestResetSession() {
     if (!canResetSession) {
       return;
@@ -1842,6 +1854,11 @@ export default function App({
 
     const { action } = sessionGuardDialog;
     setSessionGuardDialog(null);
+
+    if (action === "stop") {
+      void stopDiscussion();
+      return;
+    }
 
     if (action === "reset") {
       void handleResetSession();
@@ -2308,7 +2325,7 @@ export default function App({
                         onClick={handleRerunEvaluation}
                         className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-primary-700"
                       >
-                        Re-run evaluation
+                        Réévaluer
                       </button>
                     )}
                     {recordedAudioUrl && (
@@ -2572,7 +2589,8 @@ export default function App({
                   </button>
 
                   <button
-                    onClick={stopDiscussion}
+                    type="button"
+                    onClick={requestStopDiscussion}
                     disabled={!canEnd}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
                       canEnd
@@ -3110,7 +3128,7 @@ export default function App({
         darkMode={darkMode}
         title={sessionGuardDialog?.title ?? ""}
         body={sessionGuardDialog?.body ?? ""}
-        confirmLabel={sessionGuardDialog?.action === "clear" ? "Oui, effacer" : "Oui, réinitialiser"}
+        confirmLabel={sessionGuardDialog?.action === "clear" ? "Oui, effacer" : sessionGuardDialog?.action === "stop" ? "Oui, terminer" : "Oui, réinitialiser"}
         cancelLabel="Annuler"
         tone="danger"
         onCancel={() => setSessionGuardDialog(null)}

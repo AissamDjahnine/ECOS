@@ -228,6 +228,7 @@ describe("PsPage", () => {
     expect(otherModeButton).toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: "Terminer" }));
+    await user.click(screen.getByRole("button", { name: "Oui, terminer" }));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Sans PS" })).toBeEnabled();
@@ -259,6 +260,7 @@ describe("PsPage", () => {
     await user.click(screen.getByRole("button", { name: "Analyser" }));
     await user.click(screen.getByRole("button", { name: "Démarrer" }));
     await user.click(screen.getByRole("button", { name: "Terminer" }));
+    await user.click(screen.getByRole("button", { name: "Oui, terminer" }));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Réinitialiser" })).toBeEnabled();

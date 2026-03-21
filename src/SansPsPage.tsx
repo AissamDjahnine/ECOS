@@ -689,7 +689,7 @@ export default function SansPsPage({
   const [micLevel, setMicLevel] = useState(0);
   const [micPeak, setMicPeak] = useState(0);
   const [sessionGuardDialog, setSessionGuardDialog] = useState<{
-    action: "reset" | "clear";
+    action: "reset" | "clear" | "stop";
     title: string;
     body: string;
   } | null>(null);
@@ -824,6 +824,7 @@ export default function SansPsPage({
     hasCommittedStudentTranscript,
     hasEndedDiscussion,
     showStudentDraftIndicator,
+    studentDraftText,
     settings.showLiveTranscript,
     settings.showSystemMessages,
     transcript,
@@ -1135,6 +1136,18 @@ export default function SansPsPage({
     );
   }
 
+  function requestStopSession() {
+    if (!canEnd) {
+      return;
+    }
+
+    setSessionGuardDialog({
+      action: "stop",
+      title: "Terminer la session ?",
+      body: "La session en cours sera arrêtée. Vous pourrez ensuite évaluer la transcription.",
+    });
+  }
+
   function requestResetSession() {
     if (!canResetSession) {
       return;
@@ -1166,6 +1179,11 @@ export default function SansPsPage({
 
     const { action } = sessionGuardDialog;
     setSessionGuardDialog(null);
+
+    if (action === "stop") {
+      void stopSession();
+      return;
+    }
 
     if (action === "reset") {
       void handleResetSession();
@@ -1405,7 +1423,7 @@ export default function SansPsPage({
 
       const microphone = await startMicrophoneStream(
         async (chunk) => {
-          if (!shouldSendAudioRef.current || isPaused || isMicMutedRef.current) {
+          if (!shouldSendAudioRef.current || isPausedRef.current || isMicMutedRef.current) {
             return;
           }
 
@@ -1437,7 +1455,7 @@ export default function SansPsPage({
           setMicPeak(sample.peak);
 
           const isSpeaking = sample.rms >= 0.02 || sample.peak >= 0.06;
-          if (isSpeaking && !isPaused && shouldSendAudioRef.current) {
+          if (isSpeaking && !isPausedRef.current && shouldSendAudioRef.current) {
             setSessionPhase("student-speaking");
             setStatus("Session en cours");
             setShowStudentDraftIndicator(true);
@@ -2047,7 +2065,7 @@ export default function SansPsPage({
                         onClick={handleRerunEvaluation}
                         className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-primary-700"
                       >
-                        Re-run evaluation
+                        Réévaluer
                       </button>
                     )}
                     {recordedAudioUrl && (
@@ -2306,7 +2324,8 @@ export default function SansPsPage({
                   </button>
 
                   <button
-                    onClick={stopSession}
+                    type="button"
+                    onClick={requestStopSession}
                     disabled={!canEnd}
                     className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all duration-200 ${
                       canEnd
@@ -2795,7 +2814,7 @@ export default function SansPsPage({
         darkMode={darkMode}
         title={sessionGuardDialog?.title ?? ""}
         body={sessionGuardDialog?.body ?? ""}
-        confirmLabel={sessionGuardDialog?.action === "clear" ? "Oui, effacer" : "Oui, réinitialiser"}
+        confirmLabel={sessionGuardDialog?.action === "clear" ? "Oui, effacer" : sessionGuardDialog?.action === "stop" ? "Oui, terminer" : "Oui, réinitialiser"}
         cancelLabel="Annuler"
         tone="danger"
         onCancel={() => setSessionGuardDialog(null)}
