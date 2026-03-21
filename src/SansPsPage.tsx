@@ -1448,7 +1448,9 @@ export default function SansPsPage({
       setSessionPhase("idle");
       setStatus("Session Live ouverte, en attente de l'étudiant");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Erreur inconnue";
+      const message =
+        (error instanceof Error ? error.message : String(error)) ||
+        "Impossible de se connecter au serveur. Vérifiez que le backend est lancé.";
       setStatus(`Impossible de démarrer : ${message}`);
       onShowToast("Démarrage impossible", message, "error");
       setSessionPhase("idle");
@@ -1837,19 +1839,20 @@ export default function SansPsPage({
       return;
     }
 
-    if (remainingSeconds <= 0) {
-      void stopSession();
-      return;
-    }
-
     const timer = window.setInterval(() => {
-      setRemainingSeconds((current) => current - 1);
+      setRemainingSeconds((current) => {
+        if (current <= 1) {
+          void stopSession();
+          return 0;
+        }
+        return current - 1;
+      });
     }, 1000);
 
     return () => {
       window.clearInterval(timer);
     };
-  }, [isDiscussing, remainingSeconds]);
+  }, [isDiscussing]);
 
   useEffect(() => {
     if (!isEvaluating) {

@@ -1596,7 +1596,9 @@ export default function App({
       setConversationPhase("listening");
       setStatus("Session Live ouverte, en attente de l'étudiant");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Erreur inconnue";
+      const message =
+        (error instanceof Error ? error.message : String(error)) ||
+        "Impossible de se connecter au serveur. Vérifiez que le backend est lancé.";
 
       shouldSendAudioRef.current = true;
       setStatus(`Impossible de démarrer : ${message}`);
@@ -2020,19 +2022,20 @@ export default function App({
       return;
     }
 
-    if (remainingSeconds <= 0) {
-      void stopDiscussion();
-      return;
-    }
-
     const timer = window.setInterval(() => {
-      setRemainingSeconds((current) => current - 1);
+      setRemainingSeconds((current) => {
+        if (current <= 1) {
+          void stopDiscussion();
+          return 0;
+        }
+        return current - 1;
+      });
     }, 1000);
 
     return () => {
       window.clearInterval(timer);
     };
-  }, [isDiscussing, remainingSeconds]);
+  }, [isDiscussing]);
 
   useEffect(() => {
     if (!isEvaluating) {
