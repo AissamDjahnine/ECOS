@@ -2637,18 +2637,16 @@ export default function SansPsPage({
       </main>
       )}
 
-      {!showEvaluationReport && (
-        <div className={`mt-auto w-full px-8 pb-8 pt-6 text-center text-xs leading-relaxed ${mutedText}`}>
-          <div className="mx-auto max-w-4xl">
-            <span className="block">
-              Echo-IA utilise une technologie d&apos;intelligence artificielle de pointe pour la transcription.
-            </span>
-            <span className="block">
-              Bien que performant, des erreurs peuvent subsister. Nous vous recommandons de vérifier les points critiques à l&apos;aide de l&apos;audio original intégré.
-            </span>
-          </div>
+      <div className={`mt-auto w-full px-8 pb-8 pt-6 text-center text-xs leading-relaxed ${mutedText}`}>
+        <div className="mx-auto max-w-4xl">
+          <span className="block">
+            Echo-IA utilise une technologie d&apos;intelligence artificielle de pointe pour la transcription.
+          </span>
+          <span className="block">
+            Bien que performant, des erreurs peuvent subsister. Nous vous recommandons de vérifier les points critiques à l&apos;aide de l&apos;audio original intégré.
+          </span>
         </div>
-      )}
+      </div>
 
       {isEvaluating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm">
