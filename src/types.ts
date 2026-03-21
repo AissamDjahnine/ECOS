@@ -38,6 +38,7 @@ export type FeedbackDetailLevel = "brief" | "standard" | "detailed";
 export type AudioPlaybackRate = 0.75 | 1 | 1.25 | 1.5 | 2;
 
 export type AppSettings = {
+  darkMode: boolean;
   defaultTimerSeconds: number;
   autoEvaluateAfterEnd: boolean;
   recordedAudioPlaybackRate: AudioPlaybackRate;

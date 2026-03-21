@@ -2,17 +2,9 @@
 
 ## UI / UX / Behaviour
 
-- **[CRITIQUE]** Le titre du drawer de réglages s'affiche `Settings` en anglais, alors que tout le contenu en dessous est en français. C'est la première chose que voit l'utilisateur à l'ouverture du panneau.
-
-- L'application mélange encore anglais et français sur plusieurs actions majeures : `Copy transcript` (PS/PSS et Sans PS), `Clear` (les deux modes), `Reset` (les deux modes), `Play discussion audio` (rapport PS/PSS), `Download discussion audio` (rapport PS/PSS), `Copy evaluation` (rapport les deux modes), `Export PDF` (rapport les deux modes). Ce n'est plus un détail ponctuel mais un problème global de cohérence produit et de crédibilité UX.
-
-- Les labels d'accessibilité ne sont pas entièrement francisés : `Open dashboard`, `Open settings`. Le problème dépasse le visuel et touche aussi l'expérience lecteur d'écran.
-
 - `Sans PS` : dans le panneau "Session de discussion", le titre reste `Session de discussion` alors que l'expérience est un monologue. Ce wording hérité du mode PS/PSS brouille la sémantique du mode.
 
 - Le mode sombre n'est pas persisté. Dans `App.tsx`, `darkMode` est gardé en state local simple, contrairement aux autres préférences stockées via `settings`. Un refresh ou une navigation inter-mode fait donc perdre le choix de thème.
-
-- Le disclaimer IA n'est pas cohérent entre les deux modes : en `PS/PSS`, il reste affiché sur l'écran de résultats, alors qu'en `Sans PS` il disparaît dès que `showEvaluationReport` passe à `true`. C'est justement sur le report que le rappel de prudence est le plus utile.
 
 - `Sans PS` : le bouton de `Correction IA` mélange état et action. Quand la correction est active, le libellé devient `Correction IA active`, alors que le clic suivant va en réalité désactiver cette source. Il manque une séparation claire entre "statut courant" et "action disponible".
 

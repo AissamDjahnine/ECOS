@@ -20,7 +20,7 @@ export default function App() {
   const [mode, setMode] = useState<RouteMode>(() => resolveMode(window.location.pathname));
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const darkMode = settings.darkMode;
   const [toast, setToast] = useState<AppToast | null>(null);
   const toastTimerRef = useRef<number | null>(null);
 
@@ -99,7 +99,7 @@ export default function App() {
           onOpenDashboard={() => setIsDashboardOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           darkMode={darkMode}
-          onDarkModeChange={setDarkMode}
+          onDarkModeChange={(v) => setSettings((s) => ({ ...s, darkMode: v }))}
           onShowToast={showToast}
         />
       ) : (
@@ -110,7 +110,7 @@ export default function App() {
           onOpenDashboard={() => setIsDashboardOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           darkMode={darkMode}
-          onDarkModeChange={setDarkMode}
+          onDarkModeChange={(v) => setSettings((s) => ({ ...s, darkMode: v }))}
           onShowToast={showToast}
         />
       )}

@@ -9,6 +9,7 @@ export const SETTINGS_STORAGE_KEY = "ecos-ai.settings.v1";
 export const DEFAULT_TIMER_SECONDS = 8 * 60;
 
 export const DEFAULT_SETTINGS: AppSettings = {
+  darkMode: false,
   defaultTimerSeconds: DEFAULT_TIMER_SECONDS,
   autoEvaluateAfterEnd: false,
   recordedAudioPlaybackRate: 1,
@@ -57,6 +58,10 @@ export function sanitizeSettings(value: unknown): AppSettings {
     : DEFAULT_SETTINGS.feedbackDetailLevel;
 
   return {
+    darkMode:
+      typeof value.darkMode === "boolean"
+        ? value.darkMode
+        : DEFAULT_SETTINGS.darkMode,
     defaultTimerSeconds: nextTimer,
     autoEvaluateAfterEnd:
       typeof value.autoEvaluateAfterEnd === "boolean"
