@@ -841,8 +841,8 @@ export default function App({
     ? "h-[460px]"
     : "h-[560px]";
   const discussionPanelHeightClass = hasEndedDiscussion
-    ? "lg:h-[460px]"
-    : "lg:h-[560px]";
+    ? "lg:h-[500px]"
+    : "lg:h-[640px]";
   const evaluationCopyText = evaluation ? buildEvaluationCopy(evaluation) : "";
   const canRerunEvaluation =
     Boolean(evaluation) &&
@@ -2363,7 +2363,7 @@ export default function App({
       <main className="max-w-[1600px] mx-auto w-full flex-1 px-6 py-8">
         <div className="grid grid-cols-1 xl:grid-cols-[470px_1fr] gap-6">
           {/* Left Sidebar */}
-          <div className="space-y-6">
+          <div className="flex flex-col gap-6">
             {/* Case Input */}
             <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
               <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
@@ -2413,21 +2413,21 @@ export default function App({
             </div>
 
             {/* Patient Info */}
-            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <UserIcon className="w-5 h-5 text-primary-500" />
+            <div className={`flex-1 rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
+              <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
+                <UserIcon className="w-4 h-4 text-primary-500" />
                 Informations patient
               </h2>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 {displayedPatientInfo.map((item) => (
                   <div
                     key={`${item.label}-${item.value}`}
-                    className={`p-3 rounded-xl ${subCardBg} ${darkMode ? "" : "border"} transition-opacity ${
+                    className={`p-2 rounded-xl ${subCardBg} ${darkMode ? "" : "border"} transition-opacity ${
                       patientInfo.length === 0 ? "opacity-60" : ""
                     }`}
                   >
-                    <div className={`text-xs font-medium uppercase tracking-wider ${mutedText} mb-1`}>
+                    <div className={`text-[11px] font-medium uppercase tracking-wider ${mutedText} mb-0.5`}>
                       {item.label}
                     </div>
                     <div className={`text-sm font-medium ${patientInfo.length === 0 ? mutedText : ""}`}>
@@ -2550,8 +2550,8 @@ export default function App({
             </div>
 
             {/* Discussion Area */}
-            <div className={`grid min-h-0 items-start grid-cols-1 gap-6 lg:grid-cols-[320px_1fr] ${discussionPanelHeightClass}`}>
-              <div className={`self-start rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft lg:h-full`}>
+            <div className={`grid min-h-0 grid-cols-1 gap-6 lg:grid-cols-[320px_1fr] ${discussionPanelHeightClass}`}>
+              <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft lg:h-full`}>
                 <div className="flex items-center gap-2">
                   <ClockIcon className={`h-4 w-4 ${mutedText}`} />
                   <span className="text-sm font-semibold">Outils de session</span>

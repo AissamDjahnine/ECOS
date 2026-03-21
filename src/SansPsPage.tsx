@@ -825,8 +825,8 @@ export default function SansPsPage({
     ? "h-[460px]"
     : "h-[560px]";
   const discussionPanelHeightClass = hasEndedDiscussion
-    ? "lg:h-[460px]"
-    : "lg:h-[560px]";
+    ? "lg:h-[500px]"
+    : "lg:h-[640px]";
   const evaluationCopyText = evaluation ? buildEvaluationCopy(evaluation) : "";
   const canRerunEvaluation =
     Boolean(evaluation) &&
@@ -2088,7 +2088,7 @@ export default function SansPsPage({
       ) : (
       <main className="mx-auto w-full max-w-[1600px] flex-1 px-6 py-8">
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[470px_1fr]">
-          <div className="space-y-6">
+          <div className="flex flex-col gap-6">
             <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
               <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
                 <h2 className="flex min-w-0 items-center gap-2 whitespace-nowrap text-base font-semibold md:text-lg">
@@ -2122,7 +2122,7 @@ export default function SansPsPage({
                 value={rawInput}
                 onChange={(event) => setRawInput(event.target.value)}
                 placeholder="Collez ici la station sans PS et sa grille de correction..."
-                className={`h-64 w-full resize-none rounded-xl border p-4 text-sm leading-relaxed transition-all duration-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 ${inputBg}`}
+                className={`h-80 w-full resize-none rounded-xl border p-4 text-sm leading-relaxed transition-all duration-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 ${inputBg}`}
               />
 
               {parseError ? (
@@ -2136,7 +2136,7 @@ export default function SansPsPage({
               )}
             </div>
 
-            <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
+            <div className={`flex-1 rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft`}>
               <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
                 <ActivityIcon className="h-5 w-5 text-primary-500" />
                 Consigne
@@ -2146,7 +2146,7 @@ export default function SansPsPage({
                   Présentez votre raisonnement à voix haute comme devant un examinateur.
                 </p>
                 <p className={`mt-2 text-sm leading-relaxed ${mutedText}`}>
-                  Le mode sans PS reprend la logique de la station sans patient interactif : l&apos;étudiant parle librement, la session est transcrite, puis le contenu final est comparé à la grille après `Terminer`.
+                  Le mode sans PS reprend la logique de la station sans patient interactif : l&apos;étudiant parle librement, la session est transcrite, puis le contenu final est comparé à la grille après &laquo;&nbsp;Terminer&nbsp;&raquo;.
                 </p>
               </div>
             </div>
@@ -2260,7 +2260,7 @@ export default function SansPsPage({
             </div>
 
             <div className={`grid min-h-0 grid-cols-1 gap-6 lg:grid-cols-[320px_1fr] ${discussionPanelHeightClass}`}>
-              <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft lg:h-full overflow-hidden`}>
+              <div className={`rounded-2xl ${darkMode ? "" : "border"} ${cardBg} p-6 shadow-soft lg:h-full`}>
                 <div className="flex items-center gap-2">
                   <ClockIcon className={`h-4 w-4 ${mutedText}`} />
                   <span className="text-sm font-semibold">Outils de session</span>
