@@ -76,8 +76,11 @@ export async function requestMicrophoneStream() {
   });
 }
 
+/** Software gain applied to microphone input (1.0 = no boost). */
+const MIC_GAIN = 4.0;
+
 export async function startMicrophoneStream(
-  onChunk: (chunk: Blob) => void,
+  onChunk: (chunk: Blob, rawPcm: Uint8Array) => void,
   onLevel?: (sample: MicrophoneLevelSample) => void,
   existingStream?: MediaStream,
 ): Promise<AudioStreamer> {
@@ -93,7 +96,12 @@ export async function startMicrophoneStream(
   }
 
   const audioContext = new AudioContextCtor({ sampleRate: 16000 });
+  if (audioContext.state !== "running") {
+    await audioContext.resume();
+  }
   const source = audioContext.createMediaStreamSource(stream);
+  const gainNode = audioContext.createGain();
+  gainNode.gain.value = MIC_GAIN;
   // Keep audio chunks small enough for Live API streaming best practices.
   const processor = audioContext.createScriptProcessor(1024, 1, 1);
 
@@ -137,15 +145,18 @@ export async function startMicrophoneStream(
 
     const downsampled = downsampleTo16k(channelData, audioContext.sampleRate);
     const pcmBuffer = floatTo16BitPCM(downsampled);
+    const pcmUint8 = new Uint8Array(pcmBuffer);
 
     onChunk(
       new Blob([pcmBuffer], {
         type: "audio/pcm;rate=16000",
       }),
+      pcmUint8,
     );
   };
 
-  source.connect(processor);
+  source.connect(gainNode);
+  gainNode.connect(processor);
   processor.connect(audioContext.destination);
 
   return {
@@ -174,6 +185,7 @@ export async function startMicrophoneStream(
       });
 
       processor.disconnect();
+      gainNode.disconnect();
       source.disconnect();
       stream.getTracks().forEach((track) => track.stop());
       await audioContext.close();
