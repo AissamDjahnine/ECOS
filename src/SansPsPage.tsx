@@ -2520,12 +2520,12 @@ export default function SansPsPage({
                     >
                       <SparklesIcon className={`h-4 w-4 ${isCorrectingTranscript ? "animate-pulse" : ""}`} />
                       {isCorrectingTranscript
-                        ? "Correcting..."
+                        ? "Correction en cours…"
                         : aiCorrection
                           ? useAiCorrectedTranscript
-                            ? "AI correction active"
-                            : "Correct transcript with AI"
-                          : "Correct transcript with AI"}
+                            ? "Correction IA active"
+                            : "Corriger le transcript avec l'IA"
+                          : "Corriger le transcript avec l'IA"}
                     </button>
                     <button
                       type="button"

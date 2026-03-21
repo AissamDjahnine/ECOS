@@ -144,7 +144,7 @@ describe("SansPsPage", () => {
 
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la grille de correction de la station/i,
+        /collez ici la station sans ps et sa grille de correction/i,
       ),
       { target: { value: validStation } },
     );
@@ -177,7 +177,7 @@ describe("SansPsPage", () => {
 
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la grille de correction de la station/i,
+        /collez ici la station sans ps et sa grille de correction/i,
       ),
       { target: { value: validStation } },
     );
@@ -217,7 +217,7 @@ describe("SansPsPage", () => {
 
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la grille de correction de la station/i,
+        /collez ici la station sans ps et sa grille de correction/i,
       ),
       { target: { value: validStation } },
     );
@@ -270,7 +270,7 @@ describe("SansPsPage", () => {
 
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la grille de correction de la station/i,
+        /collez ici la station sans ps et sa grille de correction/i,
       ),
       { target: { value: validStation } },
     );
@@ -327,7 +327,7 @@ describe("SansPsPage", () => {
 
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la grille de correction de la station/i,
+        /collez ici la station sans ps et sa grille de correction/i,
       ),
       { target: { value: validStation } },
     );
@@ -383,7 +383,7 @@ describe("SansPsPage", () => {
 
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la grille de correction de la station/i,
+        /collez ici la station sans ps et sa grille de correction/i,
       ),
       { target: { value: validStation } },
     );
@@ -414,7 +414,7 @@ describe("SansPsPage", () => {
 
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la grille de correction de la station/i,
+        /collez ici la station sans ps et sa grille de correction/i,
       ),
       { target: { value: validStation } },
     );
@@ -459,7 +459,7 @@ describe("SansPsPage", () => {
 
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la grille de correction de la station/i,
+        /collez ici la station sans ps et sa grille de correction/i,
       ),
       { target: { value: validStation } },
     );
@@ -505,7 +505,7 @@ describe("SansPsPage", () => {
     );
 
     const textarea = screen.getByPlaceholderText(
-      /collez ici la grille de correction de la station/i,
+      /collez ici la station sans ps et sa grille de correction/i,
     );
 
     fireEvent.change(textarea, { target: { value: validStation } });
@@ -554,7 +554,7 @@ describe("SansPsPage", () => {
 
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la grille de correction de la station/i,
+        /collez ici la station sans ps et sa grille de correction/i,
       ),
       { target: { value: validStation } },
     );
@@ -602,7 +602,7 @@ describe("SansPsPage", () => {
 
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la grille de correction de la station/i,
+        /collez ici la station sans ps et sa grille de correction/i,
       ),
       { target: { value: validStation } },
     );
@@ -611,6 +611,39 @@ describe("SansPsPage", () => {
 
     expect(screen.getByText(/session indisponible/i)).toBeInTheDocument();
     expect(screen.queryByText("Monologue")).not.toBeInTheDocument();
+  });
+
+  it("shows French label on the AI correction button before and after session", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => buildDashboardSnapshot("ready"),
+    } as Response));
+
+    render(
+      <SansPsPage
+        currentMode="sans-ps"
+        onNavigate={vi.fn()}
+        settings={DEFAULT_SETTINGS}
+        onOpenDashboard={vi.fn()}
+        onOpenSettings={vi.fn()}
+        darkMode={false}
+        onDarkModeChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(
+      screen.getByPlaceholderText(
+        /collez ici la station sans ps et sa grille de correction/i,
+      ),
+      { target: { value: validStation } },
+    );
+    await user.click(screen.getByRole("button", { name: "Analyser" }));
+
+    // Before session: button shows French label and is disabled
+    expect(
+      screen.getByRole("button", { name: /corriger le transcript avec l'ia/i }),
+    ).toBeDisabled();
   });
 
 });
