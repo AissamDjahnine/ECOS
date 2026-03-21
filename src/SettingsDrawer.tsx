@@ -306,7 +306,7 @@ export function SettingsDrawer({
                 <SettingsIcon className="h-5 w-5" />
               </div>
               <div>
-                <h2 className={`text-lg font-semibold ${darkMode ? "text-slate-50" : "text-slate-900"}`}>Settings</h2>
+                <h2 className={`text-lg font-semibold ${darkMode ? "text-slate-50" : "text-slate-900"}`}>Réglages</h2>
                 <p className={`text-sm ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
                   Préférences globales de la station
                 </p>
