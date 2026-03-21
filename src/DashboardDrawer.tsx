@@ -435,7 +435,10 @@ export function DashboardDrawer({
               <button
                 type="button"
                 onClick={() => void loadDashboard()}
+                disabled={isLoading}
                 className={`rounded-xl border p-2.5 transition-colors shadow-sm ${
+                  isLoading ? "opacity-50 cursor-not-allowed" : ""
+                } ${
                   darkMode
                     ? "border-slate-700 bg-slate-800 hover:bg-slate-700"
                     : "border-slate-200 bg-white hover:bg-slate-50"
@@ -490,7 +493,7 @@ export function DashboardDrawer({
                             ? "bg-primary-600 text-white shadow-sm"
                             : darkMode
                               ? "text-slate-200 hover:bg-slate-800"
-                              : "text-slate-300 hover:bg-slate-100 hover:text-slate-500"
+                              : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                         }`}
                       >
                         {option.label}

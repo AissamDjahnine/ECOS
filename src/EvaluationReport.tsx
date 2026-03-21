@@ -132,7 +132,6 @@ function buildValidationSummary(observedCount: number, totalCount: number) {
 type EvaluationReportProps = {
   evaluation: EvaluationResult;
   darkMode: boolean;
-  feedbackDetailLabel: string;
   elapsedSeconds?: number;
 };
 
@@ -266,7 +265,6 @@ function formatClock(totalSeconds: number) {
 export function EvaluationReport({
   evaluation,
   darkMode,
-  feedbackDetailLabel: _feedbackDetailLabel,
   elapsedSeconds = 0,
 }: EvaluationReportProps) {
   const scoreState = parseScore(evaluation.score);

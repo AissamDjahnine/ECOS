@@ -362,7 +362,8 @@ export function SettingsDrawer({
                         setApiKeyDraft(settings.googleApiKey);
                         setIsEditingApiKey(true);
                       }}
-                      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-all ${apiKeyActionButtonClass}`}
+                      disabled={isEditingApiKey}
+                      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-all ${isEditingApiKey ? "opacity-40 cursor-not-allowed" : ""} ${apiKeyActionButtonClass}`}
                       aria-label="Modifier la clé API Google"
                     >
                       <PencilIcon className="h-4 w-4" />
