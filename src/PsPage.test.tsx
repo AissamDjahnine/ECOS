@@ -215,23 +215,24 @@ describe("PsPage", () => {
       />,
     );
 
+    await user.click(screen.getByRole("button", { name: /Démarrer une station/i }));
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la trame du patient et la grille de correction/i,
+        /Collez ici le contenu SDD pour l'étudiant/i,
       ),
       { target: { value: validCase } },
     );
     await user.click(screen.getByRole("button", { name: "Analyser" }));
     await user.click(screen.getByRole("button", { name: "Démarrer" }));
 
-    const otherModeButton = screen.getByRole("button", { name: "Sans PS" });
-    expect(otherModeButton).toBeDisabled();
+    const homeButton = screen.getByRole("button", { name: "Accueil" });
+    expect(homeButton).toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: "Terminer" }));
     await user.click(screen.getByRole("button", { name: "Oui, terminer" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Sans PS" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Accueil" })).toBeEnabled();
     });
   }, 10000);
 
@@ -252,25 +253,27 @@ describe("PsPage", () => {
       />,
     );
 
-    const textarea = screen.getByPlaceholderText(
-      /collez ici la trame du patient et la grille de correction/i,
+    await user.click(screen.getByRole("button", { name: /Démarrer une station/i }));
+    fireEvent.change(
+      screen.getByPlaceholderText(/Collez ici le contenu SDD pour l'étudiant/i),
+      { target: { value: validCase } },
     );
-
-    fireEvent.change(textarea, { target: { value: validCase } });
     await user.click(screen.getByRole("button", { name: "Analyser" }));
     await user.click(screen.getByRole("button", { name: "Démarrer" }));
     await user.click(screen.getByRole("button", { name: "Terminer" }));
-    await user.click(screen.getByRole("button", { name: "Oui, terminer" }));
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Réinitialiser" })).toBeEnabled();
+    await act(async () => {
+      await user.click(screen.getByRole("button", { name: "Oui, terminer" }));
     });
 
-    await user.click(screen.getByRole("button", { name: "Réinitialiser" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /initialiser la session/i })).toBeEnabled();
+    });
+
+    await user.click(screen.getByRole("button", { name: /initialiser la session/i }));
     await user.click(screen.getByRole("button", { name: "Oui, réinitialiser" }));
 
     await waitFor(() => {
-      expect(textarea).toHaveValue(validCase);
       expect(
         screen.getByText(/la transcription apparaîtra ici/i),
       ).toBeInTheDocument();
@@ -280,6 +283,9 @@ describe("PsPage", () => {
         "success",
       );
     });
+
+    // The case content is still rendered (parsed case preserved)
+    expect(screen.getByText(/Nom: Doe/)).toBeInTheDocument();
   }, 10000);
 
   it("asks for confirmation before starting when readiness is risky", async () => {
@@ -318,9 +324,10 @@ describe("PsPage", () => {
       />,
     );
 
+    await user.click(screen.getByRole("button", { name: /Démarrer une station/i }));
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la trame du patient et la grille de correction/i,
+        /Collez ici le contenu SDD pour l'étudiant/i,
       ),
       { target: { value: validCase } },
     );
@@ -366,9 +373,10 @@ describe("PsPage", () => {
       />,
     );
 
+    await user.click(screen.getByRole("button", { name: /Démarrer une station/i }));
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la trame du patient et la grille de correction/i,
+        /Collez ici le contenu SDD pour l'étudiant/i,
       ),
       { target: { value: validCase } },
     );
@@ -394,14 +402,15 @@ describe("PsPage", () => {
       />,
     );
 
+    await user.click(screen.getByRole("button", { name: /Démarrer une station/i }));
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la trame du patient et la grille de correction/i,
+        /Collez ici le contenu SDD pour l'étudiant/i,
       ),
       { target: { value: validCase } },
     );
     await user.click(screen.getByRole("button", { name: "Analyser" }));
-    await user.click(screen.getByRole("button", { name: "Modifier" }));
+    await user.click(screen.getByRole("button", { name: /Zephyr/ }));
 
     expect(
       screen.getByRole("button", { name: "Sélectionner la voix Zephyr" }),
@@ -435,14 +444,15 @@ describe("PsPage", () => {
       />,
     );
 
+    await user.click(screen.getByRole("button", { name: /Démarrer une station/i }));
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la trame du patient et la grille de correction/i,
+        /Collez ici le contenu SDD pour l'étudiant/i,
       ),
       { target: { value: validCase } },
     );
     await user.click(screen.getByRole("button", { name: "Analyser" }));
-    await user.click(screen.getByRole("button", { name: "Modifier" }));
+    await user.click(screen.getByRole("button", { name: /Zephyr/ }));
 
     const favoriteButton = screen.getByRole("button", {
       name: "Ajouter Zephyr aux favoris",
@@ -474,14 +484,15 @@ describe("PsPage", () => {
       />,
     );
 
+    await user.click(screen.getByRole("button", { name: /Démarrer une station/i }));
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la trame du patient et la grille de correction/i,
+        /Collez ici le contenu SDD pour l'étudiant/i,
       ),
       { target: { value: validCase } },
     );
     await user.click(screen.getByRole("button", { name: "Analyser" }));
-    await user.click(screen.getByRole("button", { name: "Modifier" }));
+    await user.click(screen.getByRole("button", { name: /Zephyr/ }));
 
     const previewButton = screen.getByRole("button", {
       name: "Écouter l'aperçu de Kore",
@@ -542,9 +553,10 @@ describe("PsPage", () => {
       />,
     );
 
+    await user.click(screen.getByRole("button", { name: /Démarrer une station/i }));
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la trame du patient et la grille de correction/i,
+        /Collez ici le contenu SDD pour l'étudiant/i,
       ),
       {
         target: {
@@ -606,14 +618,15 @@ describe("PsPage", () => {
       />,
     );
 
+    await user.click(screen.getByRole("button", { name: /Démarrer une station/i }));
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la trame du patient et la grille de correction/i,
+        /Collez ici le contenu SDD pour l'étudiant/i,
       ),
       { target: { value: validCase } },
     );
     await user.click(screen.getByRole("button", { name: "Analyser" }));
-    await user.click(screen.getByRole("button", { name: "Modifier" }));
+    await user.click(screen.getByRole("button", { name: /Zephyr/ }));
     await user.click(screen.getByRole("button", { name: /Sélectionner la voix Charon/i }));
     await user.click(screen.getByRole("button", { name: "Démarrer" }));
 
@@ -659,11 +672,13 @@ describe("PsPage", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Modifier" })).toBeDisabled();
+    // Voice chip is not rendered before analyse (parsedReady is false)
+    expect(screen.queryByRole("button", { name: /[\u2640\u2642]/ })).toBeNull();
 
+    await user.click(screen.getByRole("button", { name: /Démarrer une station/i }));
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la trame du patient et la grille de correction/i,
+        /Collez ici le contenu SDD pour l'étudiant/i,
       ),
       {
         target: {
@@ -682,7 +697,11 @@ describe("PsPage", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Analyser" }));
-    await user.click(screen.getByRole("button", { name: "Modifier" }));
+
+    // After analyse, a voice chip button appears (voice name depends on random pick)
+    const voiceChipButton = screen.getByRole("button", { name: /\u2640/ });
+    expect(voiceChipButton).toBeEnabled();
+    await user.click(voiceChipButton);
     expect(
       screen.getByRole("button", { name: /Sélectionner la voix Charon/i }),
     ).toBeEnabled();
@@ -729,9 +748,10 @@ describe("PsPage", () => {
       />,
     );
 
+    await user.click(screen.getByRole("button", { name: /Démarrer une station/i }));
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la trame du patient et la grille de correction/i,
+        /Collez ici le contenu SDD pour l'étudiant/i,
       ),
       { target: { value: validCase } },
     );
@@ -772,9 +792,10 @@ describe("PsPage", () => {
       />,
     );
 
+    await user.click(screen.getByRole("button", { name: /Démarrer une station/i }));
     fireEvent.change(
       screen.getByPlaceholderText(
-        /collez ici la trame du patient et la grille de correction/i,
+        /Collez ici le contenu SDD pour l'étudiant/i,
       ),
       { target: { value: validCase } },
     );
@@ -786,12 +807,12 @@ describe("PsPage", () => {
     expect(liveSessionRef.current?.sendRealtimeInput).toHaveBeenCalledWith({
       audioStreamEnd: true,
     });
-    expect(screen.getByText("Coupé")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Réactiver le microphone" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reprendre" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Reprendre" }));
 
-    expect(screen.getByText("Actif")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Couper le microphone" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Pause" })).toBeInTheDocument();
   });
 });
