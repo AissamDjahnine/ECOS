@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Sidebar } from "./Sidebar";
 import {
   ActivityHandling,
   EndSensitivity,
@@ -653,6 +654,86 @@ function SettingsIcon({ className }: { className?: string }) {
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01A1.65 1.65 0 0 0 10.59 3H10.5a2 2 0 1 1 4 0h-.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
     </svg>
+  );
+}
+
+function PlusIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12h14M12 5v14" />
+    </svg>
+  );
+}
+
+type ModalInputFormProps = {
+  darkMode: boolean;
+  inputBg: string;
+  parseError: string;
+  isLocked: boolean;
+  onAnalyse: (studentRaw: string, examinatorRaw: string) => void;
+  initialStudentRaw: string;
+  initialExaminatorRaw: string;
+};
+
+function ModalInputForm({
+  darkMode,
+  inputBg,
+  parseError,
+  isLocked,
+  onAnalyse,
+  initialStudentRaw,
+  initialExaminatorRaw,
+}: ModalInputFormProps) {
+  const [studentRaw, setStudentRaw] = useState(initialStudentRaw);
+  const [examinatorRaw, setExaminatorRaw] = useState(initialExaminatorRaw);
+  const mutedText = darkMode ? "text-slate-400" : "text-slate-500";
+
+  return (
+    <div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className={`mb-1.5 block text-xs font-semibold uppercase tracking-wider ${mutedText}`}>
+            Pour l&apos;examinateur
+          </label>
+          <textarea
+            value={examinatorRaw}
+            onChange={(e) => setExaminatorRaw(e.target.value)}
+            placeholder="Collez ici le contenu SDD pour l'examinateur (grille de correction)..."
+            disabled={isLocked}
+            className={`h-64 w-full resize-none rounded-xl border p-3 text-sm leading-relaxed transition-all focus:outline-none focus:ring-2 focus:ring-[#008282]/30 ${inputBg} ${isLocked ? "cursor-not-allowed opacity-60" : ""}`}
+          />
+        </div>
+        <div>
+          <label className={`mb-1.5 block text-xs font-semibold uppercase tracking-wider ${mutedText}`}>
+            Pour l&apos;étudiant
+          </label>
+          <textarea
+            value={studentRaw}
+            onChange={(e) => setStudentRaw(e.target.value)}
+            placeholder="Collez ici le contenu SDD pour l'étudiant (cas clinique affiché)..."
+            disabled={isLocked}
+            className={`h-64 w-full resize-none rounded-xl border p-3 text-sm leading-relaxed transition-all focus:outline-none focus:ring-2 focus:ring-[#008282]/30 ${inputBg} ${isLocked ? "cursor-not-allowed opacity-60" : ""}`}
+          />
+        </div>
+      </div>
+      {parseError && (
+        <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-600 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-400">
+          {parseError}
+        </div>
+      )}
+      <div className="mt-4 flex justify-end">
+        <button
+          type="button"
+          disabled={isLocked || (!studentRaw.trim() && !examinatorRaw.trim())}
+          onClick={() => onAnalyse(studentRaw, examinatorRaw)}
+          className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          style={{ background: "linear-gradient(135deg, #006767 0%, #008282 100%)" }}
+        >
+          <SearchIcon className="h-4 w-4" />
+          Analyser
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -2169,760 +2250,353 @@ export default function App({
     }
   };
 
+  function renderStudentContent(text: string) {
+    const lines = text.split("\n");
+    const elements: ReactNode[] = [];
+    let bulletGroup: string[] = [];
+
+    function flushBullets() {
+      if (bulletGroup.length === 0) return;
+      elements.push(
+        <ul key={`ul-${elements.length}`} className="my-2 space-y-1 pl-4">
+          {bulletGroup.map((b, i) => (
+            <li key={i} className="flex items-start gap-2 text-sm leading-relaxed">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#008282]" />
+              {b}
+            </li>
+          ))}
+        </ul>,
+      );
+      bulletGroup = [];
+    }
+
+    lines.forEach((line, i) => {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        flushBullets();
+        elements.push(<div key={`gap-${i}`} className="h-2" />);
+        return;
+      }
+      if (trimmed.startsWith("- ") || trimmed.startsWith("\u2022 ") || trimmed.startsWith("* ")) {
+        bulletGroup.push(trimmed.replace(/^[-\u2022*]\s/, ""));
+        return;
+      }
+      flushBullets();
+      const isHeading =
+        trimmed === trimmed.toUpperCase() && trimmed.length > 3 && /[A-Z\u00C0\u00C2\u00C9\u00C8\u00CA\u00D9\u00DB\u00CE]/.test(trimmed);
+      if (isHeading) {
+        elements.push(
+          <h3 key={i} className={`mb-2 mt-5 text-sm font-bold uppercase tracking-wide ${darkMode ? "text-slate-200" : "text-slate-700"}`}>
+            {trimmed}
+          </h3>,
+        );
+        return;
+      }
+      if (trimmed.endsWith(":") && trimmed.length < 60) {
+        elements.push(
+          <p key={i} className={`mb-1 mt-4 text-sm font-semibold ${darkMode ? "text-slate-200" : "text-slate-800"}`}>
+            {trimmed}
+          </p>,
+        );
+        return;
+      }
+      elements.push(
+        <p key={i} className={`text-sm leading-relaxed ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+          {trimmed}
+        </p>,
+      );
+    });
+    flushBullets();
+    return elements;
+  }
+
   return (
-    <div className={`flex min-h-screen flex-col ${theme} ${bgClass} ${textClass} transition-colors duration-300`}>
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-[#bcc9c8]/60 dark:border-slate-700/20" style={{ backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", background: darkMode ? "rgba(15,23,42,0.85)" : "rgba(255,255,255,0.85)" }}>
-        <div className="max-w-[1600px] mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/20" style={{ background: "linear-gradient(135deg, #008282 0%, #004f4f 100%)" }}>
-                <ActivityIcon className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight">ECOS-AI</h1>
-                <p className={`text-xs ${mutedText}`}>Simulateur d'examen clinique</p>
-              </div>
-            </div>
+    <div className={`flex h-screen flex-row overflow-hidden ${theme} ${bgClass} ${textClass} transition-colors duration-300`}>
+      <Sidebar
+        darkMode={darkMode}
+        onDarkModeChange={onDarkModeChange}
+        currentRoute={currentMode}
+        canSwitchModes={canSwitchModes}
+        onNavigate={onNavigate}
+        onOpenDashboard={onOpenDashboard}
+        onOpenSettings={onOpenSettings}
+      />
 
-            <div className="flex items-center gap-3">
-              <div className={`flex items-center rounded-xl border p-1 ${
-                darkMode
-                  ? "border-transparent bg-slate-800"
-                  : "border-slate-200 bg-white"
-              }`}>
-                <button
-                  type="button"
-                  onClick={() => onNavigate("home")}
-                  disabled={!canSwitchModes}
-                  className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
-                    !canSwitchModes
-                      ? darkMode
-                        ? "cursor-not-allowed text-slate-500"
-                        : "cursor-not-allowed text-slate-300"
-                      : darkMode
-                        ? "text-slate-300 hover:bg-slate-700"
-                        : "text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  Accueil
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onNavigate("ps")}
-                  disabled={currentMode !== "ps" && !canSwitchModes}
-                  className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
-                    currentMode === "ps"
-                      ? "bg-[#006767] text-white shadow-sm"
-                      : !canSwitchModes
-                        ? darkMode
-                          ? "cursor-not-allowed text-slate-500"
-                          : "cursor-not-allowed text-slate-300"
-                      : darkMode
-                        ? "text-slate-300 hover:bg-slate-700"
-                        : "text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  PS / PSS
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onNavigate("sans-ps")}
-                  disabled={currentMode !== "sans-ps" && !canSwitchModes}
-                  className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
-                    currentMode === "sans-ps"
-                      ? "bg-[#006767] text-white shadow-sm"
-                      : !canSwitchModes
-                        ? darkMode
-                          ? "cursor-not-allowed text-slate-500"
-                          : "cursor-not-allowed text-slate-300"
-                      : darkMode
-                        ? "text-slate-300 hover:bg-slate-700"
-                        : "text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  Sans PS
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onNavigate("library")}
-                  disabled={!canSwitchModes}
-                  className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
-                    !canSwitchModes
-                      ? darkMode
-                        ? "cursor-not-allowed text-slate-500"
-                        : "cursor-not-allowed text-slate-300"
-                      : darkMode
-                        ? "text-slate-300 hover:bg-slate-700"
-                        : "text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  Bibliothèque
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={onOpenDashboard}
-                className={`p-2.5 rounded-xl border transition-all duration-200 ${
-                  darkMode
-                    ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
-                    : "border-slate-200 bg-white hover:bg-slate-50"
-                }`}
-                aria-label="Ouvrir le tableau de bord"
-              >
-                <ActivityIcon className={`w-5 h-5 ${darkMode ? "text-slate-200" : "text-slate-600"}`} />
-              </button>
-
-              <button
-                onClick={() => onDarkModeChange(!darkMode)}
-                className={`p-2.5 rounded-xl border transition-all duration-200 ${
-                  darkMode
-                    ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
-                    : "border-slate-200 bg-white hover:bg-slate-50"
-                }`}
-                aria-label="Basculer le mode sombre"
-              >
-                {darkMode ? (
-                  <SunIcon className="w-5 h-5 text-amber-400" />
-                ) : (
-                  <MoonIcon className="w-5 h-5 text-slate-600" />
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={onOpenSettings}
-                className={`p-2.5 rounded-xl border transition-all duration-200 ${
-                  darkMode
-                    ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
-                    : "border-slate-200 bg-white hover:bg-slate-50"
-                }`}
-                aria-label="Ouvrir les réglages"
-              >
-                <SettingsIcon className={`w-5 h-5 ${darkMode ? "text-slate-200" : "text-slate-600"}`} />
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      {showEvaluationReport && evaluation ? (
-        <main className="mx-auto w-full max-w-[1280px] flex-1 px-6 py-8">
-          <div className="space-y-6">
-            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
-              <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
-                <div className="min-w-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowEvaluationReport(false);
-                      setShowReportAudioPlayer(false);
-                    }}
-                    className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all ${
-                      darkMode
-                        ? "border-transparent bg-slate-800 text-slate-100 hover:bg-slate-700"
-                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    ← Retour à la session
-                  </button>
-                  <h1 className="mt-4 text-3xl font-bold tracking-tight">Résultats de l&apos;évaluation</h1>
-                  <p className={`mt-2 text-sm ${mutedText}`}>
-                    Rapport détaillé de la station avec synthèse pédagogique et recommandations.
-                  </p>
-                </div>
-                <div className="flex w-full flex-col gap-3 xl:w-auto xl:min-w-[440px] xl:max-w-[860px] xl:items-end">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {canRerunEvaluation && (
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        {/* EVALUATION REPORT (full-width) */}
+        {showEvaluationReport && evaluation ? (
+          <div className="flex-1 overflow-y-auto px-6 py-8">
+            <div className="mx-auto max-w-[1280px]">
+              <div className="space-y-6">
+                <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
+                  <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
+                    <div className="min-w-0">
                       <button
                         type="button"
-                        onClick={handleRerunEvaluation}
-                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-medium text-white transition-all duration-200 hover:opacity-90"
-                        style={{ background: "linear-gradient(135deg, #006767 0%, #008282 100%)" }}
+                        onClick={() => {
+                          setShowEvaluationReport(false);
+                          setShowReportAudioPlayer(false);
+                        }}
+                        className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all ${
+                          darkMode
+                            ? "border-transparent bg-slate-800 text-slate-100 hover:bg-slate-700"
+                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        }`}
                       >
-                        Réévaluer
+                        &larr; Retour &agrave; la session
                       </button>
-                    )}
-                    {recordedAudioUrl && (
-                      <>
+                      <h1 className="mt-4 text-3xl font-bold tracking-tight">R&eacute;sultats de l&apos;&eacute;valuation</h1>
+                      <p className={`mt-2 text-sm ${mutedText}`}>
+                        Rapport d&eacute;taill&eacute; de la station avec synth&egrave;se p&eacute;dagogique et recommandations.
+                      </p>
+                    </div>
+                    <div className="flex w-full flex-col gap-3 xl:w-auto xl:min-w-[440px] xl:max-w-[860px] xl:items-end">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {canRerunEvaluation && (
+                          <button
+                            type="button"
+                            onClick={handleRerunEvaluation}
+                            className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-medium text-white transition-all duration-200 hover:opacity-90"
+                            style={{ background: "linear-gradient(135deg, #006767 0%, #008282 100%)" }}
+                          >
+                            R&eacute;&eacute;valuer
+                          </button>
+                        )}
+                        {recordedAudioUrl && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setShowReportAudioPlayer((current) => !current)}
+                              className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
+                                darkMode
+                                  ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
+                                  : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
+                              }`}
+                            >
+                              <PlayIcon className="w-4 h-4" />
+                              &Eacute;couter l&apos;audio
+                            </button>
+                            <button
+                              type="button"
+                              onClick={downloadRecordedAudio}
+                              className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
+                                darkMode
+                                  ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
+                                  : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
+                              }`}
+                            >
+                              <DownloadIcon className="w-4 h-4" />
+                              T&eacute;l&eacute;charger l&apos;audio
+                            </button>
+                          </>
+                        )}
                         <button
                           type="button"
-                          onClick={() => setShowReportAudioPlayer((current) => !current)}
+                          onClick={() =>
+                            void copyTextToClipboard(
+                              evaluationCopyText,
+                              "L'évaluation a été copiée.",
+                            )
+                          }
                           className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
                             darkMode
                               ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
                               : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
                           }`}
                         >
-                          <PlayIcon className="w-4 h-4" />
-                          Écouter l&apos;audio
+                          <CopyIcon className="w-4 h-4" />
+                          Copier l&apos;&eacute;valuation
                         </button>
                         <button
                           type="button"
-                          onClick={downloadRecordedAudio}
-                          className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
-                            darkMode
-                              ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
-                              : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
-                          }`}
+                          onClick={exportPdf}
+                          className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-800 px-3.5 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600"
                         >
-                          <DownloadIcon className="w-4 h-4" />
-                          Télécharger l&apos;audio
+                          <FileTextIcon className="w-4 h-4" />
+                          Exporter en PDF
                         </button>
-                      </>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void copyTextToClipboard(
-                          evaluationCopyText,
-                          "L'évaluation a été copiée.",
-                        )
-                      }
-                      className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
-                        darkMode
-                          ? "border-transparent bg-slate-100 text-slate-900 hover:bg-white"
-                          : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      <CopyIcon className="w-4 h-4" />
-                      Copier l&apos;évaluation
-                    </button>
-                    <button
-                      type="button"
-                      onClick={exportPdf}
-                      className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-800 px-3.5 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600"
-                    >
-                      <FileTextIcon className="w-4 h-4" />
-                      Exporter en PDF
-                    </button>
-                  </div>
-                  {recordedAudioUrl && showReportAudioPlayer && (
-                    <RecordingPlayer
-                      src={recordedAudioUrl}
-                      darkMode={darkMode}
-                      playbackRate={settings.recordedAudioPlaybackRate}
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <EvaluationReport
-              evaluation={evaluation}
-              darkMode={darkMode}
-              elapsedSeconds={lastSessionElapsedSeconds}
-            />
-          </div>
-        </main>
-      ) : (
-      <main className="max-w-[1600px] mx-auto w-full flex-1 px-6 py-8">
-        <div className="grid grid-cols-1 xl:grid-cols-[470px_1fr] gap-6">
-          {/* Left Sidebar */}
-          <div className="flex flex-col gap-6">
-            {/* Case Input */}
-            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
-              <div className="mb-4 flex items-center justify-between gap-2">
-                <h2 className="flex items-center gap-2 text-lg font-semibold">
-                  <FileTextIcon className="h-5 w-5 shrink-0 text-[#008282]" />
-                  Configuration du cas
-                  <div className="group relative">
-                    <button
-                      type="button"
-                      className={`flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
-                        darkMode
-                          ? "border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-200"
-                          : "border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-700"
-                      }`}
-                      aria-label="Informations sur la configuration du cas"
-                    >
-                      <InfoIcon className="h-3.5 w-3.5" />
-                    </button>
-                    <div
-                      className={`pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 rounded-2xl border px-4 py-3 text-sm font-normal leading-relaxed opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
-                        darkMode
-                          ? "border-slate-700 bg-slate-900 text-slate-200"
-                          : "border-slate-200 bg-white text-slate-700"
-                      }`}
-                    >
-                      Le parser détecte automatiquement les sections patient et grille à partir du texte au format Hypocampus.
+                      </div>
+                      {recordedAudioUrl && showReportAudioPlayer && (
+                        <RecordingPlayer
+                          src={recordedAudioUrl}
+                          darkMode={darkMode}
+                          playbackRate={settings.recordedAudioPlaybackRate}
+                        />
+                      )}
                     </div>
                   </div>
-                </h2>
-                <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setStudentRawInput(psExampleText)}
-                    disabled={isDiscussing || isPaused || isEvaluating || isConnecting}
-                    title="Charger un exemple"
-                    aria-label="Charger un exemple"
-                    className={`rounded-lg p-2 transition-colors ${
-                      isDiscussing || isPaused || isEvaluating || isConnecting
-                        ? "cursor-not-allowed bg-slate-200 text-slate-400 dark:bg-slate-700"
-                        : darkMode
-                          ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                    }`}
-                  >
-                    <BeakerIcon className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={requestClearText}
-                    disabled={!canClearText}
-                    title="Effacer"
-                    aria-label="Effacer"
-                    className={`rounded-lg p-2 transition-colors ${
-                      canClearText
-                        ? darkMode
-                          ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                        : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
-                    }`}
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAnalyse(studentRawInput, "")}
-                    disabled={isDiscussing || isPaused || isEvaluating || isConnecting}
-                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium shadow-sm transition-colors md:px-4 md:text-sm ${
-                      isDiscussing || isPaused || isEvaluating || isConnecting
-                        ? "cursor-not-allowed bg-primary-600/50 text-white/60"
-                        : "text-white shadow-primary-500/20 hover:opacity-90"
-                    }`}
-                    style={!(isDiscussing || isPaused || isEvaluating || isConnecting) ? { background: "linear-gradient(135deg, #006767 0%, #008282 100%)" } : undefined}
-                  >
-                    <SearchIcon className="h-3.5 w-3.5" />
-                    Analyser
-                  </button>
                 </div>
+
+                <EvaluationReport
+                  evaluation={evaluation}
+                  darkMode={darkMode}
+                  elapsedSeconds={lastSessionElapsedSeconds}
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* TOP BAR */}
+            <div className={`flex shrink-0 items-center justify-between gap-4 border-b px-6 py-3 ${
+              darkMode ? "border-slate-700/60 bg-slate-900/80" : "border-slate-200 bg-white"
+            }`}>
+              <div className="min-w-0">
+                <h2 className={`text-lg font-bold ${darkMode ? "text-slate-100" : "text-[#181c20]"}`}>
+                  Cas Clinique
+                </h2>
+                {parsedCase.patientName ? (
+                  <p className={`text-xs ${mutedText}`}>
+                    {parsedCase.patientName}{parsedCase.patientAge ? ` \u00b7 ${parsedCase.patientAge}` : ""}
+                  </p>
+                ) : (
+                  <p className={`text-xs ${mutedText}`}>Aucun cas charg&eacute;</p>
+                )}
               </div>
 
-              <textarea
-                value={studentRawInput}
-                onChange={(e) => setStudentRawInput(e.target.value)}
-                placeholder="Collez ici la trame du patient et la grille de correction..."
-                className={`w-full h-80 p-4 rounded-xl border resize-none text-sm leading-relaxed transition-all duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 ${inputBg}`}
-              />
+              {parsedReady && (
+                <div className="flex shrink-0 items-center gap-3">
+                  {/* Timer */}
+                  <div className="text-right">
+                    <div className={`text-[10px] font-semibold uppercase tracking-widest ${mutedText}`}>
+                      Temps restant
+                    </div>
+                    <div className={`text-xl font-bold tabular-nums tracking-tight ${
+                      timerDanger ? "animate-pulse text-rose-500" : darkMode ? "text-slate-100" : "text-[#181c20]"
+                    }`}>
+                      {formatCountdown(remainingSeconds)}
+                    </div>
+                  </div>
 
-              {parseError && (
-                <div className="mt-3 p-3 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 text-sm">
-                  {parseError}
+                  {/* Voice chip */}
+                  <button
+                    type="button"
+                    onClick={() => setIsVoiceDrawerOpen(true)}
+                    disabled={!parsedReady || isDiscussing || isConnecting}
+                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-all ${
+                      darkMode
+                        ? "border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    } ${(!parsedReady || isDiscussing || isConnecting) ? "cursor-not-allowed opacity-50" : ""}`}
+                  >
+                    {selectedVoiceOption?.label ?? selectedVoiceName}
+                    <span className="opacity-60">{selectedVoiceOption?.gender === "female" ? "\u2640" : "\u2642"}</span>
+                  </button>
+
+                  {/* Mic button */}
+                  <button
+                    type="button"
+                    onClick={toggleMicMute}
+                    disabled={!isDiscussing && !isPaused}
+                    aria-pressed={isMicMuted}
+                    aria-label={isMicMuted ? "R\u00e9activer le microphone" : "Couper le microphone"}
+                    className={`relative flex h-11 w-11 items-center justify-center rounded-full transition-all ${
+                      isMicMuted
+                        ? darkMode ? "bg-slate-800 text-rose-400" : "bg-rose-50 text-rose-500"
+                        : "text-white shadow-lg"
+                    } ${(!isDiscussing && !isPaused) ? "cursor-not-allowed opacity-40" : ""}`}
+                    style={(!isMicMuted && (isDiscussing || isPaused))
+                      ? { background: "linear-gradient(135deg, #006767 0%, #008282 100%)" }
+                      : undefined}
+                  >
+                    {isMicMuted ? (
+                      <MicOffIcon className="h-5 w-5" />
+                    ) : (
+                      <MicIcon className="h-5 w-5" />
+                    )}
+                    {!isMicMuted && (isDiscussing || isPaused) && conversationPhase === "patient-speaking" && (
+                      <span className="absolute inset-0 animate-ping rounded-full bg-[#008282] opacity-30" />
+                    )}
+                  </button>
                 </div>
               )}
             </div>
 
-            {/* Patient Info */}
-            <div className={`flex-1 rounded-2xl border ${cardBg} p-6 shadow-soft`}>
-              <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
-                <UserIcon className="w-4 h-4 text-[#008282]" />
-                Informations patient
-                <div className="group relative">
-                  <button
-                    type="button"
-                    className={`flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
-                      darkMode
-                        ? "border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-200"
-                        : "border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-700"
-                    }`}
-                    aria-label="Informations sur le patient"
-                  >
-                    <InfoIcon className="h-3.5 w-3.5" />
-                  </button>
-                  <div
-                    className={`pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 rounded-2xl border px-4 py-3 text-sm font-normal leading-relaxed opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
-                      darkMode
-                        ? "border-slate-700 bg-slate-900 text-slate-200"
-                        : "border-slate-200 bg-white text-slate-700"
-                    }`}
-                  >
-                    Extraites automatiquement du texte de la station : nom, âge, sexe et contexte clinique du patient simulé.
-                  </div>
-                </div>
-              </h2>
-
-              <div className="grid grid-cols-2 gap-2">
-                {displayedPatientInfo.map((item) => (
-                  <div
-                    key={`${item.label}-${item.value}`}
-                    className={`p-2 rounded-xl ${subCardBg} border transition-opacity ${
-                      patientInfo.length === 0 ? "opacity-60" : ""
-                    }`}
-                  >
-                    <div className={`text-[11px] font-medium uppercase tracking-wider ${mutedText} mb-0.5`}>
-                      {item.label}
-                    </div>
-                    <div className={`text-sm font-medium ${patientInfo.length === 0 ? mutedText : ""}`}>
-                      {item.value}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-            </div>
-          </div>
-
-          {/* Main Panel */}
-          <div className="space-y-6">
-            {/* Session Controls */}
-            <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
-              <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-                <div className="flex min-w-0 items-center gap-4">
-                  <div className={`w-3 h-3 rounded-full ${getStatusColor()} ${conversationPhase !== "idle" ? "animate-pulse" : ""}`} />
-                  <div className="min-w-0">
-                    <h2 className="text-lg font-semibold">Session de discussion</h2>
-                    <p className={`text-sm ${mutedText}`}>{status}</p>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${subtleBg}`}>
-                    {getStatusLabel()}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3 lg:shrink-0">
-                  <button
-                    onClick={startDiscussion}
-                    disabled={!canStart}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
-                      canStart
-                        ? "text-white shadow-lg shadow-primary-500/20 hover:opacity-90"
-                        : darkMode
-                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
-                          : "bg-slate-200 text-slate-400 cursor-not-allowed"
-                    }`}
-                    style={canStart ? { background: "linear-gradient(135deg, #006767 0%, #008282 100%)" } : undefined}
-                  >
-                    <PlayIcon className="w-4 h-4" />
-                    {isConnecting ? "Connexion..." : "Démarrer"}
-                  </button>
-
-                  <button
-                    onClick={togglePauseDiscussion}
-                    disabled={!canPause && !isPaused}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
-                      canPause || isPaused
-                        ? darkMode
-                          ? "bg-slate-800/85 text-slate-100 hover:bg-slate-700/90"
-                          : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
-                        : darkMode
-                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
-                          : "bg-slate-200 text-slate-400 cursor-not-allowed"
-                    }`}
-                  >
-                    {isPaused ? (
-                      <PlayIcon className="w-4 h-4" />
-                    ) : (
-                      <PauseIcon className="w-4 h-4" />
-                    )}
-                    {isPaused ? "Reprendre" : "Pause"}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={requestStopDiscussion}
-                    disabled={!canEnd}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
-                      canEnd
-                        ? darkMode
-                          ? "bg-slate-800/85 text-slate-100 hover:bg-slate-700/90"
-                          : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
-                        : darkMode
-                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
-                          : "bg-slate-200 text-slate-400 cursor-not-allowed"
-                    }`}
-                  >
-                    <StopIcon className="w-4 h-4" />
-                    Terminer
-                  </button>
-
-                  <button
-                    onClick={handleEvaluateClick}
-                    disabled={!canJudge}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
-                      canJudge
-                        ? darkMode
-                          ? "bg-slate-800/85 text-slate-100 hover:bg-slate-700/90"
-                          : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
-                        : darkMode
-                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
-                          : "bg-slate-200 text-slate-400 cursor-not-allowed"
-                    }`}
-                  >
-                    <CheckIcon className="w-4 h-4" />
-                    Évaluer
-                  </button>
-
-                  <button
-                    onClick={requestResetSession}
-                    disabled={!canResetSession}
-                    className={`flex min-w-[112px] items-center justify-center gap-2 rounded-xl px-5 py-2.5 font-medium text-sm transition-all duration-200 ${
-                      canResetSession
-                        ? darkMode
-                          ? "bg-slate-800/85 text-slate-100 hover:bg-slate-700/90"
-                          : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
-                        : darkMode
-                          ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
-                          : "bg-slate-200 text-slate-400 cursor-not-allowed"
-                    }`}
-                  >
-                    <ResetIcon className="w-4 h-4" />
-                    Réinitialiser
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Discussion Area */}
-            <div className={`grid min-h-0 grid-cols-1 gap-6 lg:grid-cols-[320px_1fr] ${discussionPanelHeightClass}`}>
-              <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft lg:h-full`}>
-                <div className="flex items-center gap-2">
-                  <ClockIcon className={`h-4 w-4 ${mutedText}`} />
-                  <span className="text-sm font-semibold">Outils de session</span>
-                </div>
-
-                <div className={`mt-5 rounded-2xl p-5 ${darkMode ? "bg-slate-950/36" : "border border-slate-200/70"}`}>
-                  <div className="flex items-center gap-2">
-                    <ClockIcon className={`w-4 h-4 ${mutedText}`} />
-                    <span className={`text-sm font-medium ${mutedText}`}>Temps restant</span>
-                  </div>
-
-                  <div className={`mt-3 text-center text-5xl font-bold tabular-nums tracking-tight ${
-                    timerDanger ? "text-rose-500 animate-pulse" : ""
-                  }`}>
-                    {formatCountdown(remainingSeconds)}
-                  </div>
-
-                  <div className="mt-4">
-                    <div className={`h-2 rounded-full overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-200"}`}>
-                      <div
-                        className={`h-full rounded-full transition-all duration-300 ${
-                          timerDanger ? "bg-rose-500" : "bg-[#008282]"
-                        }`}
-                        style={{
-                          width: `${Math.max(0, Math.min(100, (remainingSeconds / sessionDurationSeconds) * 100))}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-5 border-t border-slate-200/70 pt-5 dark:border-slate-700/60">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-2">
-                      {isMicMuted ? (
-                        <MicOffIcon className={`h-4 w-4 ${mutedText}`} />
-                      ) : (
-                        <MicIcon className={`h-4 w-4 ${mutedText}`} />
-                      )}
-                      <span className={`text-sm font-medium ${mutedText}`}>Microphone</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
-                          isMicMuted
-                            ? "text-rose-600 dark:text-rose-300"
-                            : "text-emerald-600 dark:text-emerald-300"
-                        }`}
-                      >
-                        <span
-                          className={`h-2 w-2 rounded-full ${
-                            isMicMuted ? "bg-rose-500" : "bg-emerald-500"
-                          }`}
-                        />
-                        {isMicMuted ? "Coupé" : "Actif"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="relative mx-auto mt-5 h-32 w-32">
-                    <div
-                      className={`pointer-events-none absolute inset-0 rounded-full ${
-                        isMicMuted
-                          ? darkMode
-                            ? "bg-rose-950/25"
-                            : "bg-rose-50/80"
-                          : darkMode
-                            ? "bg-slate-800/30"
-                            : "bg-[#e0f4f4]/70"
-                      }`}
-                    />
-                    {Array.from({ length: 36 }, (_, i) => {
-                      const angle = (360 / 36) * i;
-                      const rawPeak = isMicMuted ? 0 : micPeak;
-                      const displayPeak = Math.sqrt(Math.min(rawPeak, 1));
-                      const active = !isMicMuted && i < Math.max(3, Math.round(displayPeak * 36));
-                      const barHeight = active ? 12 + displayPeak * 18 : 6;
-
-                      return (
-                        <div
-                          key={i}
-                          className="pointer-events-none absolute left-1/2 top-1/2 origin-bottom rounded-full"
-                          style={{
-                            width: 4,
-                            height: barHeight,
-                            transform: `translate(-50%, -100%) rotate(${angle}deg) translateY(-38px)`,
-                            background: active
-                              ? "linear-gradient(to top, #006767, #008282)"
-                              : isMicMuted
-                                ? darkMode
-                                  ? "rgba(244, 63, 94, 0.16)"
-                                  : "rgba(244, 63, 94, 0.18)"
-                                : darkMode
-                                  ? "rgba(148, 163, 184, 0.2)"
-                                  : "rgba(148, 163, 184, 0.3)",
-                          }}
-                        />
-                      );
-                    })}
-                    <button
-                      type="button"
-                      onClick={toggleMicMute}
-                      aria-pressed={isMicMuted}
-                      aria-label={
-                        isMicMuted
-                          ? "Réactiver le microphone"
-                          : "Couper le microphone"
-                      }
-                      title={
-                        isMicMuted
-                          ? "Réactiver le microphone"
-                          : "Couper le microphone"
-                      }
-                      className={`absolute inset-0 z-10 m-auto flex h-16 w-16 items-center justify-center rounded-full transition-all ${
-                        isMicMuted
-                          ? darkMode
-                            ? "border-transparent bg-slate-900"
-                            : "border border-rose-200 bg-white"
-                          : darkMode
-                            ? "border-transparent bg-slate-800 hover:bg-slate-700"
-                            : "border border-slate-200 bg-white hover:bg-slate-50"
-                      }`}
-                    >
-                      {isMicMuted ? (
-                        <MicOffIcon className="h-7 w-7 text-rose-500" />
-                      ) : (
-                        <MicIcon className="h-7 w-7 text-slate-700 dark:text-slate-200" />
-                      )}
-                    </button>
-                  </div>
-
-                  <div className="mt-5 border-t border-slate-200/70 pt-5 dark:border-slate-700/60">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <h3 className="text-sm font-semibold">Voix du patient</h3>
-                          <span
-                            className={`inline-flex h-4 w-4 items-center justify-center ${mutedText}`}
-                            title="Pré-sélection guidée par le sexe détecté, modifiable avant le démarrage."
-                            aria-label="Information sur la pré-sélection de la voix"
-                          >
-                            <InfoIcon className="h-3.5 w-3.5" />
-                          </span>
-                        </div>
+            {/* CONTENT AREA: case content + transcript */}
+            <div className="flex min-h-0 flex-1 overflow-hidden">
+              {/* Middle: scrollable case content */}
+              <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+                {!parsedReady ? (
+                  <div className="flex flex-1 items-center justify-center p-8">
+                    <div className="text-center">
+                      <div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl ${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
+                        <FileTextIcon className={`h-8 w-8 ${mutedText}`} />
                       </div>
-                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
-                        voiceSelectionMode === "auto"
-                          ? darkMode
-                            ? "bg-slate-800 text-slate-200"
-                            : "bg-slate-100 text-slate-600"
-                          : darkMode
-                            ? "bg-[#008282]/15 text-[#4dbdbd]"
-                            : "bg-[#b3e3e3] text-[#004f4f]"
-                      }`}>
-                        {voiceSelectionMode === "auto" ? "Auto" : "Custom"}
-                      </span>
+                      <p className={`mb-1 text-sm font-semibold ${darkMode ? "text-slate-200" : "text-slate-700"}`}>
+                        Aucune station charg&eacute;e
+                      </p>
+                      <p className={`mb-5 text-xs ${mutedText}`}>
+                        Chargez une station pour commencer la simulation
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setIsStationModalOpen(true)}
+                        className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:opacity-90"
+                        style={{ background: "linear-gradient(135deg, #006767 0%, #008282 100%)" }}
+                      >
+                        <PlusIcon className="h-4 w-4" />
+                        D&eacute;marrer une station
+                      </button>
                     </div>
-
-                    <div className={`mt-4 rounded-xl border ${subCardBg} p-3`}>
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
-                              darkMode
-                                ? "bg-slate-800 text-slate-300"
-                                : "bg-slate-100 text-slate-500"
-                            }`}>
-                              {selectedVoiceOption?.gender === "male" ? (
-                                <VoiceMaleIcon className="h-3.5 w-3.5" />
-                              ) : (
-                                <VoiceFemaleIcon className="h-3.5 w-3.5" />
-                              )}
-                            </span>
-                            <div className="min-w-0">
-                              <div className="truncate text-sm font-semibold leading-tight">
-                                {selectedVoiceOption?.label ?? selectedVoiceName}
-                              </div>
-                              <div className={`mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] ${mutedText}`}>
-                                <span className={`rounded-full px-2 py-0.5 ${
-                                  darkMode ? "bg-slate-800 text-slate-300" : "bg-slate-100 text-slate-600"
-                                }`}>
-                                  {selectedVoiceOption?.gender === "male"
-                                    ? "Voix masculine"
-                                    : "Voix féminine"}
-                                </span>
-                                {favoriteVoiceNames.includes(selectedVoiceName) ? (
-                                  <span className={`rounded-full px-2 py-0.5 ${
-                                    darkMode
-                                      ? "bg-rose-500/15 text-rose-300"
-                                      : "bg-rose-50 text-rose-600"
-                                  }`}>
-                                    Favori
-                                  </span>
-                                ) : null}
-                                <span className="opacity-70">Voix active</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
+                  </div>
+                ) : (
+                  <div className="p-6">
+                    <div className={`rounded-2xl border p-5 ${cardBg}`}>
+                      {renderStudentContent(studentRawInput)}
+                    </div>
+                    {hasEndedDiscussion && !isDiscussing && (
+                      <div className="mt-4 text-center">
                         <button
                           type="button"
-                          onClick={() => setIsVoiceDrawerOpen(true)}
-                          disabled={!parsedReady}
-                          className={`shrink-0 rounded-xl border px-3 py-1.5 text-sm font-medium transition-all ${
-                            parsedReady
-                              ? darkMode
-                                ? "border-transparent bg-slate-800 text-slate-100 hover:bg-slate-700"
-                                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                              : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 dark:border-transparent dark:bg-slate-800"
+                          onClick={() => setIsStationModalOpen(true)}
+                          className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all ${
+                            darkMode
+                              ? "border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700"
+                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                           }`}
                         >
-                          Modifier
+                          Changer de station
                         </button>
                       </div>
-                    </div>
+                    )}
                   </div>
-                </div>
+                )}
               </div>
 
-              {/* Transcript */}
-              <div className={`flex ${transcriptPanelHeightClass} min-h-0 flex-col overflow-hidden rounded-2xl border ${cardBg} p-6 shadow-soft lg:h-full`}>
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <h3 className="text-lg font-semibold">Transcription en direct</h3>
+              {/* Right panel: Transcription en live */}
+              <div className={`flex w-[380px] shrink-0 flex-col border-l ${
+                darkMode ? "border-slate-700/60" : "border-slate-200"
+              }`}>
+                {/* Header */}
+                <div className={`flex shrink-0 items-start justify-between border-b px-4 py-3 ${
+                  darkMode ? "border-slate-700/60" : "border-slate-200"
+                }`}>
+                  <div>
+                    <h3 className={`text-sm font-semibold ${darkMode ? "text-slate-100" : "text-[#181c20]"}`}>
+                      Transcription en live
+                    </h3>
+                    <p className={`text-xs ${mutedText}`}>Live transcription &amp; analysis feed</p>
+                  </div>
                   <button
                     type="button"
-                    onClick={() =>
-                      void copyTextToClipboard(
-                        transcriptCopyText,
-                        "La transcription a été copiée.",
-                      )
-                    }
+                    onClick={() => void copyTextToClipboard(transcriptCopyText, "La transcription a \u00e9t\u00e9 copi\u00e9e.")}
                     disabled={!canCopyTranscript}
                     title="Copier le transcript"
                     aria-label="Copier le transcript"
-                    className={`rounded-lg p-2 transition-colors ${
+                    className={`rounded-lg p-1.5 transition-colors ${
                       darkMode
                         ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
                         : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                    } ${!canCopyTranscript ? "cursor-not-allowed opacity-60" : ""}`}
+                    } ${!canCopyTranscript ? "cursor-not-allowed opacity-40" : ""}`}
                   >
-                    <CopyIcon className="w-4 h-4" />
+                    <CopyIcon className="h-4 w-4" />
                   </button>
                 </div>
+
+                {/* Transcript feed */}
                 <div
                   ref={transcriptRef}
-                  className={`min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-smooth rounded-xl ${
+                  className={`min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-smooth ${
                     darkMode ? "bg-slate-950/50" : "bg-slate-50/80"
                   }`}
                 >
@@ -2935,19 +2609,19 @@ export default function App({
                         {!settings.showLiveTranscript && !hasEndedDiscussion ? (
                           <>
                             <p className={`text-sm ${mutedText}`}>
-                              La transcription en direct est masquée
+                              La transcription en direct est masqu&eacute;e
                             </p>
                             <p className={`text-xs ${mutedText} mt-1`}>
-                              Elle sera visible à la fin de la session.
+                              Elle sera visible &agrave; la fin de la session.
                             </p>
                           </>
                         ) : (
                           <>
                             <p className={`text-sm ${mutedText}`}>
-                              La transcription apparaîtra ici
+                              La transcription appara&icirc;tra ici
                             </p>
                             <p className={`text-xs ${mutedText} mt-1`}>
-                              Démarrez une session pour commencer
+                              D&eacute;marrez une session pour commencer
                             </p>
                           </>
                         )}
@@ -3102,24 +2776,167 @@ export default function App({
                     </div>
                   )}
                 </div>
+
+                {/* Footer */}
+                <div className={`shrink-0 border-t p-3 ${darkMode ? "border-slate-700/60" : "border-slate-200"}`}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const text = transcriptCopyText;
+                      const blob = new Blob([text], { type: "text/plain" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = "transcription.txt";
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    disabled={!canCopyTranscript}
+                    className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
+                      canCopyTranscript
+                        ? darkMode
+                          ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        : darkMode
+                          ? "cursor-not-allowed bg-slate-800/50 text-slate-500 opacity-40"
+                          : "cursor-not-allowed bg-slate-100 text-slate-400 opacity-40"
+                    }`}
+                  >
+                    <DownloadIcon className="h-4 w-4" />
+                    Exporter la transcription
+                  </button>
+                </div>
               </div>
             </div>
 
+            {/* BOTTOM ACTION BAR */}
+            <div className={`flex shrink-0 items-center gap-3 border-t px-6 py-3 ${
+              darkMode ? "border-slate-700/60 bg-slate-900/80" : "border-slate-200 bg-white"
+            }`} style={{ backdropFilter: "blur(12px)" }}>
+              <button
+                onClick={startDiscussion}
+                disabled={!canStart}
+                className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200 ${
+                  canStart
+                    ? "text-white shadow-lg hover:opacity-90"
+                    : darkMode
+                      ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
+                      : "cursor-not-allowed bg-slate-200 text-slate-400"
+                }`}
+                style={canStart ? { background: "linear-gradient(135deg, #006767 0%, #008282 100%)" } : undefined}
+              >
+                <PlayIcon className="h-4 w-4" />
+                {isConnecting ? "Connexion..." : "D\u00e9marrer"}
+              </button>
+
+              <button
+                onClick={togglePauseDiscussion}
+                disabled={!canPause && !isPaused}
+                className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200 ${
+                  canPause || isPaused
+                    ? darkMode
+                      ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                      : "border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    : darkMode
+                      ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
+                      : "cursor-not-allowed bg-slate-200 text-slate-400"
+                }`}
+              >
+                {isPaused ? <PlayIcon className="h-4 w-4" /> : <PauseIcon className="h-4 w-4" />}
+                {isPaused ? "Reprendre" : "Pause"}
+              </button>
+
+              <button
+                type="button"
+                onClick={requestStopDiscussion}
+                disabled={!canEnd}
+                className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200 ${
+                  canEnd
+                    ? darkMode
+                      ? "bg-rose-900/40 text-rose-300 hover:bg-rose-900/60"
+                      : "border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                    : darkMode
+                      ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
+                      : "cursor-not-allowed bg-slate-200 text-slate-400"
+                }`}
+              >
+                <StopIcon className="h-4 w-4" />
+                Terminer
+              </button>
+
+              <button
+                onClick={handleEvaluateClick}
+                disabled={!canJudge}
+                className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200 ${
+                  canJudge
+                    ? darkMode
+                      ? "bg-slate-700 text-slate-100 hover:bg-slate-600"
+                      : "border border-slate-200 bg-slate-800 text-white hover:bg-slate-900"
+                    : darkMode
+                      ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
+                      : "cursor-not-allowed bg-slate-200 text-slate-400"
+                }`}
+              >
+                <CheckIcon className="h-4 w-4" />
+                &Eacute;valuer
+              </button>
+
+              <button
+                onClick={requestResetSession}
+                disabled={!canResetSession}
+                title="R\u00e9initialiser la session"
+                aria-label="R\u00e9initialiser la session"
+                className={`flex items-center justify-center rounded-xl p-2.5 transition-all duration-200 ${
+                  canResetSession
+                    ? darkMode
+                      ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                      : "border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    : darkMode
+                      ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
+                      : "cursor-not-allowed bg-slate-200 text-slate-400"
+                }`}
+              >
+                <ResetIcon className="h-4 w-4" />
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* STATION INPUT MODAL */}
+      {isStationModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+          <div className={`w-full max-w-3xl rounded-2xl border shadow-2xl ${cardBg} p-6`}>
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <h2 className={`text-lg font-bold ${darkMode ? "text-slate-100" : "text-[#181c20]"}`}>
+                  Nouvelle station
+                </h2>
+                <p className={`text-sm ${mutedText}`}>Collez les deux documents de la station SDD</p>
+              </div>
+              {!isDiscussing && !isConnecting && !isPaused && (
+                <button
+                  type="button"
+                  onClick={() => { setIsStationModalOpen(false); setParseError(""); }}
+                  className={`rounded-xl p-2 transition-colors ${darkMode ? "hover:bg-slate-700" : "hover:bg-slate-100"}`}
+                  aria-label="Fermer"
+                >
+                  <XIcon className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+            <ModalInputForm
+              darkMode={darkMode}
+              inputBg={inputBg}
+              parseError={parseError}
+              isLocked={isDiscussing || isConnecting || isPaused}
+              onAnalyse={handleAnalyse}
+              initialStudentRaw={studentRawInput}
+              initialExaminatorRaw={examinatorRawInput}
+            />
           </div>
         </div>
-      </main>
       )}
-
-      <div className={`mt-auto w-full px-8 pb-8 pt-6 text-center text-xs leading-relaxed ${mutedText}`}>
-        <div className="mx-auto max-w-4xl">
-          <span className="block">
-            Echo-IA utilise une technologie d&apos;intelligence artificielle de pointe pour la transcription.
-          </span>
-          <span className="block">
-            Bien que performant, des erreurs peuvent subsister. Nous vous recommandons de vérifier les points critiques à l&apos;aide de l&apos;audio original intégré.
-          </span>
-        </div>
-      </div>
 
       {/* Evaluation Modal */}
       {isEvaluating && (
