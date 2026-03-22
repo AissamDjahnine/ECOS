@@ -17,7 +17,7 @@ type Props = {
   darkMode: boolean;
 };
 
-export const StationDetailPSS: React.FC<Props> = ({ station }) => {
+export const StationDetailPSS: React.FC<Props> = ({ station, darkMode }) => {
   const [activeTab, setActiveTab] = useState<TabKey>('station');
 
   const metadata = station.metadata;
@@ -41,6 +41,17 @@ export const StationDetailPSS: React.FC<Props> = ({ station }) => {
         return metadata.sddTitle;
     }
   }, [activeTab, metadata.sddTitle]);
+
+  const tabClass = (tab: TabKey) =>
+    `flex items-center gap-2.5 px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest border transition-all ${
+      activeTab === tab
+        ? darkMode
+          ? 'bg-blue-900/40 border-blue-500/30 text-blue-300'
+          : 'bg-[#EFF6FF] border-[#3B82F6]/30 text-[#1E40AF]'
+        : darkMode
+        ? 'bg-slate-800 border-slate-600 text-slate-400'
+        : 'bg-[#F8FAFC] border-slate-200 text-[#64748B]'
+    }`;
 
   const SectionHeader = ({ title }: { title: string }) => (
     <div className="bg-[#F1F5F9] border-l-[4px] border-[#64748B] px-4 py-3 mb-8 rounded-[2px]">
@@ -82,44 +93,28 @@ export const StationDetailPSS: React.FC<Props> = ({ station }) => {
         <div className="flex flex-wrap gap-2.5 mb-8">
           <button
             onClick={() => setActiveTab('station')}
-            className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest border transition-all ${
-              activeTab === 'station'
-                ? 'bg-[#EFF6FF] border-[#3B82F6]/30 text-[#1E40AF]'
-                : 'bg-[#F8FAFC] border-slate-200 text-[#64748B]'
-            }`}
+            className={tabClass('station')}
           >
             <BookOpen size={16} /> {stationIdString} : {metadata.sddTitle}
           </button>
 
           <button
             onClick={() => setActiveTab('student')}
-            className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest border transition-all ${
-              activeTab === 'student'
-                ? 'bg-[#EFF6FF] border-[#3B82F6]/30 text-[#1E40AF]'
-                : 'bg-[#F8FAFC] border-slate-200 text-[#64748B]'
-            }`}
+            className={tabClass('student')}
           >
             <FileText size={16} /> {stationIdString} : Pour l'étudiant
           </button>
 
           <button
             onClick={() => setActiveTab('pss')}
-            className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest border transition-all ${
-              activeTab === 'pss'
-                ? 'bg-[#EFF6FF] border-[#3B82F6]/30 text-[#1E40AF]'
-                : 'bg-[#F8FAFC] border-slate-200 text-[#64748B]'
-            }`}
+            className={tabClass('pss')}
           >
             <User size={16} /> {stationIdString} : Pour le PSS
           </button>
 
           <button
             onClick={() => setActiveTab('correction')}
-            className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest border transition-all ${
-              activeTab === 'correction'
-                ? 'bg-[#EFF6FF] border-[#3B82F6]/30 text-[#1E40AF]'
-                : 'bg-[#F8FAFC] border-slate-200 text-[#64748B]'
-            }`}
+            className={tabClass('correction')}
           >
             <GraduationCap size={16} /> {stationIdString} : Correction détaillée
           </button>
