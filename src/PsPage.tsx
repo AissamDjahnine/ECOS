@@ -658,7 +658,7 @@ function SettingsIcon({ className }: { className?: string }) {
 
 type PsPageProps = {
   currentMode: "ps" | "sans-ps";
-  onNavigate: (mode: "ps" | "sans-ps" | "library") => void;
+  onNavigate: (mode: "ps" | "sans-ps" | "library" | "home") => void;
   settings: AppSettings;
   onOpenDashboard: () => void;
   onOpenSettings: () => void;
@@ -2200,6 +2200,22 @@ export default function App({
                   ? "border-transparent bg-slate-800"
                   : "border-slate-200 bg-white"
               }`}>
+                <button
+                  type="button"
+                  onClick={() => onNavigate("home")}
+                  disabled={!canSwitchModes}
+                  className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
+                    !canSwitchModes
+                      ? darkMode
+                        ? "cursor-not-allowed text-slate-500"
+                        : "cursor-not-allowed text-slate-300"
+                      : darkMode
+                        ? "text-slate-300 hover:bg-slate-700"
+                        : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  Accueil
+                </button>
                 <button
                   type="button"
                   onClick={() => onNavigate("ps")}

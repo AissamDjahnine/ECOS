@@ -478,7 +478,7 @@ function CaseDetailView({
 type LibraryPageProps = {
   darkMode: boolean;
   onDarkModeChange: (value: boolean) => void;
-  onNavigate: (route: "ps" | "sans-ps" | "library") => void;
+  onNavigate: (route: "ps" | "sans-ps" | "library" | "home") => void;
   onSelectCase: (rawInput: string, targetMode: RouteMode) => void;
   onOpenDashboard: () => void;
   onOpenSettings: () => void;
@@ -618,6 +618,15 @@ export function LibraryPage({
               <div className={`flex items-center rounded-xl border p-1 ${
                 darkMode ? "border-transparent bg-slate-800" : "border-slate-200 bg-white"
               }`}>
+                <button
+                  type="button"
+                  onClick={() => onNavigate("home")}
+                  className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
+                    darkMode ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  Accueil
+                </button>
                 <button
                   type="button"
                   onClick={() => onNavigate("ps")}
