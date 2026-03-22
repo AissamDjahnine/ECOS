@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import PsPage from "./PsPage";
 import SansPsPage from "./SansPsPage";
+import { LibraryPage } from "./LibraryPage";
 import { DashboardDrawer } from "./DashboardDrawer";
 import { SettingsDrawer } from "./SettingsDrawer";
 import { ToastViewport } from "./ToastViewport";
@@ -11,7 +12,9 @@ function resolveMode(pathname: string): RouteMode {
   if (pathname === "/sans-ps") {
     return "sans-ps";
   }
-
+  if (pathname === "/bibliotheque") {
+    return "library";
+  }
   return "ps";
 }
 
@@ -84,7 +87,12 @@ export default function App() {
   }
 
   function navigate(nextMode: RouteMode) {
-    const nextPath = nextMode === "sans-ps" ? "/sans-ps" : "/ps";
+    const nextPath =
+      nextMode === "sans-ps"
+        ? "/sans-ps"
+        : nextMode === "library"
+          ? "/bibliotheque"
+          : "/ps";
     if (window.location.pathname !== nextPath) {
       window.history.pushState({}, "", nextPath);
     }
@@ -95,7 +103,18 @@ export default function App() {
 
   return (
     <>
-      {mode === "sans-ps" ? (
+      {mode === "library" ? (
+        <LibraryPage
+          darkMode={darkMode}
+          onDarkModeChange={(v) => setSettings((s) => ({ ...s, darkMode: v }))}
+          onNavigate={navigate}
+          onSelectCase={(_rawInput, targetMode) => navigate(targetMode)}
+          onOpenDashboard={() => setIsDashboardOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          settings={settings}
+          onShowToast={showToast}
+        />
+      ) : mode === "sans-ps" ? (
         <SansPsPage
           currentMode={mode}
           onNavigate={navigate}
