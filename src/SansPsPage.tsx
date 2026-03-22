@@ -640,8 +640,11 @@ export default function SansPsPage({
   initialRawInput,
   initialGradingGrid,
 }: SansPsPageProps) {
-  const [rawInput, setRawInput] = useState(initialRawInput ?? "");
+  const [studentRawInput, setStudentRawInput] = useState(initialRawInput ?? "");
+  const [examinatorRawInput, setExaminatorRawInput] = useState(initialGradingGrid ?? "");
+  // gradingGrid is kept as separate state because the evaluate call references it directly
   const [gradingGrid, setGradingGrid] = useState(initialGradingGrid ?? "");
+  const [isStationModalOpen, setIsStationModalOpen] = useState(false);
   const [parseError, setParseError] = useState("");
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [status, setStatus] = useState("Session sans PS prête");
@@ -741,16 +744,13 @@ export default function SansPsPage({
       recordedAudioUrl !== null ||
       hasEndedDiscussion);
   const canClearText =
-    !isConnecting &&
-    !isEvaluating &&
     !isDiscussing &&
     !isPaused &&
-    (rawInput.trim().length > 0 ||
+    !isEvaluating &&
+    !isConnecting &&
+    (studentRawInput.trim().length > 0 ||
+      examinatorRawInput.trim().length > 0 ||
       gradingGrid.length > 0 ||
-      parseError.length > 0 ||
-      transcript.length > 0 ||
-      evaluation !== null ||
-      recordedAudioUrl !== null ||
       hasEndedDiscussion);
   const timerDanger = remainingSeconds <= 60;
   const sessionDurationSeconds = settings.defaultTimerSeconds;
@@ -874,25 +874,19 @@ export default function SansPsPage({
   }, [sessionPhase]);
 
 
-  function handleParse() {
-    const nextGrid = extractGradingGridOnly(rawInput);
-    setGradingGrid(nextGrid);
-    setEvaluation(null);
-    setShowEvaluationReport(false);
-    setShowReportAudioPlayer(false);
-    setLastEvaluatedFeedbackDetailLevel(null);
-    setHasEndedDiscussion(false);
-
+  function handleAnalyse(studentRaw: string, examinatorRaw: string) {
+    const nextGrid = examinatorRaw.trim();
     if (!nextGrid) {
       setParseError(
-        "Impossible d'identifier une grille de correction exploitable dans ce texte.",
+        "Aucune grille de correction détectée dans le texte de l'examinateur.",
       );
-      setStatus("Session sans PS prête");
       return;
     }
-
     setParseError("");
-    setStatus("Grille prête pour évaluation");
+    setStudentRawInput(studentRaw);
+    setExaminatorRawInput(examinatorRaw);
+    setGradingGrid(nextGrid);
+    setIsStationModalOpen(false);
   }
 
   function resetRecordingState() {
@@ -1107,7 +1101,8 @@ export default function SansPsPage({
 
   async function handleClearText() {
     await resetSessionState();
-    setRawInput("");
+    setStudentRawInput("");
+    setExaminatorRawInput("");
     setGradingGrid("");
     setParseError("");
     setShowEvaluationReport(false);
@@ -1712,7 +1707,7 @@ export default function SansPsPage({
     popup.document.open();
     popup.document.write(
       buildSansPsPdfDocument(
-        rawInput,
+        studentRawInput,
         transcript,
         evaluation,
         lastEvaluatedFeedbackDetailLevel ?? settings.feedbackDetailLevel,
@@ -2183,7 +2178,7 @@ export default function SansPsPage({
                 <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
                   <button
                     type="button"
-                    onClick={() => setRawInput(sansPsExampleText)}
+                    onClick={() => setStudentRawInput(sansPsExampleText)}
                     disabled={isDiscussing || isPaused || isEvaluating || isConnecting}
                     title="Charger un exemple"
                     aria-label="Charger un exemple"
@@ -2214,7 +2209,7 @@ export default function SansPsPage({
                   </button>
                   <button
                     type="button"
-                    onClick={handleParse}
+                    onClick={() => handleAnalyse(studentRawInput, extractGradingGridOnly(studentRawInput))}
                     disabled={isDiscussing || isPaused || isEvaluating || isConnecting}
                     className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium shadow-sm transition-colors md:px-4 md:text-sm ${
                       isDiscussing || isPaused || isEvaluating || isConnecting
@@ -2230,8 +2225,8 @@ export default function SansPsPage({
               </div>
 
               <textarea
-                value={rawInput}
-                onChange={(event) => setRawInput(event.target.value)}
+                value={studentRawInput}
+                onChange={(event) => setStudentRawInput(event.target.value)}
                 placeholder="Collez ici la station sans PS et sa grille de correction..."
                 className={`h-80 w-full resize-none rounded-xl border p-4 text-sm leading-relaxed transition-all duration-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 ${inputBg}`}
               />
