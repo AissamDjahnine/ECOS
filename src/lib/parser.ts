@@ -1,4 +1,4 @@
-import type { ParsedCase } from "../types";
+import type { ParsedCase, DemographicField, ProtectedQA, GradingCriterion, StructuredCase } from "../types";
 import { detectStationJSON, extractPatientScript, extractGradingGrid } from "./stationJson";
 
 const SECTION_PATTERNS = [
@@ -254,4 +254,245 @@ export function transcriptToPlainText(
   entries: Array<{ role: string; text: string }>,
 ) {
   return entries.map((entry) => `${entry.role.toUpperCase()}: ${entry.text}`).join("\n");
+}
+
+// ── Structured Case Parsing (for Library UI) ──────────────────────────
+
+const DEMOGRAPHIC_LABELS = [
+  "NOM",
+  "Prénoms",
+  "Sexe",
+  "Âge",
+  "Poids",
+  "Taille",
+  "Statut marital",
+  "Enfants",
+  "Contexte socioprofessionnel",
+  "Consommation de toxiques",
+  "Allergies",
+  "Antécédents personnels",
+  "Antécédents familiaux",
+  "Traitements",
+];
+
+function extractDemographicValue(text: string, label: string): string {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(
+    `(?:^|\\n)${escaped}\\s*\\n[\\t\\s]*\\n+(.+?)(?:\\n|$)`,
+    "i",
+  );
+  const match = text.match(pattern);
+  return match?.[1]?.trim() ?? "";
+}
+
+function extractDemographics(text: string): DemographicField[] {
+  const fields: DemographicField[] = [];
+  for (const label of DEMOGRAPHIC_LABELS) {
+    const value = extractDemographicValue(text, label);
+    if (value) {
+      fields.push({ label, value: value === "0" ? "Aucun" : value });
+    }
+  }
+  return fields;
+}
+
+function extractContextNote(text: string): string {
+  const pattern =
+    /Autres\s+[eéè]l[eéè]ments\s+de\s+contexte[^\n]*(?:\n\([^)]*\))?[\s\t]*\n[\t\s]*\n+([\s\S]*?)(?=\nActing\b|\n[EÉ]tat\s+d)/i;
+  const match = text.match(pattern);
+  return match?.[1]?.trim() ?? "";
+}
+
+function extractActingInfo(text: string): { mindset: string; phrase: string } {
+  const mindsetPattern =
+    /[EÉeé]tat\s+d[''\u2019]esprit\s*\/?\s*comportement[\s\t]*\n[\t\s]*\n+(.+?)(?:\n|$)/i;
+  const phrasePattern =
+    /Phrase\s+de\s+d[eéè]marrage[\s\t]*\n[\t\s]*\n+([\s\S]*?)(?=\nInformations\s+prot[eéè]g[eéè]es|\n\n[A-ZÉÈÀ][a-zéèàùâ]|$)/i;
+
+  const mindsetMatch = text.match(mindsetPattern);
+  const phraseMatch = text.match(phrasePattern);
+
+  return {
+    mindset: mindsetMatch?.[1]?.trim() ?? "",
+    phrase: phraseMatch?.[1]?.trim() ?? "",
+  };
+}
+
+function extractProtectedInfo(text: string): ProtectedQA[] {
+  const protectedStart = text.search(
+    /Informations\s+prot[eéè]g[eéè]es/i,
+  );
+  if (protectedStart < 0) return [];
+
+  const gridStart = text.search(
+    /\n\s*(?:Grille\s+de\s+correction|Grille\s+d['']?[eéè]valuation)/i,
+  );
+  const protectedSection =
+    gridStart > protectedStart
+      ? text.slice(protectedStart, gridStart)
+      : text.slice(protectedStart);
+
+  const results: ProtectedQA[] = [];
+  const lines = protectedSection.split("\n");
+  let currentRubrique = "";
+  let i = 0;
+
+  while (i < lines.length && i < 10) {
+    if (/^(Histoire|Ant[eéè]c[eéè]dents|Traitement|[EÉ]l[eéè]ments|Examen)/i.test(lines[i].trim())) {
+      break;
+    }
+    i++;
+  }
+
+  while (i < lines.length) {
+    const line = lines[i].trim();
+
+    if (!line || line === "\t") {
+      i++;
+      continue;
+    }
+
+    if (lines[i].startsWith("\t") && /\tVous\s+r[eéè]pondez/i.test(lines[i])) {
+      const parts = lines[i].split(/\t+/).filter(Boolean);
+      if (parts.length >= 2) {
+        results.push({
+          rubrique: currentRubrique,
+          question: parts[0].trim(),
+          answer: parts.slice(1).join(" ").trim(),
+        });
+      }
+      i++;
+      continue;
+    }
+
+    if (
+      line.length < 80 &&
+      !/^(Si\s|Vous\s|\d)/i.test(line) &&
+      !/^Observ[eéè]/i.test(line) &&
+      !/^Crit[eèè]res/i.test(line)
+    ) {
+      currentRubrique = line;
+      i++;
+      continue;
+    }
+
+    if (/^Si\s/i.test(line)) {
+      const question = line;
+      let j = i + 1;
+      while (j < lines.length && !lines[j].trim()) j++;
+      if (j < lines.length && /Vous\s+r[eéè]pondez/i.test(lines[j].trim())) {
+        results.push({
+          rubrique: currentRubrique,
+          question,
+          answer: lines[j].trim(),
+        });
+        i = j + 1;
+        continue;
+      }
+    }
+
+    i++;
+  }
+
+  return results;
+}
+
+function extractGradingCriteria(text: string): {
+  criteria: GradingCriterion[];
+  generic: string[];
+} {
+  const gridStart = text.search(
+    /(?:Grille\s+de\s+correction|Grille\s+d['']?[eéè]valuation)/i,
+  );
+  if (gridStart < 0) return { criteria: [], generic: [] };
+
+  const gridSection = text.slice(gridStart);
+  const criteria: GradingCriterion[] = [];
+  const generic: string[] = [];
+
+  const genericStart = gridSection.search(
+    /Crit[eèé]res\s+d['']?[eéè]valuation\s+g[eéè]n[eéè]riques/i,
+  );
+  const criteriaText = genericStart >= 0 ? gridSection.slice(0, genericStart) : gridSection;
+  const genericText = genericStart >= 0 ? gridSection.slice(genericStart) : "";
+
+  const criterionPattern = /(\d{1,2})\s*[.\t ]+\n*([\s\S]*?)(?=\n\s*\d{1,2}\s*[.\t ]|\n\s*Crit[eèé]res|$)/g;
+  let match;
+  while ((match = criterionPattern.exec(criteriaText)) !== null) {
+    const num = parseInt(match[1], 10);
+    const criterionText = match[2]
+      .replace(/\s*Observ[eéè]\s*=\s*1\s*/gi, "")
+      .replace(/\s*Non[- ]observ[eéè]\s*=\s*0\s*/gi, "")
+      .replace(/\s*Crit[eèé]res\s+cibl[eéè]s\s*/gi, "")
+      .replace(/\t/g, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    if (criterionText && num > 0) {
+      criteria.push({ number: num, text: criterionText });
+    }
+  }
+
+  if (genericText) {
+    const genericLines = genericText.split("\n").slice(1);
+    for (const line of genericLines) {
+      const trimmed = line.replace(/^\s*[-•]\s*/, "").trim();
+      if (trimmed && !/^\s*$/.test(trimmed)) {
+        generic.push(trimmed);
+      }
+    }
+  }
+
+  return { criteria, generic };
+}
+
+export function parseStructuredCase(rawInput: string): StructuredCase {
+  const normalized = normalizeWhitespace(rawInput);
+
+  const headerMatch = normalized.match(
+    /SDD\s+\d+[^:\n]*(?::\s*(.+?))?$/m,
+  );
+  const caseId = headerMatch?.[0]?.replace(/:.*$/, "").trim() ?? "";
+  const audienceMatch = normalized.match(
+    /Pour\s+(le\s+PS|l['']examinateur|l['']étudiant)/i,
+  );
+  const targetAudience = audienceMatch?.[0]?.trim() ?? "";
+
+  const hasPatientScript =
+    /(?:Script\s+patient|Trame\s+du\s+patient|NOM\s*\n)/i.test(normalized);
+  const isPS = hasPatientScript;
+
+  if (!isPS) {
+    const { criteria, generic } = extractGradingCriteria(normalized);
+    return {
+      caseId,
+      targetAudience,
+      demographics: [],
+      contextNote: "",
+      actingMindset: "",
+      startingPhrase: "",
+      protectedInfo: [],
+      gradingCriteria: criteria,
+      genericCriteria: generic,
+      isPS: false,
+    };
+  }
+
+  const demographics = extractDemographics(normalized);
+  const contextNote = extractContextNote(normalized);
+  const { mindset, phrase } = extractActingInfo(normalized);
+  const protectedInfo = extractProtectedInfo(normalized);
+  const { criteria, generic } = extractGradingCriteria(normalized);
+
+  return {
+    caseId,
+    targetAudience,
+    demographics,
+    contextNote,
+    actingMindset: mindset,
+    startingPhrase: phrase,
+    protectedInfo,
+    gradingCriteria: criteria,
+    genericCriteria: generic,
+    isPS: true,
+  };
 }

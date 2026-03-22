@@ -209,3 +209,51 @@ export type SansPSStationJSON = {
 };
 
 export type StationJSON = PSStationJSON | PSSStationJSON | SansPSStationJSON;
+
+// ── Case Library types ────────────────────────────────────────────────
+
+export type CaseDifficulty = "facile" | "moyen" | "difficile";
+export type CaseMode = "ps" | "sans-ps" | "both";
+
+export type LibraryCase = {
+  id: string;
+  title: string;
+  specialty: string;
+  difficulty: CaseDifficulty;
+  mode: CaseMode;
+  tags: string[];
+  rawInput: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LibraryCaseSummary = Omit<LibraryCase, "rawInput">;
+
+export type DemographicField = {
+  label: string;
+  value: string;
+};
+
+export type ProtectedQA = {
+  rubrique: string;
+  question: string;
+  answer: string;
+};
+
+export type GradingCriterion = {
+  number: number;
+  text: string;
+};
+
+export type StructuredCase = {
+  caseId: string;
+  targetAudience: string;
+  demographics: DemographicField[];
+  contextNote: string;
+  actingMindset: string;
+  startingPhrase: string;
+  protectedInfo: ProtectedQA[];
+  gradingCriteria: GradingCriterion[];
+  genericCriteria: string[];
+  isPS: boolean;
+};
