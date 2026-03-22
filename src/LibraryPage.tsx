@@ -265,42 +265,38 @@ function CaseDetailView({
           </span>
         </div>
 
-        {/* Rich layout — mode dispatched */}
-        {stationJSON.mode === 'avec-ps' && (
-          <StationDetailPS station={stationJSON} darkMode={darkMode} />
-        )}
-        {stationJSON.mode === 'avec-pss' && (
-          <StationDetailPSS station={stationJSON} darkMode={darkMode} />
-        )}
-        {stationJSON.mode === 'sans-ps' && (
-          <StationDetailSansPS station={stationJSON} darkMode={darkMode} />
-        )}
-
-        {/* Use-case action buttons */}
-        <div className="mt-8 flex flex-wrap gap-3">
-          {(caseItem.mode === 'ps' || caseItem.mode === 'both') && (
-            <button
-              type="button"
-              onClick={() => onUseCase(rawInput, 'ps')}
-              className="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-700"
-            >
-              {stationJSON.mode === 'avec-pss' ? 'Démarrer la session PSS' : 'Démarrer la session PS'}
-            </button>
-          )}
-          {(caseItem.mode === 'sans-ps' || caseItem.mode === 'both') && (
-            <button
-              type="button"
-              onClick={() => onUseCase(rawInput, 'sans-ps')}
-              className={`rounded-lg border px-5 py-2.5 text-sm font-semibold shadow-sm transition-colors ${
-                darkMode
-                  ? 'border-white/10 bg-slate-700 text-slate-100 hover:bg-slate-600'
-                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              Démarrer la session Sans PS
-            </button>
-          )}
-        </div>
+        {/* Rich layout — mode dispatched, with "Démarrer" button in chips row */}
+        {(() => {
+          const startButtons = (
+            <>
+              {(caseItem.mode === 'ps' || caseItem.mode === 'both') && (
+                <button
+                  type="button"
+                  onClick={() => onUseCase(rawInput, 'ps')}
+                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-700"
+                >
+                  {stationJSON.mode === 'avec-pss' ? 'Démarrer la session PSS' : 'Démarrer la session PS'}
+                </button>
+              )}
+              {(caseItem.mode === 'sans-ps' || caseItem.mode === 'both') && (
+                <button
+                  type="button"
+                  onClick={() => onUseCase(rawInput, 'sans-ps')}
+                  className={`rounded-lg border px-4 py-2 text-sm font-semibold shadow-sm transition-colors ${
+                    darkMode
+                      ? 'border-white/10 bg-slate-700 text-slate-100 hover:bg-slate-600'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  Démarrer la session Sans PS
+                </button>
+              )}
+            </>
+          );
+          if (stationJSON.mode === 'avec-ps') return <StationDetailPS station={stationJSON} darkMode={darkMode} actions={startButtons} />;
+          if (stationJSON.mode === 'avec-pss') return <StationDetailPSS station={stationJSON} darkMode={darkMode} actions={startButtons} />;
+          return <StationDetailSansPS station={stationJSON} darkMode={darkMode} actions={startButtons} />;
+        })()}
       </div>
     );
   }
@@ -379,17 +375,43 @@ function CaseDetailView({
         ))}
       </div>
 
-      {/* Document pills row (like Hypocampus tab buttons) */}
-      <div className="mb-6 flex flex-wrap gap-2">
-        {tabs.map((tab) => (
-          <DocumentPill
-            key={tab.id}
-            label={tab.label}
-            active={activeTab === tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            darkMode={darkMode}
-          />
-        ))}
+      {/* Document pills row + start button on the right */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          {tabs.map((tab) => (
+            <DocumentPill
+              key={tab.id}
+              label={tab.label}
+              active={activeTab === tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              darkMode={darkMode}
+            />
+          ))}
+        </div>
+        <div className="flex shrink-0 gap-2">
+          {(caseItem.mode === "ps" || caseItem.mode === "both") && (
+            <button
+              type="button"
+              onClick={() => onUseCase(rawInput, "ps")}
+              className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-700"
+            >
+              Démarrer la session PS / PSS
+            </button>
+          )}
+          {(caseItem.mode === "sans-ps" || caseItem.mode === "both") && (
+            <button
+              type="button"
+              onClick={() => onUseCase(rawInput, "sans-ps")}
+              className={`rounded-lg border px-4 py-2 text-sm font-semibold shadow-sm transition-colors ${
+                darkMode
+                  ? "border-white/10 bg-slate-700 text-slate-100 hover:bg-slate-600"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              Démarrer la session Sans PS
+            </button>
+          )}
+        </div>
       </div>
 
       <hr className={`mb-6 ${darkMode ? "border-white/10" : "border-slate-200"}`} />
@@ -446,31 +468,6 @@ function CaseDetailView({
         </div>
       )}
 
-      {/* Action buttons */}
-      <div className="mt-8 flex flex-wrap gap-3">
-        {(caseItem.mode === "ps" || caseItem.mode === "both") && (
-          <button
-            type="button"
-            onClick={() => onUseCase(rawInput, "ps")}
-            className="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-700"
-          >
-            Démarrer la session PS / PSS
-          </button>
-        )}
-        {(caseItem.mode === "sans-ps" || caseItem.mode === "both") && (
-          <button
-            type="button"
-            onClick={() => onUseCase(rawInput, "sans-ps")}
-            className={`rounded-lg border px-5 py-2.5 text-sm font-semibold shadow-sm transition-colors ${
-              darkMode
-                ? "border-white/10 bg-slate-700 text-slate-100 hover:bg-slate-600"
-                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-            }`}
-          >
-            Démarrer la session Sans PS
-          </button>
-        )}
-      </div>
     </div>
   );
 }

@@ -12,6 +12,7 @@ type TabKey = 'station' | 'student' | 'ps' | 'correction';
 interface Props {
   station: PSStationJSON;
   darkMode: boolean;
+  actions?: React.ReactNode;
 }
 
 // ── Helper sub-components ─────────────────────────────────────────────
@@ -182,7 +183,7 @@ const KeyPointBlock = ({
 
 // ── Main component ────────────────────────────────────────────────────
 
-export function StationDetailPS({ station, darkMode }: Props) {
+export function StationDetailPS({ station, darkMode, actions }: Props) {
   const [activeTab, setActiveTab] = useState<TabKey>('station');
 
   const { metadata, studentPage, psPage, correctionPage } = station;
@@ -220,23 +221,26 @@ export function StationDetailPS({ station, darkMode }: Props) {
 
   return (
     <div className="font-sans antialiased text-[#1E293B]">
-      {/* Tab pills */}
-      <div className="flex flex-wrap gap-2.5 mb-8">
-        <button onClick={() => setActiveTab('station')} className={tabClass('station')}>
-          <BookOpen size={16} /> {stationIdString} : {metadata.sddTitle}
-        </button>
+      {/* Tab pills + action */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
+        <div className="flex flex-wrap gap-2.5">
+          <button onClick={() => setActiveTab('station')} className={tabClass('station')}>
+            <BookOpen size={16} /> {stationIdString} : {metadata.sddTitle}
+          </button>
 
-        <button onClick={() => setActiveTab('student')} className={tabClass('student')}>
-          <FileText size={16} /> {stationIdString} : Pour l'étudiant
-        </button>
+          <button onClick={() => setActiveTab('student')} className={tabClass('student')}>
+            <FileText size={16} /> {stationIdString} : Pour l'étudiant
+          </button>
 
-        <button onClick={() => setActiveTab('ps')} className={tabClass('ps')}>
-          <User size={16} /> {stationIdString} : Pour le PS
-        </button>
+          <button onClick={() => setActiveTab('ps')} className={tabClass('ps')}>
+            <User size={16} /> {stationIdString} : Pour le PS
+          </button>
 
-        <button onClick={() => setActiveTab('correction')} className={tabClass('correction')}>
-          <GraduationCap size={16} /> {stationIdString} : Correction détaillée
-        </button>
+          <button onClick={() => setActiveTab('correction')} className={tabClass('correction')}>
+            <GraduationCap size={16} /> {stationIdString} : Correction détaillée
+          </button>
+        </div>
+        {actions && <div className="flex shrink-0 gap-2">{actions}</div>}
       </div>
 
       {/* Large pink title */}

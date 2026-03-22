@@ -15,6 +15,9 @@ The project follows a bring-your-own-key workflow: you run the app locally and u
 - Supports two station modes:
   - `PS / PSS`: live voice discussion with an AI patient using Gemini Live
   - `Sans PS`: monologue mode with silence-based student transcription
+- Includes a station library (`/bibliotheque`) backed by a local SQLite database for browsing and launching saved JSON stations.
+- Station detail views display tabbed content (station metadata, student instructions, patient/PSS/examiner script, and detailed correction) for PS, PSS, and Sans PS formats.
+- Provides a "Démarrer la session" button in each station detail view that pre-fills the session input with the relevant page content and navigates directly to the correct mode.
 - Parses copied ECOS material into patient context and grading criteria.
 - Displays the discussion transcript in real time, with configurable transcript and system-message visibility.
 - Lets `Sans PS` optionally enhance the transcript with AI after the session ends, then use either the raw or corrected transcript as the evaluation source.
@@ -57,8 +60,11 @@ ECOS/
 │       └── ecos-ai-ui.png
 ├── server/
 │   ├── dashboard.ts
+│   ├── db.ts               # SQLite station library (better-sqlite3)
+│   ├── db.test.ts
 │   ├── evaluation.test.ts
-│   └── index.ts
+│   ├── index.ts
+│   └── seed-cases.ts       # Seeds the local DB with example stations
 ├── public/
 │   └── voice-samples/
 ├── scripts/
@@ -69,12 +75,17 @@ ECOS/
 │   │   ├── parser.ts
 │   │   ├── pdf.ts
 │   │   ├── settings.ts
+│   │   ├── stationJson.ts  # JSON station detection, reconstruction helpers
 │   │   └── voices.ts
 │   ├── App.tsx
 │   ├── DashboardDrawer.tsx
+│   ├── LibraryPage.tsx     # Station library browser (/bibliotheque)
 │   ├── PsPage.tsx
 │   ├── SansPsPage.tsx
 │   ├── SettingsDrawer.tsx
+│   ├── StationDetailPS.tsx
+│   ├── StationDetailPSS.tsx
+│   ├── StationDetailSansPS.tsx
 │   ├── index.css
 │   ├── main.tsx
 │   └── types.ts
@@ -127,12 +138,19 @@ Typical local URLs:
 
 ## Modes
 
+### Library (`/bibliotheque`)
+
+- Browses JSON stations stored in a local SQLite database.
+- Displays stations grouped by mode (PS, PSS, Sans PS) with metadata previews.
+- Each station opens a detail view with tabbed sections: station metadata, student instructions, patient/PSS/examiner script, and detailed correction.
+- A "Démarrer la session" button at the top of each detail view pre-fills the session input with the relevant page content and navigates to the correct mode.
+
 ### PS / PSS
 
 - Parses patient metadata and correction grid.
 - Starts a live AI patient conversation.
 - Uses the selected patient voice for the live session.
-- Pause now behaves like a true microphone mute and resume explicitly unmutes again.
+- Pause behaves like a true microphone mute; resume explicitly unmutes again.
 - Preserves transcript, audio replay, PDF export, and evaluation workflow.
 
 ### Sans PS
@@ -185,6 +203,17 @@ In `PS / PSS` mode:
 In `Sans PS` mode, the same selector layout remains visible but disabled to preserve the page structure.
 
 ## Typical Workflow
+
+### From the library
+
+1. Go to `Bibliothèque`.
+2. Browse or search for a station.
+3. Open a station detail view and review the tabs.
+4. Click `Démarrer la session` to pre-fill the session and jump to the correct mode.
+5. Start the session and conduct the station orally.
+6. Review the transcript, replay the audio, run the evaluation, and export the PDF.
+
+### From manual input
 
 1. Choose `PS / PSS` or `Sans PS`.
 2. Paste the station material into the input area.

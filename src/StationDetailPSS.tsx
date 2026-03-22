@@ -6,8 +6,6 @@ function BookOpen({ size = 16, className }: IconProps) { return <svg width={size
 function FileText({ size = 16, className }: IconProps) { return <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>; }
 function User({ size = 16, className }: IconProps) { return <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>; }
 function GraduationCap({ size = 16, className }: IconProps) { return <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>; }
-function StickyNote({ size = 18, strokeWidth: sw = 2, className }: IconProps) { return <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} aria-hidden="true"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3z"/><polyline points="15 3 15 9 21 9"/></svg>; }
-function AlertTriangle({ size = 18, strokeWidth: sw = 2, className }: IconProps) { return <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>; }
 function ImageIcon({ size = 20, className }: IconProps) { return <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>; }
 
 type TabKey = 'station' | 'student' | 'pss' | 'correction';
@@ -15,9 +13,10 @@ type TabKey = 'station' | 'student' | 'pss' | 'correction';
 type Props = {
   station: PSSStationJSON;
   darkMode: boolean;
+  actions?: React.ReactNode;
 };
 
-export const StationDetailPSS: React.FC<Props> = ({ station, darkMode }) => {
+export const StationDetailPSS: React.FC<Props> = ({ station, darkMode, actions }) => {
   const [activeTab, setActiveTab] = useState<TabKey>('station');
 
   const metadata = station.metadata;
@@ -59,19 +58,6 @@ export const StationDetailPSS: React.FC<Props> = ({ station, darkMode }) => {
     </div>
   );
 
-  const ActionButtons = () => (
-    <div className="flex justify-end gap-8 mt-12 pt-4 text-[#4A5568] font-semibold text-sm">
-      <button className="flex items-center gap-2 hover:text-slate-800 transition-colors">
-        <StickyNote size={18} strokeWidth={1.8} />
-        Écrire une note
-      </button>
-      <button className="flex items-center gap-2 hover:text-slate-800 transition-colors">
-        <AlertTriangle size={18} strokeWidth={1.8} />
-        Signaler une erreur
-      </button>
-    </div>
-  );
-
   const renderValue = (value: string | string[]) => {
     if (Array.isArray(value)) {
       return (
@@ -90,34 +76,25 @@ export const StationDetailPSS: React.FC<Props> = ({ station, darkMode }) => {
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans antialiased text-[#1E293B]">
       <main className="flex-1 max-w-6xl mx-auto w-full px-6 pt-5 pb-10 md:px-6">
-        <div className="flex flex-wrap gap-2.5 mb-8">
-          <button
-            onClick={() => setActiveTab('station')}
-            className={tabClass('station')}
-          >
-            <BookOpen size={16} /> {stationIdString} : {metadata.sddTitle}
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
+          <div className="flex flex-wrap gap-2.5">
+            <button onClick={() => setActiveTab('station')} className={tabClass('station')}>
+              <BookOpen size={16} /> {stationIdString} : {metadata.sddTitle}
+            </button>
 
-          <button
-            onClick={() => setActiveTab('student')}
-            className={tabClass('student')}
-          >
-            <FileText size={16} /> {stationIdString} : Pour l'étudiant
-          </button>
+            <button onClick={() => setActiveTab('student')} className={tabClass('student')}>
+              <FileText size={16} /> {stationIdString} : Pour l'étudiant
+            </button>
 
-          <button
-            onClick={() => setActiveTab('pss')}
-            className={tabClass('pss')}
-          >
-            <User size={16} /> {stationIdString} : Pour le PSS
-          </button>
+            <button onClick={() => setActiveTab('pss')} className={tabClass('pss')}>
+              <User size={16} /> {stationIdString} : Pour le PSS
+            </button>
 
-          <button
-            onClick={() => setActiveTab('correction')}
-            className={tabClass('correction')}
-          >
-            <GraduationCap size={16} /> {stationIdString} : Correction détaillée
-          </button>
+            <button onClick={() => setActiveTab('correction')} className={tabClass('correction')}>
+              <GraduationCap size={16} /> {stationIdString} : Correction détaillée
+            </button>
+          </div>
+          {actions && <div className="flex shrink-0 gap-2">{actions}</div>}
         </div>
 
         <div>
@@ -148,7 +125,6 @@ export const StationDetailPSS: React.FC<Props> = ({ station, darkMode }) => {
                     </table>
                   </div>
 
-                  <ActionButtons />
                 </section>
               </div>
             )}
@@ -211,7 +187,6 @@ export const StationDetailPSS: React.FC<Props> = ({ station, darkMode }) => {
                     ))}
                   </div>
 
-                  <ActionButtons />
                 </section>
               </div>
             )}
@@ -317,7 +292,6 @@ export const StationDetailPSS: React.FC<Props> = ({ station, darkMode }) => {
                     </div>
                   </div>
 
-                  <ActionButtons />
                 </section>
               </div>
             )}
@@ -430,7 +404,6 @@ export const StationDetailPSS: React.FC<Props> = ({ station, darkMode }) => {
                     </div>
                   </div>
 
-                  <ActionButtons />
                 </section>
               </div>
             )}

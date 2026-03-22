@@ -6,10 +6,6 @@ function BookOpen({ size = 16, className }: IconProps) { return <svg width={size
 function FileText({ size = 16, className }: IconProps) { return <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>; }
 function User({ size = 16, className }: IconProps) { return <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>; }
 function GraduationCap({ size = 16, className }: IconProps) { return <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>; }
-function StickyNote({ size = 18, strokeWidth: sw = 2, className }: IconProps) { return <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} aria-hidden="true"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3z"/><polyline points="15 3 15 9 21 9"/></svg>; }
-function AlertTriangle({ size = 18, strokeWidth: sw = 2, className }: IconProps) { return <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>; }
-function ChevronDown({ size = 15, className }: IconProps) { return <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>; }
-function ChevronUp({ size = 15, className }: IconProps) { return <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>; }
 function FileSearch({ size = 24, className }: IconProps) { return <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><circle cx="11" cy="15" r="2"/><line x1="13" y1="17" x2="15" y2="19"/></svg>; }
 function FlaskConical({ size = 24, className }: IconProps) { return <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path d="M10 2v7.31l-5.47 8.49a2 2 0 0 0 1.71 3H17.76a2 2 0 0 0 1.71-3L14 9.31V2"/><line x1="8.5" y1="2" x2="15.5" y2="2"/></svg>; }
 
@@ -18,11 +14,11 @@ type TabKey = 'station' | 'student' | 'examiner' | 'correction';
 interface StationDetailSansPSProps {
   station: SansPSStationJSON;
   darkMode: boolean;
+  actions?: React.ReactNode;
 }
 
-export const StationDetailSansPS: React.FC<StationDetailSansPSProps> = ({ station, darkMode }) => {
+export const StationDetailSansPS: React.FC<StationDetailSansPSProps> = ({ station, darkMode, actions }) => {
   const [activeTab, setActiveTab] = useState<TabKey>('station');
-  const [showMoreReading, setShowMoreReading] = useState(false);
 
   const metadata = station.metadata;
 
@@ -76,19 +72,6 @@ export const StationDetailSansPS: React.FC<StationDetailSansPSProps> = ({ statio
     </div>
   );
 
-  const ActionButtons = () => (
-    <div className="flex justify-end gap-8 mt-12 pt-4 text-[#4A5568] font-semibold text-sm">
-      <button className="flex items-center gap-2 hover:text-slate-800 transition-colors">
-        <StickyNote size={18} strokeWidth={1.8} />
-        Écrire une note
-      </button>
-      <button className="flex items-center gap-2 hover:text-slate-800 transition-colors">
-        <AlertTriangle size={18} strokeWidth={1.8} />
-        Signaler une erreur
-      </button>
-    </div>
-  );
-
   const renderStationMetadataValue = (value: string | string[]) => {
     if (Array.isArray(value)) {
       return (
@@ -108,34 +91,25 @@ export const StationDetailSansPS: React.FC<StationDetailSansPSProps> = ({ statio
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans antialiased text-[#1E293B]">
       <main className="flex-1 max-w-6xl mx-auto w-full px-6 pt-5 pb-10 md:px-6">
-        <div className="flex flex-wrap gap-2.5 mb-8">
-          <button
-            onClick={() => setActiveTab('station')}
-            className={tabClass('station')}
-          >
-            <BookOpen size={16} /> {stationIdString} : {metadata.sddTitle}
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
+          <div className="flex flex-wrap gap-2.5">
+            <button onClick={() => setActiveTab('station')} className={tabClass('station')}>
+              <BookOpen size={16} /> {stationIdString} : {metadata.sddTitle}
+            </button>
 
-          <button
-            onClick={() => setActiveTab('student')}
-            className={tabClass('student')}
-          >
-            <FileText size={16} /> {stationIdString} : Pour l'étudiant
-          </button>
+            <button onClick={() => setActiveTab('student')} className={tabClass('student')}>
+              <FileText size={16} /> {stationIdString} : Pour l'étudiant
+            </button>
 
-          <button
-            onClick={() => setActiveTab('examiner')}
-            className={tabClass('examiner')}
-          >
-            <User size={16} /> {stationIdString} : Pour l'examinateur
-          </button>
+            <button onClick={() => setActiveTab('examiner')} className={tabClass('examiner')}>
+              <User size={16} /> {stationIdString} : Pour l'examinateur
+            </button>
 
-          <button
-            onClick={() => setActiveTab('correction')}
-            className={tabClass('correction')}
-          >
-            <GraduationCap size={16} /> {stationIdString} : Correction détaillée
-          </button>
+            <button onClick={() => setActiveTab('correction')} className={tabClass('correction')}>
+              <GraduationCap size={16} /> {stationIdString} : Correction détaillée
+            </button>
+          </div>
+          {actions && <div className="flex shrink-0 gap-2">{actions}</div>}
         </div>
 
         <div>
@@ -143,17 +117,8 @@ export const StationDetailSansPS: React.FC<StationDetailSansPSProps> = ({ statio
             {stationIdString} : {pageTitle}
           </h1>
 
-          <div className="bg-[#F1F5F9] rounded-[4px] px-5 py-4 mb-5 min-h-[86px]">
-            <div className="flex flex-col items-start gap-4">
-              <span className="text-[#475569] font-medium text-[15px]">{readingTime}</span>
-
-              <button
-                onClick={() => setShowMoreReading((prev) => !prev)}
-                className="flex items-center gap-1.5 text-[#475569] text-[13px] font-semibold hover:text-slate-800 transition-colors"
-              >
-                Afficher plus {showMoreReading ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-              </button>
-            </div>
+          <div className="bg-[#F1F5F9] rounded-[4px] px-5 py-4 mb-5">
+            <span className="text-[#475569] font-medium text-[15px]">{readingTime}</span>
           </div>
 
           <div className="min-h-[500px]">
@@ -179,7 +144,6 @@ export const StationDetailSansPS: React.FC<StationDetailSansPSProps> = ({ statio
                     </table>
                   </div>
 
-                  <ActionButtons />
                 </section>
               </div>
             )}
@@ -308,7 +272,6 @@ export const StationDetailSansPS: React.FC<StationDetailSansPSProps> = ({ statio
                   </section>
                 )}
 
-                <ActionButtons />
               </div>
             )}
 
@@ -361,7 +324,6 @@ export const StationDetailSansPS: React.FC<StationDetailSansPSProps> = ({ statio
                     ))}
                   </ul>
 
-                  <ActionButtons />
                 </section>
               </div>
             )}
@@ -467,7 +429,6 @@ export const StationDetailSansPS: React.FC<StationDetailSansPSProps> = ({ statio
                     </div>
                   </div>
 
-                  <ActionButtons />
                 </section>
               </div>
             )}
