@@ -29,6 +29,19 @@ export default {
           800: "#1e293b",
           900: "#0f172a",
         },
+        // Material Design 3 color tokens (used by HomePage)
+        m3: {
+          primary: '#006767',
+          'primary-cont': '#008282',
+          'primary-fixed': '#8cf3f3',
+          secondary: '#416564',
+          tertiary: '#8f4922',
+          error: '#ba1a1a',
+          surface: '#f7f9fe',
+          'on-surface': '#181c20',
+          'on-surface-var': '#3d4949',
+          'outline-var': '#bcc9c8',
+        },
         // Keep clinic colors for backward compatibility
         clinic: {
           50: "#f4fbfb",
@@ -46,6 +59,8 @@ export default {
       fontFamily: {
         sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
         display: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+        manrope: ['Manrope', 'system-ui', 'sans-serif'],
+        inter: ['Inter', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
         'soft': '0 2px 8px rgba(15, 23, 42, 0.06)',

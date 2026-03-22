@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-size: 1.25rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  user-select: none;
+}
+
 :root {
   /* Refined Clinical Color System */
   --color-primary-50: #f0fdfa;
