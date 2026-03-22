@@ -2185,7 +2185,7 @@ export default function App({
         <div className="max-w-[1600px] mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/20">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/20" style={{ background: "linear-gradient(135deg, #008282 0%, #004f4f 100%)" }}>
                 <ActivityIcon className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -2332,7 +2332,8 @@ export default function App({
                       <button
                         type="button"
                         onClick={handleRerunEvaluation}
-                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-primary-700"
+                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-medium text-white transition-all duration-200 hover:opacity-90"
+                        style={{ background: "linear-gradient(135deg, #006767 0%, #008282 100%)" }}
                       >
                         Réévaluer
                       </button>
@@ -2482,8 +2483,9 @@ export default function App({
                     className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium shadow-sm transition-colors md:px-4 md:text-sm ${
                       isDiscussing || isPaused || isEvaluating || isConnecting
                         ? "cursor-not-allowed bg-primary-600/50 text-white/60"
-                        : "bg-primary-600 text-white shadow-primary-500/20 hover:bg-primary-700"
+                        : "text-white shadow-primary-500/20 hover:opacity-90"
                     }`}
+                    style={!(isDiscussing || isPaused || isEvaluating || isConnecting) ? { background: "linear-gradient(135deg, #006767 0%, #008282 100%)" } : undefined}
                   >
                     <SearchIcon className="h-3.5 w-3.5" />
                     Analyser
@@ -2577,13 +2579,12 @@ export default function App({
                     disabled={!canStart}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
                       canStart
-                        ? darkMode
-                          ? "bg-primary-500 text-white shadow-lg shadow-primary-500/20 hover:bg-primary-400"
-                          : "bg-primary-600 text-white shadow-lg shadow-primary-500/20 hover:bg-primary-700"
+                        ? "text-white shadow-lg shadow-primary-500/20 hover:opacity-90"
                         : darkMode
                           ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
                           : "bg-slate-200 text-slate-400 cursor-not-allowed"
                     }`}
+                    style={canStart ? { background: "linear-gradient(135deg, #006767 0%, #008282 100%)" } : undefined}
                   >
                     <PlayIcon className="w-4 h-4" />
                     {isConnecting ? "Connexion..." : "Démarrer"}
@@ -3378,7 +3379,8 @@ export default function App({
                       setReadinessDialog(null);
                       void startDiscussionInternal();
                     }}
-                    className="rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-700"
+                    className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90"
+                    style={{ background: "linear-gradient(135deg, #006767 0%, #008282 100%)" }}
                   >
                     Continuer
                   </button>
@@ -3387,7 +3389,8 @@ export default function App({
                 <button
                   type="button"
                   onClick={() => setReadinessDialog(null)}
-                  className="rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-700"
+                  className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90"
+                  style={{ background: "linear-gradient(135deg, #006767 0%, #008282 100%)" }}
                 >
                   Fermer
                 </button>

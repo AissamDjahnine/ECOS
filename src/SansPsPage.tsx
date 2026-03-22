@@ -1909,7 +1909,7 @@ export default function SansPsPage({
       <header className="sticky top-0 z-40 border-b border-[#bcc9c8]/60 dark:border-slate-700/20" style={{ backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", background: darkMode ? "rgba(15,23,42,0.85)" : "rgba(255,255,255,0.85)" }}>
         <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-lg shadow-primary-500/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl shadow-lg shadow-primary-500/20" style={{ background: "linear-gradient(135deg, #008282 0%, #004f4f 100%)" }}>
               <ActivityIcon className="h-5 w-5 text-white" />
             </div>
             <div>
@@ -2054,7 +2054,8 @@ export default function SansPsPage({
                       <button
                         type="button"
                         onClick={handleRerunEvaluation}
-                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-primary-700"
+                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-medium text-white transition-all duration-200 hover:opacity-90"
+                        style={{ background: "linear-gradient(135deg, #006767 0%, #008282 100%)" }}
                       >
                         Réévaluer
                       </button>
@@ -2202,8 +2203,9 @@ export default function SansPsPage({
                     className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium shadow-sm transition-colors md:px-4 md:text-sm ${
                       isDiscussing || isPaused || isEvaluating || isConnecting
                         ? "cursor-not-allowed bg-primary-600/50 text-white/60"
-                        : "bg-primary-600 text-white shadow-primary-500/20 hover:bg-primary-700"
+                        : "text-white shadow-primary-500/20 hover:opacity-90"
                     }`}
+                    style={!(isDiscussing || isPaused || isEvaluating || isConnecting) ? { background: "linear-gradient(135deg, #006767 0%, #008282 100%)" } : undefined}
                   >
                     <SearchIcon className="h-3.5 w-3.5" />
                     Analyser
@@ -2294,13 +2296,12 @@ export default function SansPsPage({
                     disabled={!canStart}
                     className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all duration-200 ${
                       canStart
-                        ? darkMode
-                          ? "bg-primary-500 text-white shadow-lg shadow-primary-500/20 hover:bg-primary-400"
-                          : "bg-primary-600 text-white shadow-lg shadow-primary-500/20 hover:bg-primary-700"
+                        ? "text-white shadow-lg shadow-primary-500/20 hover:opacity-90"
                         : darkMode
                           ? "cursor-not-allowed bg-slate-800/70 text-slate-500"
                           : "cursor-not-allowed bg-slate-200 text-slate-400"
                     }`}
+                    style={canStart ? { background: "linear-gradient(135deg, #006767 0%, #008282 100%)" } : undefined}
                   >
                     <PlayIcon className="h-4 w-4" />
                     {isConnecting ? "Connexion..." : "Démarrer"}
@@ -2856,7 +2857,8 @@ export default function SansPsPage({
                       setReadinessDialog(null);
                       void startSessionInternal();
                     }}
-                    className="rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-700"
+                    className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90"
+                    style={{ background: "linear-gradient(135deg, #006767 0%, #008282 100%)" }}
                   >
                     Continuer
                   </button>
@@ -2865,7 +2867,8 @@ export default function SansPsPage({
                 <button
                   type="button"
                   onClick={() => setReadinessDialog(null)}
-                  className="rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-700"
+                  className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90"
+                  style={{ background: "linear-gradient(135deg, #006767 0%, #008282 100%)" }}
                 >
                   Fermer
                 </button>

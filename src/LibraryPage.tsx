@@ -273,7 +273,8 @@ function CaseDetailView({
                 <button
                   type="button"
                   onClick={() => onUseCase(rawInput, 'ps')}
-                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-700"
+                  className="rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90"
+                  style={{ background: "linear-gradient(135deg, #006767 0%, #008282 100%)" }}
                 >
                   {stationJSON.mode === 'avec-pss' ? 'Démarrer la session PSS' : 'Démarrer la session PS'}
                 </button>
@@ -603,7 +604,7 @@ export function LibraryPage({
           <div className="flex items-center justify-between">
             {/* Left: Brand — identical to PS/PSS */}
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/20">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/20" style={{ background: "linear-gradient(135deg, #008282 0%, #004f4f 100%)" }}>
                 <ActivityIcon className="w-5 h-5 text-white" />
               </div>
               <div>
