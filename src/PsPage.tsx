@@ -2149,7 +2149,7 @@ export default function App({
       case "student-speaking":
         return "bg-blue-500";
       case "patient-speaking":
-        return "bg-primary-500";
+        return "bg-[#008282]";
       case "processing":
         return "bg-amber-500";
       case "paused":
@@ -2206,7 +2206,7 @@ export default function App({
                   disabled={currentMode !== "ps" && !canSwitchModes}
                   className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
                     currentMode === "ps"
-                      ? "bg-primary-600 text-white shadow-sm"
+                      ? "bg-[#006767] text-white shadow-sm"
                       : !canSwitchModes
                         ? darkMode
                           ? "cursor-not-allowed text-slate-500"
@@ -2224,7 +2224,7 @@ export default function App({
                   disabled={currentMode !== "sans-ps" && !canSwitchModes}
                   className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
                     currentMode === "sans-ps"
-                      ? "bg-primary-600 text-white shadow-sm"
+                      ? "bg-[#006767] text-white shadow-sm"
                       : !canSwitchModes
                         ? darkMode
                           ? "cursor-not-allowed text-slate-500"
@@ -2419,7 +2419,7 @@ export default function App({
             <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
               <div className="mb-4 flex items-center justify-between gap-2">
                 <h2 className="flex items-center gap-2 text-lg font-semibold">
-                  <FileTextIcon className="h-5 w-5 shrink-0 text-primary-500" />
+                  <FileTextIcon className="h-5 w-5 shrink-0 text-[#008282]" />
                   Configuration du cas
                   <div className="group relative">
                     <button
@@ -2510,7 +2510,7 @@ export default function App({
             {/* Patient Info */}
             <div className={`flex-1 rounded-2xl border ${cardBg} p-6 shadow-soft`}>
               <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
-                <UserIcon className="w-4 h-4 text-primary-500" />
+                <UserIcon className="w-4 h-4 text-[#008282]" />
                 Informations patient
                 <div className="group relative">
                   <button
@@ -2690,7 +2690,7 @@ export default function App({
                     <div className={`h-2 rounded-full overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-200"}`}>
                       <div
                         className={`h-full rounded-full transition-all duration-300 ${
-                          timerDanger ? "bg-rose-500" : "bg-primary-500"
+                          timerDanger ? "bg-rose-500" : "bg-[#008282]"
                         }`}
                         style={{
                           width: `${Math.max(0, Math.min(100, (remainingSeconds / sessionDurationSeconds) * 100))}%`,
@@ -2820,8 +2820,8 @@ export default function App({
                             ? "bg-slate-800 text-slate-200"
                             : "bg-slate-100 text-slate-600"
                           : darkMode
-                            ? "bg-primary-500/15 text-primary-300"
-                            : "bg-primary-100 text-primary-700"
+                            ? "bg-[#008282]/15 text-[#4dbdbd]"
+                            : "bg-[#b3e3e3] text-[#004f4f]"
                       }`}>
                         {voiceSelectionMode === "auto" ? "Auto" : "Custom"}
                       </span>
@@ -3012,7 +3012,7 @@ export default function App({
                                 <div
                                   className={`mt-5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
                                     entry.role === "patient"
-                                      ? "bg-primary-100 text-primary-700"
+                                      ? "bg-[#b3e3e3] text-[#004f4f]"
                                       : darkMode
                                         ? "bg-slate-800 text-slate-300"
                                         : "bg-indigo-100 text-slate-500"
@@ -3024,7 +3024,7 @@ export default function App({
                                   <div
                                     className={`mb-1.5 flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
                                       entry.role === "patient"
-                                        ? "text-primary-700"
+                                        ? "text-[#004f4f]"
                                         : darkMode
                                           ? "text-slate-400"
                                           : "text-slate-500"
@@ -3042,7 +3042,7 @@ export default function App({
                                   <div
                                     className={`inline-block w-fit max-w-full rounded-[22px] px-4 py-3 text-left text-sm leading-relaxed shadow-sm ${
                                       entry.role === "patient"
-                                        ? "bg-primary-600 text-white"
+                                        ? "bg-[#006767] text-white"
                                         : darkMode
                                           ? "border border-slate-700 bg-slate-900 text-slate-100"
                                           : "border border-slate-200 bg-white text-slate-700"
@@ -3081,9 +3081,9 @@ export default function App({
                                   <div className="flex items-center gap-2 text-sm">
                                     <span>En train de parler</span>
                                     <span className="flex gap-1">
-                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-500" />
-                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-500 [animation-delay:150ms]" />
-                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-500 [animation-delay:300ms]" />
+                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#008282]" />
+                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#008282] [animation-delay:150ms]" />
+                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#008282] [animation-delay:300ms]" />
                                     </span>
                                   </div>
                                 </div>
@@ -3119,8 +3119,8 @@ export default function App({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm">
           <div className={`w-full max-w-md rounded-2xl border ${cardBg} p-8 shadow-2xl`}>
             <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
-                <ActivityIcon className="w-8 h-8 text-primary-600 dark:text-primary-400" />
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[#b3e3e3] dark:bg-[#002424]/30 flex items-center justify-center">
+                <ActivityIcon className="w-8 h-8 text-[#006767] dark:text-[#26aeae]" />
               </div>
               <h3 className="text-xl font-bold mb-2">Évaluation en cours</h3>
               <p className={`text-sm ${mutedText} mb-6`}>
@@ -3130,14 +3130,14 @@ export default function App({
 
             <div className={`h-3 rounded-full overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-200"}`}>
               <div
-                className="h-full rounded-full bg-primary-500 transition-all duration-300"
+                className="h-full rounded-full bg-[#008282] transition-all duration-300"
                 style={{ width: `${evaluationProgress}%` }}
               />
             </div>
 
             <div className="mt-4 text-center">
               <div className={`mb-2 inline-flex items-center gap-2 text-xs font-medium ${mutedText}`}>
-                <span className="h-2 w-2 rounded-full bg-primary-500 animate-pulse" />
+                <span className="h-2 w-2 rounded-full bg-[#008282] animate-pulse" />
                 <span>{EVALUATION_PROGRESS_MESSAGES[evaluationMessageIndex]}</span>
               </div>
               <br />
@@ -3230,8 +3230,8 @@ export default function App({
                           className={`flex items-center gap-2 rounded-xl border px-3 py-3 transition-all ${
                             isSelected
                               ? darkMode
-                                ? "border-primary-400 bg-primary-500/10 text-slate-50"
-                                : "border-primary-300 bg-primary-50 text-slate-900"
+                                ? "border-[#26aeae] bg-[#008282]/10 text-slate-50"
+                                : "border-[#4dbdbd] bg-[#e0f4f4] text-slate-900"
                               : darkMode
                                 ? "border-slate-700 bg-slate-900/60 text-slate-200"
                                 : "border-slate-200 bg-white text-slate-700"
@@ -3254,7 +3254,7 @@ export default function App({
                               isSelected
                                 ? darkMode
                                   ? "bg-primary-500/20 text-primary-300"
-                                  : "bg-primary-100 text-primary-700"
+                                  : "bg-[#b3e3e3] text-[#004f4f]"
                                 : darkMode
                                   ? "bg-slate-800 text-slate-300"
                                   : "bg-slate-100 text-slate-500"

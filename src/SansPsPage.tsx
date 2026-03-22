@@ -1930,7 +1930,7 @@ export default function SansPsPage({
                 disabled={currentMode !== "ps" && !canSwitchModes}
                 className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
                   currentMode === "ps"
-                    ? "bg-primary-600 text-white shadow-sm"
+                    ? "bg-[#006767] text-white shadow-sm"
                     : !canSwitchModes
                       ? darkMode
                         ? "cursor-not-allowed text-slate-500"
@@ -1948,7 +1948,7 @@ export default function SansPsPage({
                 disabled={currentMode !== "sans-ps" && !canSwitchModes}
                 className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
                   currentMode === "sans-ps"
-                    ? "bg-primary-600 text-white shadow-sm"
+                    ? "bg-[#006767] text-white shadow-sm"
                     : !canSwitchModes
                       ? darkMode
                         ? "cursor-not-allowed text-slate-500"
@@ -2139,7 +2139,7 @@ export default function SansPsPage({
             <div className={`rounded-2xl border ${cardBg} p-6 shadow-soft`}>
               <div className="mb-4 flex items-center justify-between gap-2">
                 <h2 className="flex items-center gap-2 text-lg font-semibold">
-                  <FileTextIcon className="h-5 w-5 shrink-0 text-primary-500" />
+                  <FileTextIcon className="h-5 w-5 shrink-0 text-[#008282]" />
                   Configuration de station
                   <div className="group relative">
                     <button
@@ -2229,7 +2229,7 @@ export default function SansPsPage({
 
             <div className={`flex-1 rounded-2xl border ${cardBg} p-6 shadow-soft`}>
               <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
-                <ActivityIcon className="h-5 w-5 text-primary-500" />
+                <ActivityIcon className="h-5 w-5 text-[#008282]" />
                 Consigne
                 <div className="group relative">
                   <button
@@ -2260,15 +2260,15 @@ export default function SansPsPage({
                 </p>
                 <ul className={`mt-3 space-y-1.5 text-sm ${mutedText}`}>
                   <li className="flex items-start gap-2">
-                    <span className="mt-0.5 text-primary-500">•</span>
+                    <span className="mt-0.5 text-[#008282]">•</span>
                     Structurez votre réponse : anamnèse, examen, hypothèses, plan.
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="mt-0.5 text-primary-500">•</span>
+                    <span className="mt-0.5 text-[#008282]">•</span>
                     Parlez de manière claire et articulée pour une transcription optimale.
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="mt-0.5 text-primary-500">•</span>
+                    <span className="mt-0.5 text-[#008282]">•</span>
                     Cliquez &laquo;&nbsp;Terminer&nbsp;&raquo; quand vous avez couvert tous les points.
                   </li>
                 </ul>
@@ -2403,7 +2403,7 @@ export default function SansPsPage({
                   <div className="mt-4">
                     <div className={`h-2 overflow-hidden rounded-full ${darkMode ? "bg-slate-800" : "bg-slate-200"}`}>
                       <div
-                        className={`h-full rounded-full transition-all duration-300 ${timerDanger ? "bg-rose-500" : "bg-primary-500"}`}
+                        className={`h-full rounded-full transition-all duration-300 ${timerDanger ? "bg-rose-500" : "bg-[#008282]"}`}
                         style={{
                           width: `${Math.max(0, Math.min(100, (remainingSeconds / sessionDurationSeconds) * 100))}%`,
                         }}
@@ -2637,8 +2637,8 @@ export default function SansPsPage({
                   {useAiCorrectedTranscript && aiCorrection ? (
                     <div className="flex min-h-full flex-col p-4">
                       <div className="mb-2 flex items-center gap-2">
-                        <SparklesIcon className={`h-3.5 w-3.5 ${darkMode ? "text-primary-400" : "text-primary-600"}`} />
-                        <span className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${darkMode ? "text-primary-400" : "text-primary-600"}`}>
+                        <SparklesIcon className={`h-3.5 w-3.5 ${darkMode ? "text-[#26aeae]" : "text-[#006767]"}`} />
+                        <span className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${darkMode ? "text-[#26aeae]" : "text-[#006767]"}`}>
                           Correction IA active
                         </span>
                       </div>
@@ -2750,9 +2750,9 @@ export default function SansPsPage({
                                   <div className="flex items-center gap-2 text-sm">
                                     <span>En train de parler</span>
                                     <span className="flex gap-1">
-                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-500" />
-                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-500 [animation-delay:150ms]" />
-                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-500 [animation-delay:300ms]" />
+                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#008282]" />
+                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#008282] [animation-delay:150ms]" />
+                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#008282] [animation-delay:300ms]" />
                                     </span>
                                   </div>
                                 )}
@@ -2788,7 +2788,7 @@ export default function SansPsPage({
           <div className={`w-full max-w-md rounded-2xl border ${cardBg} p-8 shadow-2xl`}>
             <div className="text-center">
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-100 dark:bg-primary-900/30">
-                <ActivityIcon className="h-8 w-8 text-primary-600 dark:text-primary-400" />
+                <ActivityIcon className="h-8 w-8 text-[#006767] dark:text-[#26aeae]" />
               </div>
               <h3 className="mb-2 text-xl font-bold">Évaluation en cours</h3>
               <p className={`mb-6 text-sm ${mutedText}`}>
@@ -2798,14 +2798,14 @@ export default function SansPsPage({
 
             <div className={`h-3 overflow-hidden rounded-full ${darkMode ? "bg-slate-800" : "bg-slate-200"}`}>
               <div
-                className="h-full rounded-full bg-primary-500 transition-all duration-300"
+                className="h-full rounded-full bg-[#008282] transition-all duration-300"
                 style={{ width: `${evaluationProgress}%` }}
               />
             </div>
 
             <div className="mt-4 text-center">
               <div className={`mb-2 inline-flex items-center gap-2 text-xs font-medium ${mutedText}`}>
-                <span className="h-2 w-2 rounded-full bg-primary-500 animate-pulse" />
+                <span className="h-2 w-2 rounded-full bg-[#008282] animate-pulse" />
                 <span>{EVALUATION_PROGRESS_MESSAGES[evaluationMessageIndex]}</span>
               </div>
               <br />

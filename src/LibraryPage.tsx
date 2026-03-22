@@ -202,7 +202,7 @@ function DocumentPill({
       onClick={onClick}
       className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all ${
         active
-          ? "border-primary-500 bg-primary-600 text-white shadow-sm"
+          ? "border-[#008282] bg-[#006767] text-white shadow-sm"
           : darkMode
             ? "border-white/10 bg-slate-800/60 text-slate-300 hover:bg-slate-700/60"
             : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
@@ -350,7 +350,7 @@ function CaseDetailView({
       </button>
 
       {/* Case title header (like Hypocampus red title) */}
-      <h2 className={`mb-2 text-2xl font-bold ${darkMode ? "text-primary-400" : "text-primary-600"}`}>
+      <h2 className={`mb-2 text-2xl font-bold ${darkMode ? "text-[#26aeae]" : "text-[#006767]"}`}>
         {structured.caseId ? `${structured.caseId} : ` : ""}{caseItem.title.split("—").pop()?.trim() || caseItem.title}
       </h2>
 
@@ -638,7 +638,7 @@ export function LibraryPage({
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all"
+                  className="rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all" style={{ background: "#006767" }}
                 >
                   Bibliothèque
                 </button>
@@ -714,7 +714,7 @@ export function LibraryPage({
           <>
             {/* Title */}
             <div className="mb-8 flex items-center gap-3">
-              <BookOpenIcon className={`h-8 w-8 ${darkMode ? "text-primary-400" : "text-primary-600"}`} />
+              <BookOpenIcon className={`h-8 w-8 ${darkMode ? "text-[#26aeae]" : "text-[#006767]"}`} />
               <div>
                 <h1 className="text-2xl font-bold">Bibliothèque ECOS</h1>
                 <p className={`text-sm ${mutedText}`}>
