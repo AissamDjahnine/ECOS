@@ -20,11 +20,22 @@ interface StationDetailSansPSProps {
   darkMode: boolean;
 }
 
-export const StationDetailSansPS: React.FC<StationDetailSansPSProps> = ({ station }) => {
+export const StationDetailSansPS: React.FC<StationDetailSansPSProps> = ({ station, darkMode }) => {
   const [activeTab, setActiveTab] = useState<TabKey>('station');
   const [showMoreReading, setShowMoreReading] = useState(false);
 
   const metadata = station.metadata;
+
+  const tabClass = (tab: TabKey) =>
+    `flex items-center gap-2.5 px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest border transition-all ${
+      activeTab === tab
+        ? darkMode
+          ? 'bg-blue-900/40 border-blue-500/30 text-blue-300'
+          : 'bg-[#EFF6FF] border-[#3B82F6]/30 text-[#1E40AF]'
+        : darkMode
+        ? 'bg-slate-800 border-slate-600 text-slate-400'
+        : 'bg-[#F8FAFC] border-slate-200 text-[#64748B]'
+    }`;
 
   const stationIdString = useMemo(
     () => `SDD ${metadata.sddNumber} (${metadata.stationNumber})`,
@@ -100,44 +111,28 @@ export const StationDetailSansPS: React.FC<StationDetailSansPSProps> = ({ statio
         <div className="flex flex-wrap gap-2.5 mb-8">
           <button
             onClick={() => setActiveTab('station')}
-            className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest border transition-all ${
-              activeTab === 'station'
-                ? 'bg-[#EFF6FF] border-[#3B82F6]/30 text-[#1E40AF]'
-                : 'bg-[#F8FAFC] border-slate-200 text-[#64748B]'
-            }`}
+            className={tabClass('station')}
           >
             <BookOpen size={16} /> {stationIdString} : {metadata.sddTitle}
           </button>
 
           <button
             onClick={() => setActiveTab('student')}
-            className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest border transition-all ${
-              activeTab === 'student'
-                ? 'bg-[#EFF6FF] border-[#3B82F6]/30 text-[#1E40AF]'
-                : 'bg-[#F8FAFC] border-slate-200 text-[#64748B]'
-            }`}
+            className={tabClass('student')}
           >
             <FileText size={16} /> {stationIdString} : Pour l'étudiant
           </button>
 
           <button
             onClick={() => setActiveTab('examiner')}
-            className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest border transition-all ${
-              activeTab === 'examiner'
-                ? 'bg-[#EFF6FF] border-[#3B82F6]/30 text-[#1E40AF]'
-                : 'bg-[#F8FAFC] border-slate-200 text-[#64748B]'
-            }`}
+            className={tabClass('examiner')}
           >
             <User size={16} /> {stationIdString} : Pour l'examinateur
           </button>
 
           <button
             onClick={() => setActiveTab('correction')}
-            className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest border transition-all ${
-              activeTab === 'correction'
-                ? 'bg-[#EFF6FF] border-[#3B82F6]/30 text-[#1E40AF]'
-                : 'bg-[#F8FAFC] border-slate-200 text-[#64748B]'
-            }`}
+            className={tabClass('correction')}
           >
             <GraduationCap size={16} /> {stationIdString} : Correction détaillée
           </button>
