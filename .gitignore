@@ -33,3 +33,4 @@ ecos-professional-design.png
 
 # local dashboard persistence
 server/data/
+.worktrees/
