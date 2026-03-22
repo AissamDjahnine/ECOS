@@ -21,6 +21,21 @@ import {
 } from "./dashboard";
 import { getFeedbackInstruction } from "./evaluation";
 import { isSupportedVoiceName } from "../src/lib/voices";
+import path from "path";
+import { fileURLToPath } from "url";
+import {
+  listCases,
+  getCaseById,
+  insertCase,
+  updateCase,
+  deleteCase,
+  getSpecialties,
+  type CaseDifficulty,
+  type CaseMode,
+} from "./db";
+import { seedFromJsonDir } from "./seed-cases";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const port = Number(process.env.PORT ?? 3001);
@@ -653,6 +668,103 @@ app.post("/api/transcript-debug", async (request, response) => {
       estimatedCostUsd: 0,
     });
     response.status(500).send(message);
+  }
+});
+
+// ── Case Library CRUD ──────────────────────────────────────────────────
+
+app.get("/api/cases", (request, response) => {
+  const schema = z.object({
+    q: z.string().optional(),
+    specialty: z.string().optional(),
+    difficulty: z.enum(["facile", "moyen", "difficile"]).optional(),
+    mode: z.enum(["ps", "sans-ps", "both"]).optional(),
+    limit: z.coerce.number().int().positive().max(200).optional(),
+    offset: z.coerce.number().int().nonnegative().optional(),
+  });
+
+  const parsed = schema.safeParse(request.query);
+  if (!parsed.success) {
+    response.status(400).json(parsed.error.flatten());
+    return;
+  }
+
+  const cases = listCases(parsed.data);
+  response.json({ cases, specialties: getSpecialties() });
+});
+
+app.get("/api/cases/:id", (request, response) => {
+  const caseItem = getCaseById(request.params.id);
+  if (!caseItem) {
+    response.status(404).json({ error: "Case not found" });
+    return;
+  }
+
+  response.json(caseItem);
+});
+
+app.post("/api/cases", (request, response) => {
+  const schema = z.object({
+    title: z.string().min(1),
+    rawInput: z.string().min(1),
+    specialty: z.string().optional(),
+    difficulty: z.enum(["facile", "moyen", "difficile"]).optional(),
+    mode: z.enum(["ps", "sans-ps", "both"]).optional(),
+    tags: z.array(z.string()).optional(),
+  });
+
+  const parsed = schema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json(parsed.error.flatten());
+    return;
+  }
+
+  const created = insertCase(parsed.data);
+  response.status(201).json(created);
+});
+
+app.put("/api/cases/:id", (request, response) => {
+  const schema = z.object({
+    title: z.string().min(1).optional(),
+    rawInput: z.string().min(1).optional(),
+    specialty: z.string().optional(),
+    difficulty: z.enum(["facile", "moyen", "difficile"]).optional(),
+    mode: z.enum(["ps", "sans-ps", "both"]).optional(),
+    tags: z.array(z.string()).optional(),
+  });
+
+  const parsed = schema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json(parsed.error.flatten());
+    return;
+  }
+
+  const updated = updateCase(request.params.id, parsed.data);
+  if (!updated) {
+    response.status(404).json({ error: "Case not found" });
+    return;
+  }
+
+  response.json(updated);
+});
+
+app.delete("/api/cases/:id", (request, response) => {
+  const deleted = deleteCase(request.params.id);
+  if (!deleted) {
+    response.status(404).json({ error: "Case not found" });
+    return;
+  }
+
+  response.status(204).end();
+});
+
+app.post('/api/cases/import-json', (_req, res) => {
+  try {
+    const jsonDir = path.join(__dirname, '../generated-ecos-2026');
+    seedFromJsonDir(jsonDir);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
   }
 });
 
