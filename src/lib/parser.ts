@@ -176,8 +176,11 @@ export function parseCaseInput(rawInput: string): ParsedCase {
   const station = detectStationJSON(rawInput);
   if (station) {
     // helper: find a row value by label regex in a rows array
-    const findRow = (rows: Array<{ label: string; value: string | string[] }>, regex: RegExp): string =>
-      (rows.find(r => regex.test(r.label))?.value as string) ?? '';
+    const findRow = (rows: Array<{ label: string; value: string | string[] }>, regex: RegExp): string => {
+      const row = rows.find(r => regex.test(r.label));
+      if (!row) return '';
+      return Array.isArray(row.value) ? row.value.join('; ') : row.value;
+    };
 
     const frameRows =
       station.mode === 'avec-ps' ? station.psPage.patientFrameRows :
