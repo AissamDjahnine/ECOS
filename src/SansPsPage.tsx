@@ -624,6 +624,8 @@ type SansPsPageProps = {
   darkMode: boolean;
   onDarkModeChange: (value: boolean) => void;
   onShowToast?: (title: string, body?: string, tone?: "success" | "error" | "info") => void;
+  initialRawInput?: string;
+  initialGradingGrid?: string;
 };
 
 export default function SansPsPage({
@@ -635,9 +637,11 @@ export default function SansPsPage({
   darkMode,
   onDarkModeChange,
   onShowToast = () => {},
+  initialRawInput,
+  initialGradingGrid,
 }: SansPsPageProps) {
-  const [rawInput, setRawInput] = useState("");
-  const [gradingGrid, setGradingGrid] = useState("");
+  const [rawInput, setRawInput] = useState(initialRawInput ?? "");
+  const [gradingGrid, setGradingGrid] = useState(initialGradingGrid ?? "");
   const [parseError, setParseError] = useState("");
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [status, setStatus] = useState("Session sans PS prête");

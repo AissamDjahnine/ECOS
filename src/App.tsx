@@ -6,6 +6,7 @@ import { DashboardDrawer } from "./DashboardDrawer";
 import { SettingsDrawer } from "./SettingsDrawer";
 import { ToastViewport } from "./ToastViewport";
 import { loadSettings, persistSettings } from "./lib/settings";
+import { detectStationJSON, reconstructPageText, reconstructSansPsExaminerText, extractGradingGrid } from "./lib/stationJson";
 import type { AppSettings, AppToast, AppToastTone, RouteMode } from "./types";
 
 function resolveMode(pathname: string): RouteMode {
@@ -25,6 +26,8 @@ export default function App() {
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const darkMode = settings.darkMode;
   const [toast, setToast] = useState<AppToast | null>(null);
+  const [pendingRawInput, setPendingRawInput] = useState<string | null>(null);
+  const [pendingGradingGrid, setPendingGradingGrid] = useState<string | null>(null);
   const toastTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -108,7 +111,24 @@ export default function App() {
           darkMode={darkMode}
           onDarkModeChange={(v) => setSettings((s) => ({ ...s, darkMode: v }))}
           onNavigate={navigate}
-          onSelectCase={(_rawInput, targetMode) => navigate(targetMode)}
+          onSelectCase={(rawInput, targetMode) => {
+            const stationJSON = detectStationJSON(rawInput);
+            if (stationJSON) {
+              if (stationJSON.mode === 'sans-ps') {
+                // SANS PS: textarea = full "Pour l'examinateur" page content, grid = direct from JSON
+                setPendingRawInput(reconstructSansPsExaminerText(stationJSON));
+                setPendingGradingGrid(extractGradingGrid(stationJSON));
+              } else {
+                // PS / PSS: reconstruct page text using actual JSON field titles → parseCaseInput parses it
+                setPendingRawInput(reconstructPageText(stationJSON));
+                setPendingGradingGrid(null);
+              }
+            } else {
+              setPendingRawInput(rawInput);
+              setPendingGradingGrid(null);
+            }
+            navigate(targetMode);
+          }}
           onOpenDashboard={() => setIsDashboardOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           settings={settings}
@@ -124,6 +144,8 @@ export default function App() {
           darkMode={darkMode}
           onDarkModeChange={(v) => setSettings((s) => ({ ...s, darkMode: v }))}
           onShowToast={showToast}
+          initialRawInput={pendingRawInput ?? undefined}
+          initialGradingGrid={pendingGradingGrid ?? undefined}
         />
       ) : (
         <PsPage
@@ -135,6 +157,7 @@ export default function App() {
           darkMode={darkMode}
           onDarkModeChange={(v) => setSettings((s) => ({ ...s, darkMode: v }))}
           onShowToast={showToast}
+          initialRawInput={pendingRawInput ?? undefined}
         />
       )}
       <SettingsDrawer

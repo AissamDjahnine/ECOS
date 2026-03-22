@@ -665,6 +665,7 @@ type PsPageProps = {
   darkMode: boolean;
   onDarkModeChange: (value: boolean) => void;
   onShowToast?: (title: string, body?: string, tone?: "success" | "error" | "info") => void;
+  initialRawInput?: string;
 };
 
 export default function App({
@@ -676,10 +677,11 @@ export default function App({
   darkMode,
   onDarkModeChange,
   onShowToast = () => {},
+  initialRawInput,
 }: PsPageProps) {
-  const [rawInput, setRawInput] = useState("");
+  const [rawInput, setRawInput] = useState(initialRawInput ?? "");
   const [parsedCase, setParsedCase] = useState<ParsedCase>(() =>
-    parseCaseInput(""),
+    parseCaseInput(initialRawInput ?? ""),
   );
   const [parseError, setParseError] = useState("");
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);

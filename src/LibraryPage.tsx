@@ -284,7 +284,7 @@ function CaseDetailView({
               onClick={() => onUseCase(rawInput, 'ps')}
               className="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-700"
             >
-              {stationJSON.mode === 'avec-pss' ? 'Utiliser en PSS' : 'Utiliser en PS / PSS'}
+              {stationJSON.mode === 'avec-pss' ? 'Démarrer la session PSS' : 'Démarrer la session PS'}
             </button>
           )}
           {(caseItem.mode === 'sans-ps' || caseItem.mode === 'both') && (
@@ -297,7 +297,7 @@ function CaseDetailView({
                   : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
               }`}
             >
-              Utiliser sans PS
+              Démarrer la session Sans PS
             </button>
           )}
         </div>
@@ -454,7 +454,7 @@ function CaseDetailView({
             onClick={() => onUseCase(rawInput, "ps")}
             className="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-700"
           >
-            Utiliser en PS / PSS
+            Démarrer la session PS / PSS
           </button>
         )}
         {(caseItem.mode === "sans-ps" || caseItem.mode === "both") && (
@@ -467,7 +467,7 @@ function CaseDetailView({
                 : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
             }`}
           >
-            Utiliser sans PS
+            Démarrer la session Sans PS
           </button>
         )}
       </div>

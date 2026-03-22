@@ -107,3 +107,138 @@ export function extractGradingGrid(station: StationJSON): string {
 
   return elements.map(c => `${c.id}. ${c.label}`).join('\n');
 }
+
+/**
+ * Reconstructs the "Pour l'examinateur" page text for a SANS PS station,
+ * matching what StationDetailSansPS renders in the "examiner" tab.
+ */
+export function reconstructSansPsExaminerText(station: SansPSStationJSON): string {
+  const { metadata, script } = station;
+  const stationId = `SDD ${metadata.sddNumber} (${metadata.stationNumber})`;
+  const lines: string[] = [];
+
+  lines.push(`${stationId} : Pour l'examinateur`);
+  lines.push('');
+  lines.push('Grille de correction');
+  for (const el of script.extraElements) {
+    lines.push(`${el.id}\t${el.label}`);
+  }
+
+  if (script.genericCriteria.length > 0) {
+    lines.push('');
+    lines.push("Critères d'évaluation génériques");
+    for (const c of script.genericCriteria) {
+      lines.push(`    ${c}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Reconstructs the PS / PSS page text from a StationJSON using the actual field titles
+ * stored in the JSON (patientFrameTitle, actingTitle, etc.), matching the Hypocampus
+ * document format that parseCaseInput() knows how to parse.
+ *
+ * SANS PS is handled separately via reconstructSansPsExaminerText().
+ */
+export function reconstructPageText(station: PSStationJSON | PSSStationJSON): string {
+  if (station.mode === 'avec-ps') {
+    return reconstructPsPageText(station);
+  }
+  return reconstructPssPageText(station);
+}
+
+function reconstructPsPageText(station: PSStationJSON): string {
+  const { metadata, psPage } = station;
+  const stationId = `SDD ${metadata.sddNumber} (${metadata.stationNumber})`;
+  const lines: string[] = [];
+
+  // Header
+  lines.push(`${stationId} : ${psPage.patientScriptTitle}`);
+  lines.push('');
+
+  // Patient frame (trame du patient)
+  lines.push(psPage.patientFrameTitle);
+  for (const row of psPage.patientFrameRows) {
+    lines.push(`${row.label} : ${rowValueToString(row.value)}`);
+  }
+  lines.push('');
+
+  // Acting
+  lines.push(psPage.actingTitle);
+  for (const row of psPage.actingRows) {
+    lines.push(`${row.label} : ${rowValueToString(row.value)}`);
+  }
+  lines.push('');
+
+  // Protected info
+  if (psPage.protectedInfoRows.length > 0) {
+    lines.push(psPage.protectedInfoTitle);
+    let lastRubric = '';
+    for (const row of psPage.protectedInfoRows) {
+      const rubricPrefix = row.rubric && row.rubric !== lastRubric ? `${row.rubric} - ` : '';
+      if (row.rubric) lastRubric = row.rubric;
+      lines.push(`${rubricPrefix}${row.question} → ${row.answer}`);
+    }
+    lines.push('');
+  }
+
+  // Grading grid
+  lines.push(psPage.correctionGridTitle);
+  for (const el of psPage.extraElements) {
+    lines.push(`${el.id}. ${el.label}`);
+  }
+
+  // Generic criteria
+  if (psPage.genericCriteria.length > 0) {
+    lines.push('');
+    lines.push(psPage.genericCriteriaTitle);
+    for (const c of psPage.genericCriteria) {
+      lines.push(`    ${c}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+function reconstructPssPageText(station: PSSStationJSON): string {
+  const { metadata, pssPage } = station;
+  const stationId = `SDD ${metadata.sddNumber} (${metadata.stationNumber})`;
+  const lines: string[] = [];
+
+  // Header
+  lines.push(`${stationId} : ${pssPage.scriptTitle}`);
+  lines.push('');
+
+  // Patient frame
+  lines.push(pssPage.patientFrameTitle);
+  for (const row of pssPage.patientFrameRows) {
+    lines.push(`${row.label} : ${rowValueToString(row.value)}`);
+  }
+  lines.push('');
+
+  // Station flow
+  lines.push(pssPage.stationFlowTitle);
+  for (const row of pssPage.stationFlowRows) {
+    lines.push(`${row.label} : ${rowValueToString(row.value)}`);
+  }
+  lines.push('');
+
+  // Grading grid
+  lines.push(pssPage.correctionGridTitle);
+  for (const el of pssPage.extraElements) {
+    lines.push(`${el.id}. ${el.label}`);
+  }
+
+  // Generic criteria
+  if (pssPage.genericCriteria.length > 0) {
+    lines.push('');
+    lines.push(pssPage.genericCriteriaTitle);
+    for (const c of pssPage.genericCriteria) {
+      lines.push(`    ${c}`);
+    }
+  }
+
+  return lines.join('\n');
+}
