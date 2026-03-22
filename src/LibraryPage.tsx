@@ -600,6 +600,18 @@ export function LibraryPage({
       {/* Header */}
       <header className={`sticky top-0 z-30 border-b ${darkMode ? "border-white/10 bg-slate-950/80" : "border-[#bcc9c8] bg-white/85"}`} style={{ backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)" }}>
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+          {/* Left: Brand */}
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-sm">
+              <ActivityIcon className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className={`font-manrope text-base font-bold tracking-tight ${darkMode ? "text-white" : "text-[#181c20]"}`}>ECOS-AI</p>
+              <p className={`font-inter text-xs ${darkMode ? "text-slate-400" : "text-[#3d4949]"}`}>Simulateur d'examen clinique</p>
+            </div>
+          </div>
+
+          {/* Right: mode switcher + controls */}
           <div className="flex items-center gap-3">
             <div className={`flex items-center rounded-xl border p-1 ${darkMode ? "border-transparent bg-slate-800" : "border-slate-200 bg-white"}`}>
               <button

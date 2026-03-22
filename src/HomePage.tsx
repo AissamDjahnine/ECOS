@@ -120,10 +120,26 @@ export function HomePage({
         }}
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3 gap-4">
-          {/* Logo */}
-          <span className="font-manrope text-base font-bold tracking-tight shrink-0" style={{ color: headColor }}>
-            ECOS<span style={{ color: P }}>-AI</span>
-          </span>
+          {/* Brand block */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-xl shadow-sm"
+              style={{ background: `linear-gradient(135deg, ${PC} 0%, #004f4f 100%)` }}
+            >
+              {/* Waveform icon */}
+              <svg className="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-manrope text-base font-bold leading-tight tracking-tight" style={{ color: headColor }}>
+                ECOS-AI
+              </p>
+              <p className="font-inter text-xs leading-tight" style={{ color: darkMode ? "#94a3b8" : OSV }}>
+                Simulateur d'examen clinique
+              </p>
+            </div>
+          </div>
 
           {/* Nav */}
           <nav className="hidden md:flex items-center gap-1 flex-1 justify-center">
