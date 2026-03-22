@@ -2737,7 +2737,7 @@ export default function App({
                             : "bg-rose-50/80"
                           : darkMode
                             ? "bg-slate-800/30"
-                            : "bg-primary-100/50"
+                            : "bg-[#e0f4f4]/70"
                       }`}
                     />
                     {Array.from({ length: 36 }, (_, i) => {

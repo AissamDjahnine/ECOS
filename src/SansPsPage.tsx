@@ -2447,7 +2447,7 @@ export default function SansPsPage({
                             : "bg-rose-50/80"
                           : darkMode
                             ? "bg-slate-800/30"
-                            : "bg-primary-100/50"
+                            : "bg-[#e0f4f4]/70"
                       }`}
                     />
                     {Array.from({ length: 36 }, (_, i) => {
@@ -2787,7 +2787,7 @@ export default function SansPsPage({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm">
           <div className={`w-full max-w-md rounded-2xl border ${cardBg} p-8 shadow-2xl`}>
             <div className="text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-100 dark:bg-primary-900/30">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#b3e3e3] dark:bg-[#002424]/30">
                 <ActivityIcon className="h-8 w-8 text-[#006767] dark:text-[#26aeae]" />
               </div>
               <h3 className="mb-2 text-xl font-bold">Évaluation en cours</h3>
