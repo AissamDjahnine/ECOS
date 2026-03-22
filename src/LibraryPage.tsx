@@ -599,7 +599,7 @@ export function LibraryPage({
     <div className={`min-h-screen ${darkMode ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100" : "bg-[#f7f9fe] text-[#181c20]"}`}>
       {/* Header */}
       <header className={`sticky top-0 z-30 border-b ${darkMode ? "border-white/10 bg-slate-950/80" : "border-[#bcc9c8] bg-white/85"}`} style={{ backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)" }}>
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-3">
           {/* Left: Brand */}
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-sm">
@@ -685,7 +685,7 @@ export function LibraryPage({
       </header>
 
       {/* Main content */}
-      <main className="mx-auto max-w-6xl px-4 py-8">
+      <main className="mx-auto max-w-[1600px] px-4 py-8">
         {selectedCase ? (
           /* Detail view */
           isLoadingDetail || !selectedCaseStructured || !selectedCaseRawInput ? (
