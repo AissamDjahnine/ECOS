@@ -1,3 +1,4 @@
+import { type ReactNode } from "react";
 import type { RouteMode } from "./types";
 
 type SidebarProps = {
@@ -80,7 +81,7 @@ function UserIcon({ className }: { className?: string }) {
 }
 
 type NavItemProps = {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   onClick?: () => void;
   active?: boolean;
@@ -93,6 +94,7 @@ function NavItem({ icon, label, onClick, active, disabled, darkMode }: NavItemPr
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={disabled ? undefined : onClick}
       className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
         active
