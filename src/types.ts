@@ -101,3 +101,111 @@ export type AppToast = {
   body?: string;
   tone: AppToastTone;
 };
+
+// ── Structured station JSON (generated-ecos-2026 format) ─────────────
+
+export type StationMetadataRow = { label: string; value: string | string[] };
+
+export type StationCriterion = { id: number; label: string; rationale: string };
+
+export type StationKeyPoint = {
+  label: string;
+  text?: string;
+  subPoints?: Array<{ label: string; text: string }>;
+};
+
+type StationCorrectionPage = {
+  generalCommentTitle: string;
+  generalComment: string;
+  criteriaTitle: string;
+  criteria: StationCriterion[];
+  keyPointsTitle: string;
+  keyPoints: StationKeyPoint[];
+  exampleDialogueTitle: string;
+  exampleDialogue: string;
+};
+
+type StationMetadata = {
+  specialty: string;
+  sddNumber: string;
+  sddTitle: string;
+  stationNumber: number;
+  title: string;
+  level: string;
+  difficulty: string;
+  mainDomain: string;
+  knowledgeObjectives: string[];
+  stationMetadataRows: StationMetadataRow[];
+};
+
+type StationStudentPage = {
+  context: string;
+  tasksDo: string[];
+  tasksDont: string[];
+  explicitModeSentence: string;
+  extraClinicalElements?: Array<
+    | { type: 'image-placeholder'; title: string; content: string }
+    | { type: 'bullet-section'; title: string; items: string[] }
+    | { type: 'report'; title: string; content: string }
+    | { type: 'table'; title: string; headers: string[]; rows: string[][] }
+  >;
+};
+
+export type PSStationJSON = {
+  mode: 'avec-ps';
+  metadata: StationMetadata;
+  studentPage: StationStudentPage;
+  psPage: {
+    patientScriptTitle: string;
+    patientFrameTitle: string;
+    patientFrameRows: StationMetadataRow[];
+    actingTitle: string;
+    actingRows: StationMetadataRow[];
+    protectedInfoTitle: string;
+    protectedInfoHeaders: string[];
+    protectedInfoRows: Array<{ rubric: string; question: string; answer: string }>;
+    correctionGridTitle: string;
+    extraElements: Array<{ id: number; label: string }>;
+    genericCriteriaTitle: string;
+    genericCriteria: string[];
+  };
+  correctionPage: StationCorrectionPage;
+};
+
+export type PSSStationJSON = {
+  mode: 'avec-pss';
+  metadata: StationMetadata;
+  studentPage: StationStudentPage;
+  pssPage: {
+    scriptTitle: string;
+    patientFrameTitle: string;
+    patientFrameRows: StationMetadataRow[];
+    stationFlowTitle: string;
+    stationFlowRows: StationMetadataRow[];
+    correctionGridTitle: string;
+    extraElements: Array<{ id: number; label: string }>;
+    genericCriteriaTitle: string;
+    genericCriteria: string[];
+  };
+  correctionPage: StationCorrectionPage;
+};
+
+export type SansPSStationJSON = {
+  mode: 'sans-ps';
+  metadata: StationMetadata;
+  studentPage: StationStudentPage;
+  script: {
+    identity: { lastName: string; firstName: string; personalHistory: string; ageYears: number };
+    acting: string;
+    extraElements: Array<{ id: number; label: string }>;
+    genericCriteria: string[];
+  };
+  criteria: StationCriterion[];
+  teaching: {
+    generalComment: string;
+    keyPoints: StationKeyPoint[];
+    exampleDialogue: string;
+  };
+};
+
+export type StationJSON = PSStationJSON | PSSStationJSON | SansPSStationJSON;
