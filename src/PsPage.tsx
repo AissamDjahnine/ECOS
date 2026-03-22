@@ -2454,7 +2454,7 @@ export default function App({
                 <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
                   <button
                     type="button"
-                    onClick={() => setRawInput(psExampleText)}
+                    onClick={() => setStudentRawInput(psExampleText)}
                     disabled={isDiscussing || isPaused || isEvaluating || isConnecting}
                     title="Charger un exemple"
                     aria-label="Charger un exemple"
@@ -2501,8 +2501,8 @@ export default function App({
               </div>
 
               <textarea
-                value={rawInput}
-                onChange={(e) => setRawInput(e.target.value)}
+                value={studentRawInput}
+                onChange={(e) => setStudentRawInput(e.target.value)}
                 placeholder="Collez ici la trame du patient et la grille de correction..."
                 className={`w-full h-80 p-4 rounded-xl border resize-none text-sm leading-relaxed transition-all duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 ${inputBg}`}
               />
