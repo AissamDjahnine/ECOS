@@ -679,7 +679,11 @@ export default function App({
   onShowToast = () => {},
   initialRawInput,
 }: PsPageProps) {
-  const [rawInput, setRawInput] = useState(initialRawInput ?? "");
+  const [studentRawInput, setStudentRawInput] = useState(initialRawInput ?? "");
+  const [examinatorRawInput, setExaminatorRawInput] = useState("");
+  const [isStationModalOpen, setIsStationModalOpen] = useState(
+    () => Boolean(initialRawInput),
+  );
   const [parsedCase, setParsedCase] = useState<ParsedCase>(() =>
     parseCaseInput(initialRawInput ?? ""),
   );
@@ -802,16 +806,13 @@ export default function App({
       recordedAudioUrl !== null ||
       hasEndedDiscussion);
   const canClearText =
-    !isConnecting &&
-    !isEvaluating &&
     !isDiscussing &&
     !isPaused &&
-    (rawInput.trim().length > 0 ||
+    !isEvaluating &&
+    !isConnecting &&
+    (studentRawInput.trim().length > 0 ||
+      examinatorRawInput.trim().length > 0 ||
       parsedReady ||
-      parseError.length > 0 ||
-      transcript.length > 0 ||
-      evaluation !== null ||
-      recordedAudioUrl !== null ||
       hasEndedDiscussion);
 
   const timerDanger = remainingSeconds <= 60;
@@ -994,31 +995,20 @@ export default function App({
     }
   }
 
-  function handleParse() {
-    const parsed = parseCaseInput(rawInput);
-    setParsedCase(parsed);
-    setVoiceSelectionMode("auto");
-    setSelectedVoiceName(inferVoiceFromPatientSex(parsed.patientSex));
-    setIsVoiceDrawerOpen(false);
-    setEvaluation(null);
-    setShowEvaluationReport(false);
-    setShowReportAudioPlayer(false);
-    setLastEvaluatedFeedbackDetailLevel(null);
-    setHasEndedDiscussion(false);
-
+  function handleAnalyse(studentRaw: string, examinatorRaw: string) {
+    const combined = studentRaw.trim() + "\n" + examinatorRaw.trim();
+    const parsed = parseCaseInput(combined);
     if (!parsed.patientScript || !parsed.gradingGrid) {
       setParseError(
-        "Le parser n'a pas trouvé les deux sections clairement. Vérifie les intitulés ou les séparateurs.",
+        "Le texte ne contient pas de script patient ou de grille détectable. Vérifiez les sections.",
       );
-    } else {
-      setParseError("");
+      return;
     }
-
-    setStatus(
-      parsed.patientScript && parsed.gradingGrid
-        ? "Cas préparé"
-        : "Mode PS/PSS prêt",
-    );
+    setParseError("");
+    setStudentRawInput(studentRaw);
+    setExaminatorRawInput(examinatorRaw);
+    setParsedCase(parsed);
+    setIsStationModalOpen(false);
   }
 
   function toggleFavoriteVoice(voiceName: string) {
@@ -1786,7 +1776,8 @@ export default function App({
 
   async function handleClearText() {
     await resetSessionState();
-    setRawInput("");
+    setStudentRawInput("");
+    setExaminatorRawInput("");
     setParsedCase(parseCaseInput(""));
     setParseError("");
     setShowEvaluationReport(false);
@@ -2494,7 +2485,7 @@ export default function App({
                   </button>
                   <button
                     type="button"
-                    onClick={handleParse}
+                    onClick={() => handleAnalyse(studentRawInput, "")}
                     disabled={isDiscussing || isPaused || isEvaluating || isConnecting}
                     className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium shadow-sm transition-colors md:px-4 md:text-sm ${
                       isDiscussing || isPaused || isEvaluating || isConnecting
