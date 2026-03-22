@@ -12,17 +12,17 @@
 }
 
 :root {
-  /* Refined Clinical Color System */
-  --color-primary-50: #f0fdfa;
-  --color-primary-100: #ccfbf1;
-  --color-primary-200: #99f6e4;
-  --color-primary-300: #5eead4;
-  --color-primary-400: #2dd4bf;
-  --color-primary-500: #14b8a6;
-  --color-primary-600: #0d9488;
-  --color-primary-700: #0f766e;
-  --color-primary-800: #115e59;
-  --color-primary-900: #134e4a;
+  /* MD3 Clinical Color System */
+  --color-primary-50: #e0f4f4;
+  --color-primary-100: #b3e3e3;
+  --color-primary-200: #80d0d0;
+  --color-primary-300: #4dbdbd;
+  --color-primary-400: #26aeae;
+  --color-primary-500: #008282;
+  --color-primary-600: #006767;
+  --color-primary-700: #004f4f;
+  --color-primary-800: #003838;
+  --color-primary-900: #002424;
 
   --color-slate-50: #f8fafc;
   --color-slate-100: #f1f5f9;
@@ -51,9 +51,8 @@
   --color-emerald-500: #10b981;
   --color-emerald-600: #059669;
 
-  /* Background with subtle clinical gradient */
-  background:
-    linear-gradient(135deg, var(--color-slate-50) 0%, #f0f9ff 50%, var(--color-slate-50) 100%);
+  /* Background */
+  background: #f7f9fe;
   min-height: 100vh;
 }
 
@@ -69,8 +68,8 @@ body,
 
 body {
   margin: 0;
-  font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
-  color: var(--color-slate-800);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  color: #181c20;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.6;
@@ -82,11 +81,11 @@ body {
 
 /* Typography Scale */
 h1, h2, h3, h4, h5, h6 {
-  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-family: "Manrope", system-ui, sans-serif;
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: -0.02em;
-  color: var(--color-slate-900);
+  color: #181c20;
 }
 
 .dark body {
@@ -196,8 +195,8 @@ select:focus-visible {
 /* Utility Classes */
 .glass-panel {
   background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
@@ -241,20 +240,22 @@ select:focus-visible {
 
 /* Button Styles */
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-primary-600) 0%, var(--color-primary-700) 100%);
+  background: linear-gradient(135deg, #006767 0%, #008282 100%);
   color: white;
+  font-family: "Inter", system-ui, sans-serif;
   font-weight: 600;
   padding: 0.75rem 1.5rem;
-  border-radius: 0.625rem;
+  border-radius: 9999px;
   border: none;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 1px 3px rgba(13, 148, 136, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 103, 103, 0.3);
 }
 
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 103, 103, 0.4);
+  opacity: 0.92;
 }
 
 .btn-primary:active {
@@ -263,26 +264,28 @@ select:focus-visible {
 
 .btn-secondary {
   background: white;
-  color: var(--color-slate-700);
+  color: #181c20;
+  font-family: "Inter", system-ui, sans-serif;
   font-weight: 600;
   padding: 0.75rem 1.5rem;
-  border-radius: 0.625rem;
-  border: 1px solid var(--color-slate-200);
+  border-radius: 9999px;
+  border: 1px solid #bcc9c8;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .btn-secondary:hover {
-  background: var(--color-slate-50);
-  border-color: var(--color-slate-300);
+  background: #f7f9fe;
+  border-color: #3d4949;
 }
 
 .btn-danger {
   background: linear-gradient(135deg, var(--color-rose-500) 0%, var(--color-rose-600) 100%);
   color: white;
+  font-family: "Inter", system-ui, sans-serif;
   font-weight: 600;
   padding: 0.75rem 1.5rem;
-  border-radius: 0.625rem;
+  border-radius: 9999px;
   border: none;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -311,8 +314,8 @@ select:focus-visible {
 }
 
 .input-field:focus {
-  border-color: var(--color-primary-400);
-  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1);
+  border-color: var(--color-primary-600);
+  box-shadow: 0 0 0 3px rgba(0, 103, 103, 0.1);
 }
 
 /* Transcript Entry Styles */

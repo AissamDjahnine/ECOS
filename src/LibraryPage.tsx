@@ -596,9 +596,9 @@ export function LibraryPage({
   const mutedText = darkMode ? "text-slate-400" : "text-slate-500";
 
   return (
-    <div className={`min-h-screen ${darkMode ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100" : "bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900"}`}>
+    <div className={`min-h-screen ${darkMode ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100" : "bg-[#f7f9fe] text-[#181c20]"}`}>
       {/* Header */}
-      <header className={`sticky top-0 z-30 border-b backdrop-blur-xl ${darkMode ? "border-white/10 bg-slate-950/80" : "border-slate-200 bg-white/80"}`}>
+      <header className={`sticky top-0 z-30 border-b ${darkMode ? "border-white/10 bg-slate-950/80" : "border-[#bcc9c8] bg-white/85"}`} style={{ backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)" }}>
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
             <div className={`flex items-center rounded-xl border p-1 ${darkMode ? "border-transparent bg-slate-800" : "border-slate-200 bg-white"}`}>

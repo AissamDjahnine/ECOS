@@ -2125,11 +2125,11 @@ export default function App({
   const theme = darkMode ? "dark" : "light";
   const bgClass = darkMode
     ? "bg-[radial-gradient(circle_at_top,_rgba(45,212,191,0.06),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.04),_transparent_24%),linear-gradient(135deg,_#0f172a_0%,_#1e293b_100%)]"
-    : "bg-gradient-to-br from-slate-50 via-white to-slate-100";
-  const textClass = darkMode ? "text-slate-100" : "text-slate-900";
+    : "bg-[#f7f9fe]";
+  const textClass = darkMode ? "text-slate-100" : "text-[#181c20]";
   const cardBg = darkMode
     ? "bg-slate-800/80 border-slate-700/60 shadow-lg backdrop-blur-xl"
-    : "bg-white/90 border-slate-200/60";
+    : "bg-white border-[#bcc9c8]";
   const subCardBg = darkMode
     ? "bg-slate-900/70 border-slate-700/40"
     : "bg-slate-50/80 border-slate-200/50";
@@ -2181,7 +2181,7 @@ export default function App({
   return (
     <div className={`flex min-h-screen flex-col ${theme} ${bgClass} ${textClass} transition-colors duration-300`}>
       {/* Header */}
-      <header className="sticky top-0 z-40 backdrop-blur-xl border-b border-slate-200/20 dark:border-slate-700/20">
+      <header className="sticky top-0 z-40 border-b border-[#bcc9c8]/60 dark:border-slate-700/20" style={{ backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", background: darkMode ? "rgba(15,23,42,0.85)" : "rgba(255,255,255,0.85)" }}>
         <div className="max-w-[1600px] mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
