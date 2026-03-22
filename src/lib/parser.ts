@@ -1,4 +1,5 @@
 import type { ParsedCase } from "../types";
+import { detectStationJSON, extractPatientScript, extractGradingGrid } from "./stationJson";
 
 const SECTION_PATTERNS = [
   /(?:^|\n)\s*(?:trame du patient|patient|cas patient)\s*[:\-]?\s*/i,
@@ -154,6 +155,9 @@ function splitSections(rawInput: string) {
 }
 
 export function extractGradingGridOnly(rawInput: string) {
+  const station = detectStationJSON(rawInput);
+  if (station) return extractGradingGrid(station);
+
   const normalized = normalizeWhitespace(rawInput);
   const pattern =
     /(?:^|\n)\s*(?:grille de correction|grille d['’]evaluation|grille d['’]évaluation|correction|evaluation)\s*[:\-]?\s*/i;
@@ -169,6 +173,45 @@ export function extractGradingGridOnly(rawInput: string) {
 }
 
 export function parseCaseInput(rawInput: string): ParsedCase {
+  const station = detectStationJSON(rawInput);
+  if (station) {
+    // helper: find a row value by label regex in a rows array
+    const findRow = (rows: Array<{ label: string; value: string | string[] }>, regex: RegExp): string =>
+      (rows.find(r => regex.test(r.label))?.value as string) ?? '';
+
+    const frameRows =
+      station.mode === 'avec-ps' ? station.psPage.patientFrameRows :
+      station.mode === 'avec-pss' ? station.pssPage.patientFrameRows : [];
+
+    const lastName = station.mode === 'sans-ps'
+      ? station.script.identity.lastName
+      : findRow(frameRows, /^nom$/i);
+
+    const firstName = station.mode === 'sans-ps'
+      ? station.script.identity.firstName
+      : findRow(frameRows, /prénom/i);
+
+    const age = station.mode === 'sans-ps'
+      ? `${station.script.identity.ageYears} ans`
+      : findRow(frameRows, /âge/i);
+
+    const sex = station.mode === 'sans-ps'
+      ? undefined
+      : (findRow(frameRows, /sexe/i) || undefined);
+
+    return {
+      rawInput,
+      patientScript: extractPatientScript(station),
+      gradingGrid: extractGradingGrid(station),
+      patientName: `${firstName} ${lastName}`.trim() || station.metadata.sddTitle,
+      patientAge: age,
+      patientSummary: station.studentPage.context.slice(0, 200),
+      patientSex: sex,
+      patientFirstName: firstName || undefined,
+      patientLastName: lastName || undefined,
+    };
+  }
+
   const { patientScript, gradingGrid } = splitSections(rawInput);
   const {
     patientFirstName,
