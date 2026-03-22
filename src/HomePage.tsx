@@ -160,14 +160,6 @@ export function HomePage({
 
           {/* Right */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* Compliance badge */}
-            <div
-              className="hidden lg:inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-inter font-medium"
-              style={{ borderColor: `${P}40`, color: P, background: `${PF}25` }}
-            >
-              <MSIcon name="verified" size={14} style={{ color: P }} />
-              Conforme référentiel R2C &amp; EDN
-            </div>
             <button
               onClick={onOpenDashboard}
               className="rounded-full border px-4 py-1.5 text-sm font-manrope font-medium transition-colors"
@@ -715,9 +707,18 @@ export function HomePage({
             className="flex items-center justify-between border-t pt-6"
             style={{ borderColor: darkMode ? "rgba(255,255,255,0.06)" : OV }}
           >
-            <p className="font-inter text-xs" style={{ color: darkMode ? "#475569" : "#9ca3af" }}>
-              © 2026 ECOS-AI Clinical Simulation Systems. Préparation ECOS 2026.
-            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <p className="font-inter text-xs" style={{ color: darkMode ? "#475569" : "#9ca3af" }}>
+                © 2026 ECOS-AI Clinical Simulation Systems. Préparation ECOS 2026.
+              </p>
+              <div
+                className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-inter font-medium w-fit"
+                style={{ borderColor: `${P}40`, color: P, background: `${PF}20` }}
+              >
+                <MSIcon name="verified" size={12} style={{ color: P }} />
+                Conforme référentiel R2C &amp; EDN
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => onDarkModeChange(!darkMode)}
