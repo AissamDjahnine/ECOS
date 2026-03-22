@@ -598,88 +598,93 @@ export function LibraryPage({
   return (
     <div className={`min-h-screen ${darkMode ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100" : "bg-[#f7f9fe] text-[#181c20]"}`}>
       {/* Header */}
-      <header className={`sticky top-0 z-30 border-b ${darkMode ? "border-white/10 bg-slate-950/80" : "border-[#bcc9c8] bg-white/85"}`} style={{ backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)" }}>
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-3">
-          {/* Left: Brand */}
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-sm">
-              <ActivityIcon className="h-5 w-5 text-white" />
+      <header className="sticky top-0 z-40 border-b border-[#bcc9c8]/60 dark:border-slate-700/20" style={{ backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", background: darkMode ? "rgba(15,23,42,0.85)" : "rgba(255,255,255,0.85)" }}>
+        <div className="max-w-[1600px] mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            {/* Left: Brand — identical to PS/PSS */}
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/20">
+                <ActivityIcon className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold tracking-tight">ECOS-AI</h1>
+                <p className={`text-xs ${mutedText}`}>Simulateur d'examen clinique</p>
+              </div>
             </div>
-            <div>
-              <p className={`font-manrope text-base font-bold tracking-tight ${darkMode ? "text-white" : "text-[#181c20]"}`}>ECOS-AI</p>
-              <p className={`font-inter text-xs ${darkMode ? "text-slate-400" : "text-[#3d4949]"}`}>Simulateur d'examen clinique</p>
-            </div>
-          </div>
 
-          {/* Right: mode switcher + controls */}
-          <div className="flex items-center gap-3">
-            <div className={`flex items-center rounded-xl border p-1 ${darkMode ? "border-transparent bg-slate-800" : "border-slate-200 bg-white"}`}>
+            {/* Right: mode switcher + controls — identical to PS/PSS */}
+            <div className="flex items-center gap-3">
+              <div className={`flex items-center rounded-xl border p-1 ${
+                darkMode ? "border-transparent bg-slate-800" : "border-slate-200 bg-white"
+              }`}>
+                <button
+                  type="button"
+                  onClick={() => onNavigate("ps")}
+                  className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
+                    darkMode ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  PS / PSS
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onNavigate("sans-ps")}
+                  className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
+                    darkMode ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  Sans PS
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all"
+                >
+                  Bibliothèque
+                </button>
+              </div>
+
               <button
                 type="button"
-                onClick={() => onNavigate("ps")}
-                className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
-                  darkMode ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-slate-50"
+                onClick={onOpenDashboard}
+                className={`p-2.5 rounded-xl border transition-all duration-200 ${
+                  darkMode
+                    ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
+                    : "border-slate-200 bg-white hover:bg-slate-50"
                 }`}
+                aria-label="Ouvrir le tableau de bord"
               >
-                PS / PSS
+                <ActivityIcon className={`w-5 h-5 ${darkMode ? "text-slate-200" : "text-slate-600"}`} />
               </button>
+
               <button
-                type="button"
-                onClick={() => onNavigate("sans-ps")}
-                className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
-                  darkMode ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-slate-50"
+                onClick={() => onDarkModeChange(!darkMode)}
+                className={`p-2.5 rounded-xl border transition-all duration-200 ${
+                  darkMode
+                    ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
+                    : "border-slate-200 bg-white hover:bg-slate-50"
                 }`}
+                aria-label="Basculer le mode sombre"
               >
-                Sans PS
+                {darkMode ? (
+                  <SunIcon className="w-5 h-5 text-amber-400" />
+                ) : (
+                  <MoonIcon className="w-5 h-5 text-slate-600" />
+                )}
               </button>
+
               <button
                 type="button"
-                className="rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all"
+                onClick={onOpenSettings}
+                className={`p-2.5 rounded-xl border transition-all duration-200 ${
+                  darkMode
+                    ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
+                    : "border-slate-200 bg-white hover:bg-slate-50"
+                }`}
+                aria-label="Ouvrir les réglages"
               >
-                Bibliothèque
+                <SettingsIcon className={`w-5 h-5 ${darkMode ? "text-slate-200" : "text-slate-600"}`} />
               </button>
             </div>
-
-            <button
-              type="button"
-              onClick={onOpenDashboard}
-              className={`rounded-xl border p-2.5 transition-all duration-200 ${
-                darkMode
-                  ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
-                  : "border-slate-200 bg-white hover:bg-slate-50"
-              }`}
-              aria-label="Ouvrir le tableau de bord"
-            >
-              <ActivityIcon className={`h-5 w-5 ${darkMode ? "text-slate-200" : "text-slate-600"}`} />
-            </button>
-
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              className={`rounded-xl border p-2.5 transition-all duration-200 ${
-                darkMode
-                  ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
-                  : "border-slate-200 bg-white hover:bg-slate-50"
-              }`}
-              aria-label="Ouvrir les paramètres"
-            >
-              <SettingsIcon className={`h-5 w-5 ${darkMode ? "text-slate-200" : "text-slate-600"}`} />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onDarkModeChange(!darkMode)}
-              className={`rounded-xl border p-2.5 transition-all duration-200 ${
-                darkMode
-                  ? "border-transparent bg-slate-800/70 hover:bg-slate-700/80"
-                  : "border-slate-200 bg-white hover:bg-slate-50"
-              }`}
-              aria-label={darkMode ? "Mode clair" : "Mode sombre"}
-            >
-              {darkMode
-                ? <SunIcon className="h-5 w-5 text-slate-200" />
-                : <MoonIcon className="h-5 w-5 text-slate-600" />}
-            </button>
           </div>
         </div>
       </header>
