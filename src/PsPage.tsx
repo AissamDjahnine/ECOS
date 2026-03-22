@@ -2756,7 +2756,7 @@ export default function App({
                             height: barHeight,
                             transform: `translate(-50%, -100%) rotate(${angle}deg) translateY(-38px)`,
                             background: active
-                              ? "linear-gradient(to top, #0d9488, #14b8a6)"
+                              ? "linear-gradient(to top, #006767, #008282)"
                               : isMicMuted
                                 ? darkMode
                                   ? "rgba(244, 63, 94, 0.16)"
@@ -3319,9 +3319,9 @@ export default function App({
                                 className="absolute inset-0 rounded-lg"
                                 style={{
                                   background: `conic-gradient(from 0deg, ${
-                                    darkMode ? "#5eead4" : "#14b8a6"
+                                    darkMode ? "#80d0d0" : "#008282"
                                   } 0deg, ${
-                                    darkMode ? "#5eead4" : "#14b8a6"
+                                    darkMode ? "#80d0d0" : "#008282"
                                   } ${previewProgressDegrees}deg, transparent ${previewProgressDegrees}deg 360deg)`,
                                   mask: "radial-gradient(farthest-side, transparent calc(100% - 2px), black calc(100% - 2px))",
                                   WebkitMask: "radial-gradient(farthest-side, transparent calc(100% - 2px), black calc(100% - 2px))",

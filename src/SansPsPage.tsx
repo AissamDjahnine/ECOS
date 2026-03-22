@@ -2467,7 +2467,7 @@ export default function SansPsPage({
                             height: barHeight,
                             transform: `translate(-50%, -100%) rotate(${angle}deg) translateY(-38px)`,
                             background: active
-                              ? "linear-gradient(to top, #0d9488, #14b8a6)"
+                              ? "linear-gradient(to top, #006767, #008282)"
                               : isMicMuted
                                 ? darkMode
                                   ? "rgba(244, 63, 94, 0.16)"
