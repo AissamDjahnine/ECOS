@@ -31,7 +31,7 @@ export type EvaluationResult = {
   details: EvaluationCriterion[];
 };
 
-export type RouteMode = "ps" | "sans-ps" | "library";
+export type RouteMode = "ps" | "sans-ps" | "library" | "home";
 
 export type FeedbackDetailLevel = "brief" | "standard" | "detailed";
 

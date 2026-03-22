@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import PsPage from "./PsPage";
 import SansPsPage from "./SansPsPage";
 import { LibraryPage } from "./LibraryPage";
+import { HomePage } from "./HomePage";
 import { DashboardDrawer } from "./DashboardDrawer";
 import { SettingsDrawer } from "./SettingsDrawer";
 import { ToastViewport } from "./ToastViewport";
@@ -16,7 +17,10 @@ function resolveMode(pathname: string): RouteMode {
   if (pathname === "/bibliotheque") {
     return "library";
   }
-  return "ps";
+  if (pathname === "/ps") {
+    return "ps";
+  }
+  return "home";
 }
 
 export default function App() {
@@ -95,7 +99,9 @@ export default function App() {
         ? "/sans-ps"
         : nextMode === "library"
           ? "/bibliotheque"
-          : "/ps";
+          : nextMode === "home"
+            ? "/"
+            : "/ps";
     if (window.location.pathname !== nextPath) {
       window.history.pushState({}, "", nextPath);
     }
@@ -106,7 +112,17 @@ export default function App() {
 
   return (
     <>
-      {mode === "library" ? (
+      {mode === "home" ? (
+        <HomePage
+          darkMode={darkMode}
+          onDarkModeChange={(v) => setSettings((s) => ({ ...s, darkMode: v }))}
+          onNavigate={navigate}
+          onOpenDashboard={() => setIsDashboardOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          settings={settings}
+          onShowToast={showToast}
+        />
+      ) : mode === "library" ? (
         <LibraryPage
           darkMode={darkMode}
           onDarkModeChange={(v) => setSettings((s) => ({ ...s, darkMode: v }))}
